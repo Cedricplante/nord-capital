@@ -361,20 +361,26 @@ function showSaving() {
 }
 
 async function saveData() {
-  if (!currentUser) return;
+  if (!currentUser) { console.warn('saveData: pas de user'); return; }
   showSaving();
   const payload = {
+    user_id: currentUser.id,
     positions: JSON.stringify(positions),
     trades: JSON.stringify(trades),
     cash: cash,
     updated_at: new Date().toISOString()
   };
-  await db.from('user_data').upsert({ user_id: currentUser.id, ...payload }, { onConflict: 'user_id' });
+  console.log('saveData: envoi...', positions.length, 'positions');
+  const { error } = await db.from('user_data').upsert(payload, { onConflict: 'user_id' });
+  if (error) console.error('saveData ERREUR:', error.message);
+  else console.log('saveData OK');
 }
 
 async function loadData() {
-  if (!currentUser) return;
+  if (!currentUser) { console.warn('loadData: pas de user'); return; }
+  console.log('loadData: chargement...');
   const { data, error } = await db.from('user_data').select('*').eq('user_id', currentUser.id).maybeSingle();
+  console.log('loadData résultat:', data ? 'données trouvées' : 'aucune donnée', error ? error.message : '');
   if (data && !error) {
     try { positions = JSON.parse(data.positions) || []; } catch(e) { positions = []; }
     try { trades = JSON.parse(data.trades) || []; } catch(e) { trades = []; }
