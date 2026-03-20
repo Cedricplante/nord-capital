@@ -384,7 +384,7 @@ async function loadData() {
   if (data && !error) {
     try { positions = JSON.parse(data.positions) || []; } catch(e) { positions = []; }
     try { trades = JSON.parse(data.trades) || []; } catch(e) { trades = []; }
-    cash = data.cash || 5000;
+    cash = data.cash !== null && data.cash !== undefined ? data.cash : 5000;
   }
 }
 
