@@ -402,8 +402,9 @@ db.auth.onAuthStateChange(async (event, session) => {
     document.getElementById('nav-email').textContent = currentUser.email;
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('main-app').style.display = 'flex';
-    await loadData();
     initCharts();
+    renderAll();
+    await loadData();
     renderAll();
     fetchLivePrices();
     setInterval(fetchLivePrices, 900000);
