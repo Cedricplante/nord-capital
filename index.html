@@ -353,9 +353,7 @@ async function startApp(user) {
   initCharts();
   await loadData();
   renderAll();
-  fetchLivePrices();
   if(priceInterval) clearInterval(priceInterval);
-  priceInterval=setInterval(fetchLivePrices,900000);
 }
 
 db.auth.onAuthStateChange(async(event,session)=>{
