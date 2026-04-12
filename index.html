@@ -333,12 +333,18 @@ async function saveData() {
 }
 async function loadData() {
   if(!currentUser) return;
-  const {data,error}=await db.from('user_data').select('*').eq('user_id',currentUser.id).maybeSingle();
-  if(error){console.error('loadData:',error.message);return;}
-  if(data){
-    try{positions=JSON.parse(data.positions)||[];}catch(e){positions=[];}
-    try{trades=JSON.parse(data.trades)||[];}catch(e){trades=[];}
-    cash=(data.cash!==null&&data.cash!==undefined)?parseFloat(data.cash):0;
+  try {
+    const {data,error}=await db.from('user_data').select('*').eq('user_id',currentUser.id).maybeSingle();
+    if(error){console.error('loadData:',error.message);return;}
+    if(data){
+      try{positions=JSON.parse(data.positions)||[];}catch(e){positions=[];}
+      try{trades=JSON.parse(data.trades)||[];}catch(e){trades=[];}
+      cash=(data.cash!==null&&data.cash!==undefined)?parseFloat(data.cash):0;
+    }
+  } catch(e) {
+    console.warn('loadData retry...', e.message);
+    await new Promise(r=>setTimeout(r,1000));
+    await loadData();
   }
 }
 
