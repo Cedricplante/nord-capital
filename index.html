@@ -562,6 +562,24 @@ function initCharts(){
   assetPerfChart=new Chart(document.getElementById('assetPerfChart'),{type:'bar',data:{labels:['Forex','Indices ETF 3x','Crypto','Commodités'],datasets:[{data:[8.4,22.1,18.7,-3.2],backgroundColor:['#3b82f6','#34d399','#fbbf24','#f87171'],borderRadius:3,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>v+'%'},grid:{color:gc},border:{color:bc}}}}});
 }
 
+const SYMBOL_MAP = {'EUR/USD':'EURUSD=X','GBP/USD':'GBPUSD=X','USD/JPY':'USDJPY=X','USD/CAD':'USDCAD=X','AUD/USD':'AUDUSD=X','NZD/USD':'NZDUSD=X','USD/CHF':'USDCHF=X','EUR/GBP':'EURGBP=X','EUR/JPY':'EURJPY=X','GBP/JPY':'GBPJPY=X','XAU/USD':'XAU/USD','XAG/USD':'XAG/USD','WTI Oil':'WTI/USD','BTC/USD':'BTC/USD','ETH/USD':'ETH/USD','SOL/USD':'SOL/USD','TQQQ':'TQQQ','UPRO':'UPRO','SPXL':'SPXL','TNA':'TNA','QQQ':'QQQ','SPY':'SPY'};
+function getYahooTicker(symbol) { return SYMBOL_MAP[symbol] || symbol; }
+
+async function fetchLivePrices() {
+  if(!positions.length) return;
+  const symbolList = [...new Set(positions.map(p => getYahooTicker(p.symbol)))];
+  try {
+    const res = await fetch(`/api/prices?symbols=${encodeURIComponent(symbolList.join(','))}`);
+    const data = await res.json();
+    let updated = 0;
+    positions.forEach(p => {
+      const ticker = getYahooTicker(p.symbol);
+      if(data[ticker] && data[ticker] > 0) { p.current = data[ticker]; updated++; }
+    });
+    if(updated > 0) { saveData(); renderAll(); }
+  } catch(e) { console.warn('Prix live indisponibles:', e.message); }
+}
+  
 document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelClose();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')cancelClose();});
 </script>
