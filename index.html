@@ -360,8 +360,8 @@ async function saveData() {
     cash: cash,
     updated_at: new Date().toISOString()
   };
-  const res = await fetch(`${SB_URL}/rest/v1/user_data`, {
-    method: 'POST',
+  const res = await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`, {
+    method: 'PATCH',
     headers: { ...sbHeaders(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
     body: JSON.stringify(payload)
   });
