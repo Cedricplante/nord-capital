@@ -279,7 +279,7 @@
 
 <script>
 const { createClient } = supabase;
-const db = createClient(
+window.db = createClient(
   'https://spgcwvmehcixchtsfuaf.supabase.co',
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwZ2N3dm1laGNpeGNodHNmdWFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTUxODcsImV4cCI6MjA4OTU5MTE4N30.-lK4uPIrL0-fxVoLZtqzqjat2mznKrqp0CglSseb2Gs'
 );
