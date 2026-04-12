@@ -392,6 +392,8 @@ async function startApp() {
   initCharts();
   await loadData();
   renderAll();
+  fetchLivePrices();
+setInterval(fetchLivePrices, 900000);
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
