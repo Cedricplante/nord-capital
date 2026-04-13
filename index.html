@@ -36,10 +36,11 @@
   .kpi.kpi-hero { padding: 0.75rem 1.25rem; }
   .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--blue); opacity: 0.4; }
   .kpi-label { font-size: 9px; color: var(--text3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; font-family: var(--mono); }
-  .kpi-val { font-size: 17px; font-weight: 500; color: var(--text); font-family: var(--mono); }
-  .kpi-val-hero { font-size: 32px; font-weight: 500; color: var(--text); font-family: var(--mono); letter-spacing: -0.5px; }
-  .kpi-sub { font-size: 10px; margin-top: 2px; font-family: var(--mono); }
+  .kpi-val { font-size: 22px; font-weight: 600; color: var(--text); font-family: var(--mono); }
+  .kpi-val-hero { font-size: 40px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -0.5px; }
+  .kpi-sub { font-size: 11px; margin-top: 4px; font-family: var(--mono); }
   .pos { color: var(--green); } .neg { color: var(--red); } .neu { color: var(--text3); }
+  td.pos, td.neg { font-size: 13px; font-weight: 600; }
   .cash-bar { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px; padding: 0.5rem 0.875rem; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
   .cash-label { font-size: 10px; color: var(--text2); font-family: var(--mono); white-space: nowrap; }
   .cash-current { font-family: var(--mono); font-size: 11px; color: var(--text); font-weight: 500; margin-left: auto; }
@@ -48,14 +49,14 @@
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 0.75rem; }
   .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; }
   .card:last-child { margin-bottom: 0; }
-  .card-title { font-size: 9px; color: var(--text3); margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 1px; font-family: var(--mono); display:flex; align-items:center; justify-content:space-between; }
+  .card-title { font-size: 11px; color: var(--text2); margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 1px; font-family: var(--mono); font-weight: 600; display:flex; align-items:center; justify-content:space-between; }
   .period-btns { display: flex; gap: 4px; margin-bottom: 8px; }
   .period-btn { padding: 3px 9px; font-size: 10px; cursor: pointer; border-radius: 4px; border: 0.5px solid var(--border2); background: transparent; color: var(--text2); font-family: var(--mono); transition: all 0.15s; }
   .period-btn.active { background: var(--blue-dim); color: var(--blue); border-color: var(--blue-dim); }
   .period-btn:hover:not(.active) { color: var(--text); }
   table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  th { color: var(--text3); font-weight: 400; text-align: left; padding: 4px 8px; border-bottom: 0.5px solid var(--border); font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--mono); }
-  td { padding: 5px 8px; border-bottom: 0.5px solid rgba(26,45,74,0.5); color: var(--text2); font-family: var(--mono); font-size: 11px; }
+  th { color: var(--text3); font-weight: 600; text-align: left; padding: 6px 8px; border-bottom: 0.5px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--mono); }
+  td { padding: 6px 8px; border-bottom: 0.5px solid rgba(26,45,74,0.5); color: var(--text2); font-family: var(--mono); font-size: 12px; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: rgba(255,255,255,0.02); }
   td.sym { font-weight: 500; color: var(--text); }
@@ -165,6 +166,27 @@
       <button class="nav-tab" onclick="switchTab('allocation',this)">Allocation</button>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
+      <div style="display:flex;align-items:center;gap:5px;">
+        <span style="font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Devise</span>
+        <select id="currency-select" onchange="setCurrency(this.value)" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 6px;color:var(--text2);font-size:10px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
+          <option value="USD">USD</option>
+          <option value="CAD">CAD</option>
+          <option value="EUR">EUR</option>
+          <option value="CHF">CHF</option>
+          <option value="GBP">GBP</option>
+          <option value="JPY">JPY</option>
+          <option value="AUD">AUD</option>
+          <option value="NZD">NZD</option>
+          <option value="HKD">HKD</option>
+          <option value="SGD">SGD</option>
+          <option value="SEK">SEK</option>
+          <option value="NOK">NOK</option>
+          <option value="DKK">DKK</option>
+          <option value="MXN">MXN</option>
+          <option value="BRL">BRL</option>
+        </select>
+        <span id="fx-rate-display" style="font-family:var(--mono);font-size:9px;color:var(--text3);"></span>
+      </div>
       <div id="live-indicator" style="font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;align-items:center;">
         <span class="live-dot" id="live-dot" style="background:var(--text3);"></span>
         <span id="live-label">Hors ligne</span>
@@ -180,40 +202,27 @@
     <!-- DASHBOARD -->
     <div id="tab-dashboard" class="section active">
       <div class="kpi-grid">
-        <div class="kpi kpi-hero"><div class="kpi-label">Valeur totale</div><div class="kpi-val-hero" id="kpi-total">—</div><div class="kpi-sub neu" id="kpi-total-sub">positions + cash</div></div>
+        <div class="kpi kpi-hero"><div class="kpi-label">Valeur totale</div><div class="kpi-val-hero" id="kpi-total">—</div><div class="kpi-sub neu" id="kpi-total-sub">positions + cash</div>
+          <div class="kpi-sub" id="kpi-day-change" style="margin-top:3px;">— aujourd'hui</div></div>
         <div class="kpi"><div class="kpi-label">P&amp;L ouvert</div><div class="kpi-val" id="kpi-pnl-open">—</div><div class="kpi-sub" id="kpi-pnl-open-pct">—</div></div>
         <div class="kpi"><div class="kpi-label">P&amp;L réalisé</div><div class="kpi-val" id="kpi-pnl-real">—</div><div class="kpi-sub neu" id="kpi-trades-count">—</div></div>
-        <div class="kpi"><div class="kpi-label">Cash disponible</div><div class="kpi-val" id="kpi-cash">—</div><div class="kpi-sub neu">liquidités</div></div>
+        <div class="kpi" style="position:relative;">
+          <div class="kpi-label">Cash disponible</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="kpi-val" id="kpi-cash">—</div>
+            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;" onmouseover="this.style.color='var(--blue)'" onmouseout="this.style.color='var(--text3)'">✎</button>
+          </div>
+          <div class="kpi-sub neu">liquidités</div>
+          <div id="cash-popup" style="display:none;position:absolute;top:calc(100% + 8px);left:0;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:12px;z-index:50;width:200px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+            <div style="font-size:9px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;font-family:var(--mono);">Nouveau solde</div>
+            <input type="number" id="cash-input" placeholder="" style="margin-bottom:8px;" />
+            <div style="display:flex;gap:6px;">
+              <button class="btn" style="flex:1;padding:5px;" onclick="updateCash()">OK</button>
+              <button class="btn-ghost" style="padding:5px 10px;" onclick="closeCashPopup()">✕</button>
+            </div>
+          </div>
+        </div>
         <div class="kpi"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
-      </div>
-
-      <div class="currency-bar">
-        <div class="currency-label">Devise du compte :</div>
-        <select class="currency-select" id="currency-select" onchange="setCurrency(this.value)">
-          <option value="USD">🇺🇸 USD — Dollar américain</option>
-          <option value="CAD">🇨🇦 CAD — Dollar canadien</option>
-          <option value="EUR">🇪🇺 EUR — Euro</option>
-          <option value="CHF">🇨🇭 CHF — Franc suisse</option>
-          <option value="GBP">🇬🇧 GBP — Livre sterling</option>
-          <option value="JPY">🇯🇵 JPY — Yen japonais</option>
-          <option value="AUD">🇦🇺 AUD — Dollar australien</option>
-          <option value="NZD">🇳🇿 NZD — Dollar néo-zélandais</option>
-          <option value="HKD">🇭🇰 HKD — Dollar de Hong Kong</option>
-          <option value="SGD">🇸🇬 SGD — Dollar de Singapour</option>
-          <option value="SEK">🇸🇪 SEK — Couronne suédoise</option>
-          <option value="NOK">🇳🇴 NOK — Couronne norvégienne</option>
-          <option value="DKK">🇩🇰 DKK — Couronne danoise</option>
-          <option value="MXN">🇲🇽 MXN — Peso mexicain</option>
-          <option value="BRL">🇧🇷 BRL — Réal brésilien</option>
-        </select>
-        <div class="fx-rate" id="fx-rate-display">1 USD = 1.00 USD</div>
-      </div>
-
-      <div class="cash-bar">
-        <div class="cash-label">Ajuster le cash :</div>
-        <input type="number" id="cash-input" placeholder="Ex: 5000" style="width:120px;" />
-        <button class="btn" onclick="updateCash()">Mettre à jour</button>
-        <div class="cash-current"><span>Cash actuel : </span><span id="cash-display">$0</span></div>
       </div>
 
       <div class="grid-2-1">
@@ -252,37 +261,47 @@
     <div id="tab-positions" class="section">
       <div class="card">
         <div class="card-title">Ajouter / DCA une position</div>
-        <div class="form-grid" style="grid-template-columns:1.5fr 0.8fr 1fr 1fr 1fr 1fr auto;">
+        <div class="form-grid" style="grid-template-columns:1.5fr 0.8fr 0.8fr 1fr 1fr 1fr 1fr auto;">
           <div class="field">
             <label>Symbole</label>
             <div class="autocomplete-wrap">
-              <input type="text" id="f-symbol" placeholder="Chercher TQQQ, BTC..." autocomplete="off" oninput="onSymbolInput(this.value)" onkeydown="onSymbolKey(event)" />
+              <input type="text" id="f-symbol" placeholder="" autocomplete="off" oninput="onSymbolInput(this.value)" onkeydown="onSymbolKey(event)" />
               <div class="autocomplete-list" id="symbol-dropdown"></div>
             </div>
           </div>
           <div class="field"><label>Direction</label><select id="f-dir"><option>Long</option><option>Short</option></select></div>
           <div class="field"><label>Date</label><input type="date" id="f-date" /></div>
-          <div class="field"><label>Prix d'achat</label><input type="number" id="f-entry" step="any" placeholder="45.00" /></div>
-          <div class="field"><label>Prix actuel</label><input type="number" id="f-current" step="any" placeholder="52.00" /></div>
-          <div class="field"><label>Montant ($)</label><input type="number" id="f-size" placeholder="1000" /></div>
+          <div class="field"><label>Prix d'achat ($)</label><input type="number" id="f-entry" step="any" oninput="calcMontant()" /></div>
+          <div class="field"><label>Shares</label><input type="number" id="f-shares" step="any" oninput="calcMontant()" /></div>
+          <div class="field"><label>Prix actuel ($)</label><input type="number" id="f-current" step="any" /></div>
+          <div class="field"><label>Montant ($)</label><input type="number" id="f-size" step="any" readonly style="background:var(--bg3);color:var(--text3);cursor:not-allowed;" /></div>
           <div class="field"><label>&nbsp;</label><button class="btn" onclick="addPosition()">+ Ajouter</button></div>
         </div>
-        <div class="dca-hint">Si le symbole existe déjà, le prix moyen sera recalculé automatiquement (DCA).</div>
+        <div class="dca-hint">Si le symbole existe déjà, le prix moyen sera recalculé automatiquement (DCA). Le montant est calculé automatiquement : shares × prix d'achat.</div>
       </div>
       <div class="card">
         <div class="card-title">Positions actives — prix moyen pondéré</div>
-        <table><thead><tr><th>Symbole</th><th>Direction</th><th>Date</th><th>Prix moy.</th><th>Prix actuel</th><th>Taille totale</th><th>P&amp;L $</th><th>P&amp;L %</th><th>Action</th></tr></thead><tbody id="pos-body"></tbody></table>
+        <table><thead><tr><th>Symbole</th><th>Direction</th><th>Date</th><th>Shares</th><th>Prix moy.</th><th>Prix actuel</th><th>Valeur</th><th>P&amp;L $</th><th>P&amp;L %</th><th>Action</th></tr></thead><tbody id="pos-body"></tbody></table>
       </div>
     </div>
 
     <!-- HISTORIQUE -->
     <div id="tab-historique" class="section">
       <div class="toolbar">
-        <div class="toolbar-left" id="hist-summary-inline">—</div>
+        <div class="toolbar-left" id="hist-summary-inline" style="font-size:13px;font-weight:600;">—</div>
         <div style="display:flex;gap:8px;">
           <button class="btn-export" onclick="exportCSV()">⬇ Exporter CSV</button>
-          <button class="btn-export" style="color:var(--red);border-color:rgba(248,113,113,0.3);" onclick="clearHistory()">✕ Effacer l'historique</button>
+          <button class="btn-export" style="color:var(--red);border-color:rgba(248,113,113,0.3);" onclick="clearHistory()">✕ Effacer</button>
         </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:0.75rem;flex-wrap:wrap;">
+        <select id="filter-month" onchange="renderHistory()" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:5px;padding:5px 10px;color:var(--text2);font-size:11px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;min-width:130px;">
+          <option value="">Tous les mois</option>
+        </select>
+        <select id="filter-asset" onchange="renderHistory()" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:5px;padding:5px 10px;color:var(--text2);font-size:11px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;min-width:130px;">
+          <option value="">Tous les actifs</option>
+        </select>
+        <button class="btn-export" onclick="resetFilters()">✕ Réinitialiser</button>
       </div>
       <div class="card" style="margin-bottom:1rem;">
         <div class="card-title">P&amp;L par vente</div>
@@ -508,6 +527,7 @@ function buildPortfolioHistory() {
 // ─── CURRENCY ────────────────────────────────────────────────────
 async function setCurrency(cur) {
   accountCurrency = cur;
+  localStorage.setItem('nc_currency', cur);
   if (cur === 'USD') { fxRate = 1; updateFxDisplay(); renderAll(); return; }
   try {
     const res = await fetch(`/api/prices?symbols=USD/${cur}`);
@@ -521,8 +541,8 @@ function updateFxDisplay() {
   document.getElementById('fx-rate-display').textContent = `1 USD = ${fxRate.toFixed(4)} ${accountCurrency}`;
 }
 function conv(usdAmount) { return usdAmount * fxRate; }
-function fmtC(n) { return accountCurrency + ' ' + Math.round(conv(n)).toLocaleString('en-US'); }
-function fmtCpnl(n) { return (n>=0?'+':'-') + accountCurrency + ' ' + Math.abs(conv(n)).toFixed(2); }
+function fmtC(n) { return '$' + Math.round(conv(n)).toLocaleString('en-US') + ' ' + accountCurrency; }
+function fmtCpnl(n) { return (n>=0?'+':'-') + '$' + Math.abs(conv(n)).toFixed(2) + ' ' + accountCurrency; }
 
 // ─── LIVE PRICES ─────────────────────────────────────────────────
 function setLiveStatus(status) {
@@ -548,6 +568,15 @@ async function fetchLivePrices() {
 
 // ─── AUTOCOMPLETE ─────────────────────────────────────────────────
 let acIndex = -1;
+function calcMontant() {
+  const entry = parseFloat(document.getElementById('f-entry').value);
+  const shares = parseFloat(document.getElementById('f-shares').value);
+  if (!isNaN(entry) && !isNaN(shares) && entry > 0 && shares > 0) {
+    document.getElementById('f-size').value = (entry * shares).toFixed(2);
+  } else {
+    document.getElementById('f-size').value = '';
+  }
+}
 function onSymbolInput(val) {
   const list = document.getElementById('symbol-dropdown');
   if (!val || val.length < 1) { list.classList.remove('open'); return; }
@@ -597,7 +626,8 @@ async function startApp() {
   document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
   initCharts();
   await loadData();
-  renderAll();
+  const savedCur = localStorage.getItem('nc_currency');
+  if (savedCur) { accountCurrency = savedCur; document.getElementById('currency-select').value = savedCur; await setCurrency(savedCur); } else { renderAll(); }
   fetchLivePrices();
   setInterval(fetchLivePrices, 900000);
 }
@@ -639,6 +669,22 @@ function updateKPIs() {
   const pnlPct = totalSize>0 ? (totalPnlOpen/totalSize)*100 : 0;
   document.getElementById('kpi-total').textContent = fmtC(totalSize+cash);
   document.getElementById('kpi-total-sub').textContent = `positions + cash · ${accountCurrency}`;
+  // Variation du jour
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayHistory = portfolioHistory.filter(h => h.date === todayStr);
+  const yesterdayHistory = portfolioHistory.filter(h => h.date < todayStr);
+  if (todayHistory.length && yesterdayHistory.length) {
+    const todayVal = todayHistory[todayHistory.length-1].value;
+    const yesterdayVal = yesterdayHistory[yesterdayHistory.length-1].value;
+    const dayDiff = todayVal - yesterdayVal;
+    const dayPct = yesterdayVal > 0 ? (dayDiff/yesterdayVal)*100 : 0;
+    const el = document.getElementById('kpi-day-change');
+    el.textContent = (dayDiff>=0?'+':'')+fmtCpnl(dayDiff)+' ('+fmtPct(dayPct)+') auj.';
+    el.className = 'kpi-sub ' + (dayDiff>=0?'pos':'neg');
+  } else {
+    document.getElementById('kpi-day-change').textContent = '— aujourd\'hui';
+    document.getElementById('kpi-day-change').className = 'kpi-sub neu';
+  }
   const oe=document.getElementById('kpi-pnl-open'); oe.textContent=fmtCpnl(totalPnlOpen); oe.className='kpi-val '+(totalPnlOpen>=0?'pos':'neg');
   const op=document.getElementById('kpi-pnl-open-pct'); op.textContent=fmtPct(pnlPct); op.className='kpi-sub '+(totalPnlOpen>=0?'pos':'neg');
   const re=document.getElementById('kpi-pnl-real'); re.textContent=fmtCpnl(totalPnlReal); re.className='kpi-val '+(totalPnlReal>=0?'pos':'neg');
@@ -654,12 +700,14 @@ function posRow(p, showAction, idx) {
   const isDca=p.entries&&p.entries.length>1;
   const firstDate = p.entries&&p.entries[0] ? p.entries[0].date : '—';
   const ac = showAction ? `<td><button class="btn-danger" onclick="openCloseModal(${idx})">Fermer</button></td>` : '';
+  const sharesStr = p.shares ? p.shares.toLocaleString('en-US', {maximumFractionDigits:4}) : '—';
   return `<tr>
     <td class="sym">${p.symbol}${isDca?'<span class="badge-dca">DCA×'+p.entries.length+'</span>':''}</td>
     <td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td>
     ${showAction ? `<td style="color:var(--text3);">${firstDate}</td>` : ''}
+    ${showAction ? `<td style="color:var(--text2);">${sharesStr}</td>` : ''}
     <td>${fmtPrice(p.avgEntry)}</td><td>${fmtPrice(p.current)}</td>
-    <td>${fmtC(p.totalSize)}</td>
+    ${showAction ? `<td>${fmtC(p.totalSize)}</td>` : `<td>${fmtC(p.totalSize)}</td>`}
     <td class="${cls}">${fmtCpnl(pnl)}</td><td class="${cls}">${fmtPct(pct)}</td>
     ${ac}</tr>`;
 }
@@ -691,9 +739,34 @@ function confirmClose() {
   saveData(); renderAll();
 }
 
+function populateHistFilters() {
+  const months = [...new Set(trades.map(t=>t.date.slice(0,7)))].sort().reverse();
+  const assets = [...new Set(trades.map(t=>t.symbol))].sort();
+  const mSel = document.getElementById('filter-month');
+  const aSel = document.getElementById('filter-asset');
+  if (!mSel || !aSel) return;
+  const curMonth = mSel.value, curAsset = aSel.value;
+  mSel.innerHTML = '<option value="">Tous les mois</option>' + months.map(m=>`<option value="${m}">${m}</option>`).join('');
+  aSel.innerHTML = '<option value="">Tous les actifs</option>' + assets.map(a=>`<option value="${a}">${a}</option>`).join('');
+  if (curMonth) mSel.value = curMonth;
+  if (curAsset) aSel.value = curAsset;
+}
+function resetFilters() {
+  const mSel=document.getElementById('filter-month'), aSel=document.getElementById('filter-asset');
+  if(mSel) mSel.value=''; if(aSel) aSel.value='';
+  renderHistory();
+}
 function renderHistory() {
+  populateHistFilters();
+  const filterMonth = document.getElementById('filter-month')?.value || '';
+  const filterAsset = document.getElementById('filter-asset')?.value || '';
   const tbody=document.getElementById('hist-body'); let wins=0,losses=0,totalPnl=0;
-  tbody.innerHTML=trades.map(t=>{
+  const filteredTrades = trades.filter(t => {
+    if (filterMonth && !t.date.startsWith(filterMonth)) return false;
+    if (filterAsset && t.symbol !== filterAsset) return false;
+    return true;
+  });
+  tbody.innerHTML=filteredTrades.map(t=>{
     if(t.type==='Vente'){
       const profit=t.profit||0; totalPnl+=profit; profit>0?wins++:losses++;
       const cls=profit>=0?'pos':'neg', roi=t.size>0?(profit/t.size)*100:0, isDca=t.dcaCount&&t.dcaCount>1;
@@ -721,29 +794,40 @@ function addPosition() {
   const d=document.getElementById('f-dir').value;
   const dateVal=document.getElementById('f-date').value || new Date().toISOString().split('T')[0];
   const e=parseFloat(document.getElementById('f-entry').value);
-  const c=parseFloat(document.getElementById('f-current').value);
+  const shares=parseFloat(document.getElementById('f-shares').value);
+  const cur=parseFloat(document.getElementById('f-current').value);
   const sz=parseFloat(document.getElementById('f-size').value);
-  if(!s||isNaN(e)||isNaN(c)||isNaN(sz)){alert('Remplis tous les champs.');return;}
-  trades.unshift({date:dateVal,symbol:s,dir:d,type:'Achat',price:e,size:sz});
+  if(!s||isNaN(e)||isNaN(shares)||isNaN(cur)||isNaN(sz)){alert('Remplis tous les champs (symbole, prix, shares, prix actuel).');return;}
+  trades.unshift({date:dateVal,symbol:s,dir:d,type:'Achat',price:e,shares,size:sz});
   const existing=positions.find(p=>p.symbol===s&&p.dir===d);
   if(existing){
     const newTotal=existing.totalSize+sz;
     existing.avgEntry=(existing.avgEntry*existing.totalSize+e*sz)/newTotal;
-    existing.totalSize=newTotal; existing.current=c;
-    existing.entries=existing.entries||[]; existing.entries.push({price:e,size:sz,date:dateVal});
+    existing.totalSize=newTotal; existing.current=cur;
+    existing.shares=(existing.shares||0)+shares;
+    existing.entries=existing.entries||[]; existing.entries.push({price:e,shares,size:sz,date:dateVal});
   } else {
-    positions.push({symbol:s,dir:d,avgEntry:e,current:c,totalSize:sz,entries:[{price:e,size:sz,date:dateVal}]});
+    positions.push({symbol:s,dir:d,avgEntry:e,current:cur,totalSize:sz,shares,entries:[{price:e,shares,size:sz,date:dateVal}]});
   }
-  ['f-symbol','f-entry','f-current','f-size'].forEach(id=>document.getElementById(id).value='');
+  ['f-symbol','f-entry','f-shares','f-current','f-size'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('symbol-dropdown').classList.remove('open');
   buildPortfolioHistory();
   saveData(); renderAll();
 }
 
+function toggleCashPopup(e) {
+  e.stopPropagation();
+  const p = document.getElementById('cash-popup');
+  p.style.display = p.style.display === 'block' ? 'none' : 'block';
+  if (p.style.display === 'block') setTimeout(() => document.getElementById('cash-input').focus(), 50);
+}
+function closeCashPopup() { document.getElementById('cash-popup').style.display = 'none'; }
+document.addEventListener('click', e => { if (!e.target.closest('.kpi')) closeCashPopup(); });
+
 function updateCash() {
   const v=parseFloat(document.getElementById('cash-input').value);
-  if(!isNaN(v)){cash=v;document.getElementById('cash-input').value='';buildPortfolioHistory();saveData();updateKPIs();}
+  if(!isNaN(v)){cash=v;document.getElementById('cash-input').value='';closeCashPopup();buildPortfolioHistory();saveData();updateKPIs();}
 }
 
 function switchTab(name,el) {
