@@ -32,20 +32,20 @@
   .body { padding: 0.75rem 1.25rem; flex: 1; }
   .section { display: none; } .section.active { display: block; }
   .kpi-grid { display: grid; grid-template-columns: 1.8fr 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 0.75rem; }
-  .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px; padding: 0.6rem 0.875rem; position: relative; overflow: hidden; }
+  .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px; padding: 0.6rem 0.875rem; position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 88px; }
   .kpi.kpi-hero { padding: 0.75rem 1.25rem; }
   .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--blue); opacity: 0.4; }
   .kpi-label { font-size: 9px; color: var(--text3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; font-family: var(--mono); }
-  .kpi-val { font-size: 22px; font-weight: 600; color: var(--text); font-family: var(--mono); }
+  .kpi-val { font-size: 22px; font-weight: 600; color: var(--text); font-family: var(--mono); text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
   .kpi-val-hero { font-size: 40px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -0.5px; }
-  .kpi-sub { font-size: 11px; margin-top: 4px; font-family: var(--mono); }
+  .kpi-sub { font-size: 10px; font-family: var(--mono); align-self: flex-start; }
   .pos { color: var(--green); } .neg { color: var(--red); } .neu { color: var(--text3); }
   td.pos, td.neg { font-size: 13px; font-weight: 600; }
   .cash-bar { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px; padding: 0.5rem 0.875rem; display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
   .cash-label { font-size: 10px; color: var(--text2); font-family: var(--mono); white-space: nowrap; }
   .cash-current { font-family: var(--mono); font-size: 11px; color: var(--text); font-weight: 500; margin-left: auto; }
   .cash-current span { color: var(--text2); font-size: 10px; font-weight: 400; }
-  .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 0.75rem; }
+  .grid-2-1 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 0.75rem; }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 0.75rem; }
   .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; }
   .card:last-child { margin-bottom: 0; }
@@ -166,26 +166,28 @@
       <button class="nav-tab" onclick="switchTab('allocation',this)">Allocation</button>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
-      <div style="display:flex;align-items:center;gap:5px;">
-        <span style="font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Devise</span>
-        <select id="currency-select" onchange="setCurrency(this.value)" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 6px;color:var(--text2);font-size:10px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
-          <option value="USD">USD</option>
-          <option value="CAD">CAD</option>
-          <option value="EUR">EUR</option>
-          <option value="CHF">CHF</option>
-          <option value="GBP">GBP</option>
-          <option value="JPY">JPY</option>
-          <option value="AUD">AUD</option>
-          <option value="NZD">NZD</option>
-          <option value="HKD">HKD</option>
-          <option value="SGD">SGD</option>
-          <option value="SEK">SEK</option>
-          <option value="NOK">NOK</option>
-          <option value="DKK">DKK</option>
-          <option value="MXN">MXN</option>
-          <option value="BRL">BRL</option>
-        </select>
-        <span id="fx-rate-display" style="font-family:var(--mono);font-size:9px;color:var(--text3);"></span>
+      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span style="font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Devise</span>
+          <select id="currency-select" onchange="setCurrency(this.value)" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 6px;color:var(--text2);font-size:10px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
+            <option value="USD">USD</option>
+            <option value="CAD">CAD</option>
+            <option value="EUR">EUR</option>
+            <option value="CHF">CHF</option>
+            <option value="GBP">GBP</option>
+            <option value="JPY">JPY</option>
+            <option value="AUD">AUD</option>
+            <option value="NZD">NZD</option>
+            <option value="HKD">HKD</option>
+            <option value="SGD">SGD</option>
+            <option value="SEK">SEK</option>
+            <option value="NOK">NOK</option>
+            <option value="DKK">DKK</option>
+            <option value="MXN">MXN</option>
+            <option value="BRL">BRL</option>
+          </select>
+        </div>
+        <span id="fx-rate-display" style="font-family:var(--mono);font-size:9px;color:var(--text3);padding-left:2px;"></span>
       </div>
       <div id="live-indicator" style="font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;align-items:center;">
         <span class="live-dot" id="live-dot" style="background:var(--text3);"></span>
@@ -236,18 +238,17 @@
               <button class="period-btn" onclick="setPeriod('ALL',this)">ALL</button>
             </div>
           </div>
-          <div class="chart-wrap" style="height:160px;margin-top:8px;"><canvas id="perfChart"></canvas></div>
+          <div class="chart-wrap" style="height:140px;margin-top:8px;"><canvas id="perfChart"></canvas></div>
         </div>
         <div class="card">
-          <div class="card-title">
-            <span>Répartition actifs</span>
-            <div style="display:flex;gap:4px;">
-              <button class="btn-toggle active" id="toggle-sym" onclick="setAllocView('symbol',this)">Symbole</button>
-              <button class="btn-toggle" id="toggle-cat" onclick="setAllocView('category',this)">Catégorie</button>
-            </div>
-          </div>
-          <div class="chart-wrap" style="height:120px;"><canvas id="allocChart"></canvas></div>
-          <div class="donut-leg" id="alloc-legend"></div>
+          <div class="card-title">Par symbole</div>
+          <div class="chart-wrap" style="height:100px;"><canvas id="allocChart"></canvas></div>
+          <div class="donut-leg" id="alloc-legend" style="max-height:80px;"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Par catégorie</div>
+          <div class="chart-wrap" style="height:100px;"><canvas id="allocCatDashChart"></canvas></div>
+          <div class="donut-leg" id="alloc-cat-dash-legend" style="max-height:80px;"></div>
         </div>
       </div>
 
@@ -261,7 +262,7 @@
     <div id="tab-positions" class="section">
       <div class="card">
         <div class="card-title">Ajouter / DCA une position</div>
-        <div class="form-grid" style="grid-template-columns:1.5fr 0.8fr 0.8fr 1fr 1fr 1fr 1fr auto;">
+        <div class="form-grid" style="grid-template-columns:1.5fr 0.8fr 0.8fr 1fr 1fr 1fr 1fr 0.7fr auto;">
           <div class="field">
             <label>Symbole</label>
             <div class="autocomplete-wrap">
@@ -274,7 +275,20 @@
           <div class="field"><label>Prix d'achat ($)</label><input type="number" id="f-entry" step="any" oninput="calcMontant()" /></div>
           <div class="field"><label>Shares</label><input type="number" id="f-shares" step="any" oninput="calcMontant()" /></div>
           <div class="field"><label>Prix actuel ($)</label><input type="number" id="f-current" step="any" /></div>
-          <div class="field"><label>Montant ($)</label><input type="number" id="f-size" step="any" readonly style="background:var(--bg3);color:var(--text3);cursor:not-allowed;" /></div>
+          <div class="field"><label>Montant</label><input type="number" id="f-size" step="any" readonly style="background:var(--bg3);color:var(--text3);cursor:not-allowed;" /></div>
+          <div class="field">
+            <label>Devise</label>
+            <select id="f-currency">
+              <option value="USD">USD</option>
+              <option value="CAD">CAD</option>
+              <option value="EUR">EUR</option>
+              <option value="CHF">CHF</option>
+              <option value="GBP">GBP</option>
+              <option value="JPY">JPY</option>
+              <option value="AUD">AUD</option>
+              <option value="NZD">NZD</option>
+            </select>
+          </div>
           <div class="field"><label>&nbsp;</label><button class="btn" onclick="addPosition()">+ Ajouter</button></div>
         </div>
         <div class="dca-hint">Si le symbole existe déjà, le prix moyen sera recalculé automatiquement (DCA). Le montant est calculé automatiquement : shares × prix d'achat.</div>
@@ -344,7 +358,25 @@
   <div class="modal">
     <div class="modal-title">Fermer la position — <span id="modal-symbol"></span></div>
     <div class="modal-info" id="modal-info"></div>
-    <div class="field"><label>Prix de sortie</label><input type="number" id="modal-exit" step="any" placeholder="Ex: 55.00" /></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div class="field">
+        <label>Shares à vendre</label>
+        <div style="display:flex;gap:6px;margin-bottom:6px;">
+          <button class="btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="setPartial(0.25)">25%</button>
+          <button class="btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="setPartial(0.50)">50%</button>
+          <button class="btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="setPartial(0.75)">75%</button>
+          <button class="btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="setPartial(1.00)">100%</button>
+        </div>
+        <input type="number" id="modal-shares" step="any" placeholder="Shares" oninput="updatePartialSize()" />
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--mono);" id="modal-shares-hint"></div>
+      </div>
+      <div class="field">
+        <label>Prix de sortie</label>
+        <input type="number" id="modal-exit" step="any" />
+        <div style="font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--mono);">Prix actuel suggéré</div>
+      </div>
+    </div>
+    <div style="background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:10px;font-family:var(--mono);font-size:11px;color:var(--text2);" id="modal-preview">—</div>
     <div class="modal-btns">
       <button class="btn" style="flex:1;" onclick="confirmClose()">Confirmer &amp; libérer le cash</button>
       <button class="btn-ghost" onclick="cancelClose()">Annuler</button>
@@ -415,7 +447,7 @@ function getTicker(symbol) { return TICKER_MAP[symbol] || symbol; }
 // ─── STATE ───────────────────────────────────────────────────────
 let currentUser = null, accessToken = null;
 let cash = 0, closeTarget = null, positions = [], trades = [];
-let perfChart, allocChart, allocSymChart, allocCatChart, assetPerfChart, pnlBarChart;
+let perfChart, allocChart, allocSymChart, allocCatChart, allocCatDashChart, assetPerfChart, pnlBarChart;
 let chartsInitialized = false;
 let accountCurrency = 'USD', fxRate = 1;
 let allocView = 'symbol';
@@ -541,7 +573,15 @@ function updateFxDisplay() {
   document.getElementById('fx-rate-display').textContent = `1 USD = ${fxRate.toFixed(4)} ${accountCurrency}`;
 }
 function conv(usdAmount) { return usdAmount * fxRate; }
-function fmtC(n) { return '$' + Math.round(conv(n)).toLocaleString('en-US') + ' ' + accountCurrency; }
+function fmtC(n, posCur) {
+  // Si la position a une devise native, convertir via USD
+  if (posCur && posCur !== 'USD' && posCur !== accountCurrency) {
+    // posCur -> USD -> accountCurrency (approximation via fxRate)
+    // Pour l'instant on convertit directement avec le taux du compte
+    return '$' + Math.round(conv(n)).toLocaleString('en-US') + ' ' + accountCurrency;
+  }
+  return '$' + Math.round(conv(n)).toLocaleString('en-US') + ' ' + accountCurrency;
+}
 function fmtCpnl(n) { return (n>=0?'+':'-') + '$' + Math.abs(conv(n)).toFixed(2) + ' ' + accountCurrency; }
 
 // ─── LIVE PRICES ─────────────────────────────────────────────────
@@ -627,7 +667,7 @@ async function startApp() {
   initCharts();
   await loadData();
   const savedCur = localStorage.getItem('nc_currency');
-  if (savedCur) { accountCurrency = savedCur; const sel = document.getElementById('currency-select'); if(sel) sel.value = savedCur; await setCurrency(savedCur); } else { renderAll(); }
+  if (savedCur) { accountCurrency = savedCur; document.getElementById('currency-select').value = savedCur; await setCurrency(savedCur); } else { renderAll(); }
   fetchLivePrices();
   setInterval(fetchLivePrices, 900000);
 }
@@ -692,6 +732,7 @@ function updateKPIs() {
   document.getElementById('kpi-cash').textContent=fmtC(cash);
   const we=document.getElementById('kpi-winrate'); we.textContent=winRate+'%'; we.className='kpi-val '+(winRate>=50?'pos':'neg');
   document.getElementById('kpi-winrate-sub').textContent=wins+'W · '+losses+'L';
+  document.getElementById('cash-display').textContent=fmtC(cash);
 }
 
 function posRow(p, showAction, idx) {
@@ -700,8 +741,9 @@ function posRow(p, showAction, idx) {
   const firstDate = p.entries&&p.entries[0] ? p.entries[0].date : '—';
   const ac = showAction ? `<td><button class="btn-danger" onclick="openCloseModal(${idx})">Fermer</button></td>` : '';
   const sharesStr = p.shares ? p.shares.toLocaleString('en-US', {maximumFractionDigits:4}) : '—';
+  const curBadge = p.currency && p.currency !== 'USD' ? `<span style="font-size:9px;color:var(--amber);font-family:var(--mono);margin-left:4px;">${p.currency}</span>` : '';
   return `<tr>
-    <td class="sym">${p.symbol}${isDca?'<span class="badge-dca">DCA×'+p.entries.length+'</span>':''}</td>
+    <td class="sym">${p.symbol}${isDca?'<span class="badge-dca">DCA×'+p.entries.length+'</span>':''}${curBadge}</td>
     <td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td>
     ${showAction ? `<td style="color:var(--text3);">${firstDate}</td>` : ''}
     ${showAction ? `<td style="color:var(--text2);">${sharesStr}</td>` : ''}
@@ -717,22 +759,67 @@ function openCloseModal(i) {
   closeTarget=i; const p=positions[i];
   document.getElementById('modal-symbol').textContent=p.symbol;
   const isDca=p.entries&&p.entries.length>1;
-  document.getElementById('modal-info').textContent='Prix moyen d\'entrée : '+fmtPrice(p.avgEntry)+'\nTaille totale : '+fmtC(p.totalSize)+(isDca?'\n'+p.entries.length+' achats DCA':'');
-  document.getElementById('modal-exit').value='';
+  const totalShares = p.shares || 0;
+  document.getElementById('modal-info').textContent=
+    'Prix moy. entrée : '+fmtPrice(p.avgEntry)+
+    '  |  Shares : '+(totalShares||'—')+
+    '  |  Valeur : '+fmtC(p.totalSize)+
+    (isDca?'\n'+p.entries.length+' achats DCA (prix moyen pondéré)':'');
+  // Suggérer le prix actuel
+  document.getElementById('modal-exit').value = p.current || '';
+  // Shares par défaut = tout
+  document.getElementById('modal-shares').value = totalShares || '';
+  document.getElementById('modal-shares-hint').textContent = totalShares ? 'Max : '+totalShares+' shares' : '';
+  updatePartialSize();
   document.getElementById('modal-overlay').classList.add('open');
-  setTimeout(()=>document.getElementById('modal-exit').focus(),100);
+  setTimeout(()=>document.getElementById('modal-shares').focus(),100);
+}
+function setPartial(pct) {
+  const p = positions[closeTarget];
+  if (!p) return;
+  const totalShares = p.shares || 0;
+  document.getElementById('modal-shares').value = parseFloat((totalShares * pct).toFixed(6));
+  updatePartialSize();
+}
+function updatePartialSize() {
+  if (closeTarget === null) return;
+  const p = positions[closeTarget];
+  const shares = parseFloat(document.getElementById('modal-shares').value);
+  const exitPrice = parseFloat(document.getElementById('modal-exit').value);
+  const totalShares = p.shares || 0;
+  if (!isNaN(shares) && !isNaN(exitPrice) && totalShares > 0) {
+    const pct = shares / totalShares;
+    const sizeToClose = p.totalSize * pct;
+    const profit = p.dir==='Long' ? (exitPrice-p.avgEntry)/p.avgEntry*sizeToClose : (p.avgEntry-exitPrice)/p.avgEntry*sizeToClose;
+    document.getElementById('modal-preview').textContent =
+      'Vendre '+shares+' / '+totalShares+' shares ('+Math.round(pct*100)+'%) · P&L estimé : '+(profit>=0?'+':'')+fmtCpnl(profit);
+  } else {
+    document.getElementById('modal-preview').textContent = '—';
+  }
 }
 function cancelClose() { closeTarget=null; document.getElementById('modal-overlay').classList.remove('open'); }
 function confirmClose() {
   if(closeTarget===null) return;
   const exitPrice=parseFloat(document.getElementById('modal-exit').value);
-  if(isNaN(exitPrice)) return;
+  const sharesToSell=parseFloat(document.getElementById('modal-shares').value);
+  if(isNaN(exitPrice)||isNaN(sharesToSell)||sharesToSell<=0) { alert('Entre un prix de sortie et le nombre de shares à vendre.'); return; }
   const p=positions[closeTarget], date=new Date().toISOString().split('T')[0];
-  const pct=p.dir==='Long'?(exitPrice-p.avgEntry)/p.avgEntry:(p.avgEntry-exitPrice)/p.avgEntry;
-  const profit=parseFloat((p.totalSize*pct).toFixed(2));
-  const montantFinal=parseFloat((p.totalSize+profit).toFixed(2));
-  trades.unshift({date,symbol:p.symbol,dir:p.dir,type:'Vente',price:exitPrice,avgEntry:p.avgEntry,size:p.totalSize,profit,montantFinal,dcaCount:p.entries?p.entries.length:1});
-  cash+=montantFinal; positions.splice(closeTarget,1); closeTarget=null;
+  const totalShares = p.shares || sharesToSell;
+  const pctToSell = sharesToSell / totalShares;
+  const sizeToClose = p.totalSize * pctToSell;
+  const pnlPct = p.dir==='Long'?(exitPrice-p.avgEntry)/p.avgEntry:(p.avgEntry-exitPrice)/p.avgEntry;
+  const profit=parseFloat((sizeToClose*pnlPct).toFixed(2));
+  const montantFinal=parseFloat((sizeToClose+profit).toFixed(2));
+  trades.unshift({date,symbol:p.symbol,dir:p.dir,type:'Vente',price:exitPrice,avgEntry:p.avgEntry,size:sizeToClose,profit,montantFinal,shares:sharesToSell,dcaCount:p.entries?p.entries.length:1,currency:p.currency||'USD'});
+  cash+=montantFinal;
+  if(pctToSell >= 0.9999) {
+    positions.splice(closeTarget,1);
+  } else {
+    p.totalSize -= sizeToClose;
+    p.shares -= sharesToSell;
+    if(p.shares<0) p.shares=0;
+  }
+  closeTarget=null;
   document.getElementById('modal-overlay').classList.remove('open');
   buildPortfolioHistory();
   saveData(); renderAll();
@@ -794,21 +881,23 @@ function addPosition() {
   const dateVal=document.getElementById('f-date').value || new Date().toISOString().split('T')[0];
   const e=parseFloat(document.getElementById('f-entry').value);
   const shares=parseFloat(document.getElementById('f-shares').value);
+  const posCurrency=document.getElementById('f-currency').value||'USD';
   const cur=parseFloat(document.getElementById('f-current').value);
   const sz=parseFloat(document.getElementById('f-size').value);
   if(!s||isNaN(e)||isNaN(shares)||isNaN(cur)||isNaN(sz)){alert('Remplis tous les champs (symbole, prix, shares, prix actuel).');return;}
-  trades.unshift({date:dateVal,symbol:s,dir:d,type:'Achat',price:e,shares,size:sz});
+  trades.unshift({date:dateVal,symbol:s,dir:d,type:'Achat',price:e,shares,size:sz,currency:posCurrency});
   const existing=positions.find(p=>p.symbol===s&&p.dir===d);
   if(existing){
     const newTotal=existing.totalSize+sz;
     existing.avgEntry=(existing.avgEntry*existing.totalSize+e*sz)/newTotal;
     existing.totalSize=newTotal; existing.current=cur;
     existing.shares=(existing.shares||0)+shares;
-    existing.entries=existing.entries||[]; existing.entries.push({price:e,shares,size:sz,date:dateVal});
+    existing.currency=posCurrency; existing.entries=existing.entries||[]; existing.entries.push({price:e,shares,size:sz,date:dateVal});
   } else {
-    positions.push({symbol:s,dir:d,avgEntry:e,current:cur,totalSize:sz,shares,entries:[{price:e,shares,size:sz,date:dateVal}]});
+    positions.push({symbol:s,dir:d,avgEntry:e,current:cur,totalSize:sz,shares,currency:posCurrency,entries:[{price:e,shares,size:sz,date:dateVal}]});
   }
   ['f-symbol','f-entry','f-shares','f-current','f-size'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-currency').value='USD';
   document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('symbol-dropdown').classList.remove('open');
   buildPortfolioHistory();
@@ -876,22 +965,35 @@ function setAllocView(view, el) {
 function renderAllocDashboard() {
   if (!allocChart) return;
   const totalSize = positions.reduce((s,p)=>s+p.totalSize,0);
-  if (!totalSize) { allocChart.data.labels=[]; allocChart.data.datasets[0].data=[]; allocChart.update(); document.getElementById('alloc-legend').innerHTML=''; return; }
-  let labels, values;
-  if (allocView === 'symbol') {
-    labels = positions.map(p=>p.symbol);
-    values = positions.map(p=>parseFloat(((p.totalSize/totalSize)*100).toFixed(1)));
-  } else {
-    const cats = {};
-    positions.forEach(p=>{ const c=getCat(p.symbol); cats[c]=(cats[c]||0)+p.totalSize; });
-    labels = Object.keys(cats); values = labels.map(c=>parseFloat(((cats[c]/totalSize)*100).toFixed(1)));
+  if (!totalSize) {
+    [allocChart, allocCatDashChart].forEach(ch=>{ if(ch){ch.data.labels=[];ch.data.datasets[0].data=[];ch.update();} });
+    document.getElementById('alloc-legend').innerHTML='';
+    document.getElementById('alloc-cat-dash-legend').innerHTML='';
+    return;
   }
-  allocChart.data.labels = labels;
-  allocChart.data.datasets[0].data = values;
-  allocChart.data.datasets[0].backgroundColor = COLORS.slice(0, labels.length);
+  // Par symbole
+  const symLabels = positions.map(p=>p.symbol);
+  const symValues = positions.map(p=>parseFloat(((p.totalSize/totalSize)*100).toFixed(1)));
+  allocChart.data.labels = symLabels;
+  allocChart.data.datasets[0].data = symValues;
+  allocChart.data.datasets[0].backgroundColor = COLORS.slice(0, symLabels.length);
   allocChart.update();
-  document.getElementById('alloc-legend').innerHTML = labels.map((l,i)=>
-    `<div class="donut-leg-row"><span class="donut-dot" style="background:${COLORS[i]};"></span>${l}<span class="donut-pct">${values[i]}%</span></div>`
+  document.getElementById('alloc-legend').innerHTML = symLabels.map((l,i)=>
+    `<div class="donut-leg-row"><span class="donut-dot" style="background:${COLORS[i]};"></span>${l}<span class="donut-pct">${symValues[i]}%</span></div>`
+  ).join('');
+  // Par catégorie
+  const cats = {};
+  positions.forEach(p=>{ const cat=getCat(p.symbol); cats[cat]=(cats[cat]||0)+p.totalSize; });
+  const catLabels = Object.keys(cats);
+  const catValues = catLabels.map(cat=>parseFloat(((cats[cat]/totalSize)*100).toFixed(1)));
+  if (allocCatDashChart) {
+    allocCatDashChart.data.labels = catLabels;
+    allocCatDashChart.data.datasets[0].data = catValues;
+    allocCatDashChart.data.datasets[0].backgroundColor = COLORS.slice(0, catLabels.length);
+    allocCatDashChart.update();
+  }
+  document.getElementById('alloc-cat-dash-legend').innerHTML = catLabels.map((l,i)=>
+    `<div class="donut-leg-row"><span class="donut-dot" style="background:${COLORS[i]};"></span>${l}<span class="donut-pct">${catValues[i]}%</span></div>`
   ).join('');
 }
 
@@ -952,6 +1054,7 @@ function initCharts(){
   perfChart=new Chart(document.getElementById('perfChart'),{type:'line',data:{labels:[],datasets:[{data:[],borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.07)',borderWidth:1.5,pointRadius:2,pointBackgroundColor:'#3b82f6',fill:true,tension:0.4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{...cd},grid:{color:gc},border:{color:bc}},y:{ticks:{...cd,callback:v=>accountCurrency+' '+(Math.round(v)).toLocaleString()},grid:{color:gc},border:{color:bc}}}}});
   pnlBarChart=new Chart(document.getElementById('pnlBarChart'),{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:3,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+(ctx.parsed.y>=0?'+':'')+accountCurrency+' '+ctx.parsed.y}}},scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>accountCurrency+' '+v},grid:{color:gc},border:{color:bc}}}}});
   allocChart=mkDonut('allocChart',[],[],[]);
+  allocCatDashChart=mkDonut('allocCatDashChart',[],[],[]);
   allocSymChart=mkDonut('allocSymChart',[],[],[]);
   allocCatChart=mkDonut('allocCatChart',[],[],[]);
   assetPerfChart=new Chart(document.getElementById('assetPerfChart'),{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:3,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>accountCurrency+' '+v},grid:{color:gc},border:{color:bc}}}}});
