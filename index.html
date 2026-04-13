@@ -627,7 +627,7 @@ async function startApp() {
   initCharts();
   await loadData();
   const savedCur = localStorage.getItem('nc_currency');
-  if (savedCur) { accountCurrency = savedCur; document.getElementById('currency-select').value = savedCur; await setCurrency(savedCur); } else { renderAll(); }
+  if (savedCur) { accountCurrency = savedCur; const sel = document.getElementById('currency-select'); if(sel) sel.value = savedCur; await setCurrency(savedCur); } else { renderAll(); }
   fetchLivePrices();
   setInterval(fetchLivePrices, 900000);
 }
