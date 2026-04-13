@@ -692,7 +692,6 @@ function updateKPIs() {
   document.getElementById('kpi-cash').textContent=fmtC(cash);
   const we=document.getElementById('kpi-winrate'); we.textContent=winRate+'%'; we.className='kpi-val '+(winRate>=50?'pos':'neg');
   document.getElementById('kpi-winrate-sub').textContent=wins+'W · '+losses+'L';
-  document.getElementById('cash-display').textContent=fmtC(cash);
 }
 
 function posRow(p, showAction, idx) {
