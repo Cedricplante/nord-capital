@@ -722,7 +722,7 @@ function updateKPIs() {
     el.textContent = (dayDiff>=0?'+':'')+fmtCpnl(dayDiff)+' ('+fmtPct(dayPct)+') auj.';
     el.className = 'kpi-sub ' + (dayDiff>=0?'pos':'neg');
   } else {
-    document.getElementById('kpi-day-change').textContent = '— aujourd\'hui';
+    const dayEl = document.getElementById('kpi-day-change'); if(dayEl) dayEl.textContent = '— aujourd\'hui';
     document.getElementById('kpi-day-change').className = 'kpi-sub neu';
   }
   const oe=document.getElementById('kpi-pnl-open'); oe.textContent=fmtCpnl(totalPnlOpen); oe.className='kpi-val '+(totalPnlOpen>=0?'pos':'neg');
