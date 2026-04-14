@@ -846,29 +846,17 @@ function updateFxDisplay() {
   const decimals = fxRate > 100 ? 2 : 4;
   el.textContent = `1 USD = ${fxRate.toFixed(decimals)} ${accountCurrency}`;
 }
-function conv(amount, posCurrency) {
-  const posC = posCurrency || 'USD';
-  if (posC === accountCurrency) return amount; // même devise, pas de conversion
-  if (posC === 'USD') return amount * fxRate;  // USD → devise du compte
-  if (accountCurrency === 'USD') return amount / (FX_FALLBACK[posC] || fxRate); // devise → USD
-  // devise A → USD → devise du compte
-  return (amount / (FX_FALLBACK[posC] || 1)) * fxRate;
+function conv(amount, posCur) {
+  const pc = posCur || 'USD';
+  if (pc === accountCurrency) return amount;
+  if (pc === 'USD') return amount * fxRate;
+  if (accountCurrency === 'USD') return amount / (FX_FALLBACK[pc] || fxRate);
+  return (amount / (FX_FALLBACK[pc] || 1)) * fxRate;
 }
 function fmtC(n, posCur) {
   return '$' + Math.round(conv(n, posCur)).toLocaleString('en-US') + ' ' + accountCurrency;
 }
-function fmtCpnl(n, posCur) {
-  return (n>=0?'+':'-') + '$' + Math.abs(conv(n, posCur)).toFixed(2) + ' ' + accountCurrency;
-}
-  // Si la position a une devise native, convertir via USD
-  if (posCur && posCur !== 'USD' && posCur !== accountCurrency) {
-    // posCur -> USD -> accountCurrency (approximation via fxRate)
-    // Pour l'instant on convertit directement avec le taux du compte
-    return '$' + Math.round(conv(n)).toLocaleString('en-US') + ' ' + accountCurrency;
-  }
-  return '$' + Math.round(conv(n)).toLocaleString('en-US') + ' ' + accountCurrency;
-}
-function fmtCpnl(n) { return (n>=0?'+':'-') + '$' + Math.abs(conv(n)).toFixed(2) + ' ' + accountCurrency; }
+function fmtCpnl(n, posCur) { const v = conv(Math.abs(n), posCur); return (n>=0?'+':'-') + '$' + v.toFixed(2) + ' ' + accountCurrency; }
 
 // ─── LIVE PRICES ─────────────────────────────────────────────────
 function setLiveStatus(status) {
@@ -1052,8 +1040,8 @@ function getCat(symbol) {
 }
 
 function updateKPIs() {
-  const totalPnlOpen = positions.reduce((s,p)=>s+calcPnl(p),0);
-  const totalSize = positions.reduce((s,p)=>s+((p.shares||0)*p.current),0); // valeur au marché
+  const totalPnlOpen = positions.reduce((s,p)=>s+conv(calcPnl(p), p.currency||'USD'),0);
+  const totalSize = positions.reduce((s,p)=>s+conv((p.shares||0)*p.current, p.currency||'USD'),0);
   const closedTrades = trades.filter(t=>t.type==='Vente');
   const totalPnlReal = closedTrades.reduce((s,t)=>s+(t.profit||0),0);
   const wins = closedTrades.filter(t=>(t.profit||0)>0).length;
@@ -1111,10 +1099,10 @@ function posRow(p, showAction, idx) {
       <td style="color:var(--text3);">${firstDate}</td>
       <td style="color:var(--text2);">${sharesStr}</td>
       <td>${fmtPrice(p.avgEntry)}</td>
-      <td style="color:var(--text3);">${fmtC(coutTotal)}</td>
+      <td style="color:var(--text3);">${fmtC(coutTotal, p.currency||'USD')}</td>
       <td>${fmtPrice(p.current)}</td>
-      <td>${fmtC(valeurMarche)}</td>
-      <td class="${cls}">${fmtCpnl(pnl)}</td>
+      <td>${fmtC(valeurMarche, p.currency||'USD')}</td>
+      <td class="${cls}">${fmtCpnl(pnl, p.currency||'USD')}</td>
       <td class="${cls}">${fmtPct(pct)}</td>
       ${ac}</tr>`;
   } else {
@@ -1123,34 +1111,13 @@ function posRow(p, showAction, idx) {
       <td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td>
       <td>${fmtPrice(p.avgEntry)}</td>
       <td>${fmtPrice(p.current)}</td>
-      <td>${fmtC(valeurMarche)}</td>
-      <td class="${cls}">${fmtCpnl(pnl)}</td>
+      <td>${fmtC(valeurMarche, p.currency||'USD')}</td>
+      <td class="${cls}">${fmtCpnl(pnl, p.currency||'USD')}</td>
       <td class="${cls}">${fmtPct(pct)}</td>
       </tr>`;
   }
 }
 function renderDashPos() { /* section supprimée du dashboard */ }
-function renderPosTable() { const t=document.getElementById('pos-body'); t.innerHTML=positions.length?positions.map((p,i)=>posRow(p,true,i)).join(''):'<tr><td colspan="11" class="empty">Aucune position ouverte</td></tr>'; }
-
-function openCloseModal(i) {
-  closeTarget=i; const p=positions[i];
-  document.getElementById('modal-symbol').textContent=p.symbol;
-  const isDca=p.entries&&p.entries.length>1;
-  const totalShares = p.shares || 0;
-  document.getElementById('modal-info').textContent=
-    'Prix moy. entrée : '+fmtPrice(p.avgEntry)+
-    '  |  Shares : '+(totalShares||'—')+
-    '  |  Valeur : '+fmtC(p.totalSize)+
-    (isDca?'\n'+p.entries.length+' achats DCA (prix moyen pondéré)':'');
-  // Suggérer le prix actuel
-  document.getElementById('modal-exit').value = p.current || '';
-  // Shares par défaut = tout
-  document.getElementById('modal-shares').value = totalShares || '';
-  document.getElementById('modal-shares-hint').textContent = totalShares ? 'Max : '+totalShares+' shares' : '';
-  updatePartialSize();
-  document.getElementById('modal-overlay').classList.add('open');
-  setTimeout(()=>document.getElementById('modal-shares').focus(),100);
-}
 function setPartial(pct) {
   const p = positions[closeTarget];
   if (!p) return;
