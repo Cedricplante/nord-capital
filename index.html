@@ -1118,6 +1118,11 @@ function posRow(p, showAction, idx) {
   }
 }
 function renderDashPos() { /* section supprimée du dashboard */ }
+function renderPosTable() {
+  const t = document.getElementById('pos-body');
+  if (!t) return;
+  t.innerHTML = positions.length ? positions.map((p,i) => posRow(p,true,i)).join('') : '<tr><td colspan="11" class="empty">Aucune position ouverte</td></tr>';
+}
 function setPartial(pct) {
   const p = positions[closeTarget];
   if (!p) return;
@@ -1142,6 +1147,47 @@ function updatePartialSize() {
   }
 }
 function cancelClose() { closeTarget=null; document.getElementById('modal-overlay').classList.remove('open'); }
+
+function openCloseModal(i) {
+  closeTarget=i; const p=positions[i];
+  document.getElementById('modal-symbol').textContent=p.symbol;
+  const isDca=p.entries&&p.entries.length>1;
+  const totalShares = p.shares || 0;
+  document.getElementById('modal-info').textContent=
+    'Prix moy. entrée : '+fmtPrice(p.avgEntry)+
+    '  |  Shares : '+(totalShares||'—')+
+    '  |  Valeur : '+fmtC((p.shares||0)*p.current, p.currency||'USD')+
+    (isDca?'\n'+p.entries.length+' achats DCA (prix moyen pondéré)':'');
+  document.getElementById('modal-exit').value = p.current || '';
+  document.getElementById('modal-shares').value = totalShares || '';
+  document.getElementById('modal-shares-hint').textContent = totalShares ? 'Max : '+totalShares+' shares' : '';
+  updatePartialSize();
+  document.getElementById('modal-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('modal-shares').focus(),100);
+}
+function setPartial(pct) {
+  const p = positions[closeTarget];
+  if (!p) return;
+  const totalShares = p.shares || 0;
+  document.getElementById('modal-shares').value = parseFloat((totalShares * pct).toFixed(6));
+  updatePartialSize();
+}
+function updatePartialSize() {
+  if (closeTarget === null) return;
+  const p = positions[closeTarget];
+  const shares = parseFloat(document.getElementById('modal-shares').value);
+  const exitPrice = parseFloat(document.getElementById('modal-exit').value);
+  const totalShares = p.shares || 0;
+  if (!isNaN(shares) && !isNaN(exitPrice) && totalShares > 0) {
+    const pct = shares / totalShares;
+    const sizeToClose = (p.shares||0) * p.avgEntry * pct;
+    const profit = p.dir==='Long' ? (exitPrice-p.avgEntry)/p.avgEntry*sizeToClose : (p.avgEntry-exitPrice)/p.avgEntry*sizeToClose;
+    document.getElementById('modal-preview').textContent =
+      'Vendre '+shares+' / '+totalShares+' shares ('+Math.round(pct*100)+'%) · P&L estimé : '+(profit>=0?'+':'')+fmtCpnl(profit, p.currency||'USD');
+  } else {
+    document.getElementById('modal-preview').textContent = '—';
+  }
+}
 function confirmClose() {
   if(closeTarget===null) return;
   const exitPrice=parseFloat(document.getElementById('modal-exit').value);
