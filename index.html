@@ -855,6 +855,11 @@ function conv(amount, posCurrency) {
   return (amount / (FX_FALLBACK[posC] || 1)) * fxRate;
 }
 function fmtC(n, posCur) {
+  return '$' + Math.round(conv(n, posCur)).toLocaleString('en-US') + ' ' + accountCurrency;
+}
+function fmtCpnl(n, posCur) {
+  return (n>=0?'+':'-') + '$' + Math.abs(conv(n, posCur)).toFixed(2) + ' ' + accountCurrency;
+}
   // Si la position a une devise native, convertir via USD
   if (posCur && posCur !== 'USD' && posCur !== accountCurrency) {
     // posCur -> USD -> accountCurrency (approximation via fxRate)
