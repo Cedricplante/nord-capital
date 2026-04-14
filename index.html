@@ -9,12 +9,21 @@
   @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #080b12; --bg2: #0d1117; --bg3: #111827;
-    --border: #1a2d4a; --border2: #243d5c;
-    --blue: #3b82f6; --blue-dim: #1e3a5f; --blue-glow: rgba(59,130,246,0.15);
-    --green: #34d399; --red: #f87171; --amber: #fbbf24; --purple: #a78bfa;
-    --text: #e2e8f0; --text2: #c8d4e8; --text3: #7a8fa8;
-    --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif;
+    --bg: #0d0d0d; --bg2: #141414; --bg3: #1a1a1a; --bg4: #222222;
+    --border: #2a2a2a; --border2: #333333;
+    --blue: #4f8ef7; --blue-dim: #162038; --blue-glow: rgba(79,142,247,0.12);
+    --green: #2dd4a0; --red: #f56565; --amber: #f6c843; --purple: #9f7aea; --cyan: #38bdf8;
+    --text: #ffffff; --text2: #b0b0b0; --text3: #606060;
+    --mono: 'JetBrains Mono', monospace; --sans: 'Inter', sans-serif;
+    --r: 10px; --r-sm: 6px; --shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  [data-theme="light"] {
+    --bg: #f8f8f8; --bg2: #ffffff; --bg3: #f0f0f0; --bg4: #e8e8e8;
+    --border: #e0e0e0; --border2: #d0d0d0;
+    --blue: #2563eb; --blue-dim: #dbeafe; --blue-glow: rgba(37,99,235,0.1);
+    --green: #059669; --red: #dc2626; --amber: #d97706; --purple: #7c3aed; --cyan: #0284c7;
+    --text: #0a0a0a; --text2: #404040; --text3: #909090;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
   html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 12px; }
   ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: var(--bg2); } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
@@ -29,15 +38,15 @@
   .nav-right { font-family: var(--mono); font-size: 10px; color: var(--blue); display:flex; align-items:center; gap:10px; }
   .btn-logout { background: transparent; border: 0.5px solid var(--border2); color: var(--text3); border-radius: 4px; padding: 3px 8px; font-size: 10px; cursor: pointer; font-family: var(--mono); transition: all 0.15s; }
   .btn-logout:hover { color: var(--red); border-color: rgba(248,113,113,0.4); }
-  .body { padding: 0.75rem 1.25rem; flex: 1; }
+  .body { padding: 1.25rem 1.75rem; flex: 1; }
   .section { display: none; } .section.active { display: block; }
   .kpi-grid { display: grid; grid-template-columns: 1.8fr 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 0.75rem; }
-  .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 8px; padding: 0.6rem 0.875rem; position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 88px; }
-  .kpi.kpi-hero { padding: 0.75rem 1.25rem; }
+  .kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 1.25rem 1.5rem; position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 110px; transition: border-color 0.15s; }
+  .kpi.kpi-hero { padding: 1.25rem 1.5rem; }
   .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--blue); opacity: 0.4; }
   .kpi-label { font-size: 9px; color: var(--text3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; font-family: var(--mono); }
-  .kpi-val { font-size: 24px; font-weight: 600; color: var(--text); font-family: var(--mono); text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
-  .kpi-val-hero { font-size: 40px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -0.5px; text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
+  .kpi-val { font-size: 26px; font-weight: 700; color: var(--text); font-family: var(--mono); text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
+  .kpi-val-hero { font-size: 44px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -1px; text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
   .kpi-sub { font-size: 10px; font-family: var(--mono); align-self: flex-start; }
   .pos { color: var(--green); } .neg { color: var(--red); } .neu { color: var(--text3); }
   td.pos, td.neg { font-size: 13px; font-weight: 600; }
@@ -151,6 +160,13 @@
       <div class="auth-field"><label>Email</label><input type="email" id="signup-email" placeholder="toi@exemple.com" /></div>
       <div class="auth-field"><label>Mot de passe</label><input type="password" id="signup-password" placeholder="Min. 6 caractères" /></div>
       <div class="auth-error" id="signup-error"></div>
+      <div class="auth-field" id="signup-theme-field" style="margin-top:0.5rem;">
+        <label>Apparence préférée <span style="font-weight:400;color:var(--text3);">(modifiable après)</span></label>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button type="button" id="signup-theme-dark" onclick="setSignupTheme('dark')" style="flex:1;padding:8px;font-size:12px;font-weight:600;border-radius:6px;border:1px solid var(--blue);background:var(--blue);color:#fff;cursor:pointer;">🌙 Sombre</button>
+          <button type="button" id="signup-theme-light" onclick="setSignupTheme('light')" style="flex:1;padding:8px;font-size:12px;font-weight:600;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;">☀️ Clair</button>
+        </div>
+      </div>
       <button class="btn auth-btn" onclick="handleSignup()">Créer le compte</button>
     </div>
   </div>
@@ -194,6 +210,14 @@
             <option value="BRL">🇧🇷 BRL</option>
           </select>
           <div id="fx-rate-display" style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:12px;"></div>
+          <!-- Theme toggle -->
+          <div style="margin-bottom:12px;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Apparence</div>
+            <div style="display:flex;gap:6px;">
+              <button id="btn-dark" onclick="setTheme('dark')" style="flex:1;padding:6px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--border2);background:var(--bg4);color:var(--text2);cursor:pointer;transition:all 0.15s;">🌙 Sombre</button>
+              <button id="btn-light" onclick="setTheme('light')" style="flex:1;padding:6px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all 0.15s;">☀️ Clair</button>
+            </div>
+          </div>
           <div style="border-top:0.5px solid var(--border);padding-top:10px;">
             <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px;" id="nav-email"></div>
             <button class="btn-logout" onclick="handleLogout()" style="width:100%;text-align:center;">Déconnexion</button>
@@ -233,24 +257,21 @@
               <button class="period-btn" onclick="setPeriod('ALL',this)">ALL</button>
             </div>
           </div>
-          <div class="chart-wrap" style="height:140px;margin-top:8px;"><canvas id="perfChart"></canvas></div>
+          <div class="chart-wrap" style="height:200px;margin-top:8px;"><canvas id="perfChart"></canvas></div>
         </div>
         <div class="card">
           <div class="card-title">Par symbole</div>
-          <div class="chart-wrap" style="height:100px;"><canvas id="allocChart"></canvas></div>
+          <div class="chart-wrap" style="height:160px;"><canvas id="allocChart"></canvas></div>
           <div class="donut-leg" id="alloc-legend" style="max-height:80px;"></div>
         </div>
         <div class="card">
           <div class="card-title">Par catégorie</div>
-          <div class="chart-wrap" style="height:100px;"><canvas id="allocCatDashChart"></canvas></div>
+          <div class="chart-wrap" style="height:160px;"><canvas id="allocCatDashChart"></canvas></div>
           <div class="donut-leg" id="alloc-cat-dash-legend" style="max-height:80px;"></div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">Positions ouvertes</div>
-        <table><thead><tr><th>Symbole</th><th>Direction</th><th>Prix moy.</th><th>Prix actuel</th><th>Taille totale</th><th>P&amp;L $</th><th>P&amp;L %</th></tr></thead><tbody id="dash-pos-body"></tbody></table>
-      </div>
+      
     </div>
 
     <!-- POSITIONS -->
@@ -634,6 +655,22 @@ async function handleLogin() {
   localStorage.setItem('nc_token', accessToken); localStorage.setItem('nc_user', JSON.stringify(currentUser));
   await startApp();
 }
+let signupThemeChoice = 'dark';
+function setSignupTheme(theme) {
+  signupThemeChoice = theme;
+  const dark = document.getElementById('signup-theme-dark');
+  const light = document.getElementById('signup-theme-light');
+  if (dark && light) {
+    dark.style.background = theme === 'dark' ? 'var(--blue)' : 'var(--bg3)';
+    dark.style.color = theme === 'dark' ? '#fff' : 'var(--text2)';
+    dark.style.borderColor = theme === 'dark' ? 'var(--blue)' : 'var(--border2)';
+    light.style.background = theme === 'light' ? 'var(--blue)' : 'var(--bg3)';
+    light.style.color = theme === 'light' ? '#fff' : 'var(--text2)';
+    light.style.borderColor = theme === 'light' ? 'var(--blue)' : 'var(--border2)';
+  }
+  setTheme(theme);
+}
+
 async function handleSignup() {
   const email = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
@@ -641,8 +678,27 @@ async function handleSignup() {
   if (password.length < 6) { document.getElementById('signup-error').textContent = 'Min. 6 caractères.'; return; }
   const data = await authFetch('signup', { email, password });
   if (data.error) { document.getElementById('signup-error').textContent = data.error.message; return; }
+  localStorage.setItem('nc_theme', signupThemeChoice);
   const el = document.getElementById('signup-error'); el.style.color = 'var(--green)'; el.textContent = 'Compte créé ! Tu peux te connecter.';
 }
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('nc_theme', theme);
+  // Update button styles
+  const btnDark = document.getElementById('btn-dark');
+  const btnLight = document.getElementById('btn-light');
+  if (btnDark && btnLight) {
+    btnDark.style.background = theme === 'dark' ? 'var(--blue)' : 'var(--bg4)';
+    btnDark.style.color = theme === 'dark' ? '#fff' : 'var(--text2)';
+    btnDark.style.borderColor = theme === 'dark' ? 'var(--blue)' : 'var(--border2)';
+    btnLight.style.background = theme === 'light' ? 'var(--blue)' : 'var(--bg3)';
+    btnLight.style.color = theme === 'light' ? '#fff' : 'var(--text2)';
+    btnLight.style.borderColor = theme === 'light' ? 'var(--blue)' : 'var(--border2)';
+  }
+  // Update charts colors
+  if (typeof updateChartsTheme === 'function') updateChartsTheme();
+}
+
 function toggleHamburger(e) {
   e.stopPropagation();
   const m = document.getElementById('hamburger-menu');
@@ -944,6 +1000,10 @@ async function startApp() {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  // Appliquer le thème sauvegardé
+  const savedTheme = localStorage.getItem('nc_theme') || 'dark';
+  setTheme(savedTheme);
+
   const token = localStorage.getItem('nc_token'), user = localStorage.getItem('nc_user');
   if (token && user) {
     try {
