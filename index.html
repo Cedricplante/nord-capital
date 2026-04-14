@@ -359,7 +359,7 @@
       <button id="cash-type-depot" onclick="setCashType('depot')" class="btn" style="flex:1;padding:10px;background:rgba(45,212,160,0.15);border:1px solid rgba(45,212,160,0.4);color:var(--green);">
         ↑ Dépôt
       </button>
-      <button id="cash-type-retrait" onclick="setCashType('retrait')" class="btn-ghost" style="flex:1;padding:10px;">
+      <button id="cash-type-retrait" onclick="setCashType('retrait')" class="btn-ghost" style="flex:1;padding:10px;border-color:rgba(245,101,101,0.3);color:var(--red);">
         ↓ Retrait
       </button>
     </div>
@@ -368,8 +368,8 @@
     <div style="margin-bottom:20px;">
       <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Montant</div>
       <div style="display:flex;gap:8px;">
-        <input type="number" id="cash-input" placeholder="0.00" style="flex:1;font-size:15px;padding:10px 12px;" />
-        <select id="cash-currency-input" style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;min-width:80px;">
+        <input type="number" id="cash-input" placeholder="0.00" style="flex:3;font-size:15px;padding:10px 12px;" oninput="updateCashPreview()" />
+        <select id="cash-currency-input" onchange="updateCashPreview()" style="flex:1;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:10px 12px;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
           <option value="USD">USD</option>
           <option value="CAD">CAD</option>
           <option value="EUR">EUR</option>
@@ -644,20 +644,47 @@ function buildPortfolioHistory() {
 }
 
 // ─── CURRENCY ────────────────────────────────────────────────────
+// FX rates hardcodés comme fallback (taux approximatifs du marché)
+const FX_FALLBACK = {
+  'CAD': 1.3700, 'EUR': 0.9200, 'CHF': 0.8900, 'GBP': 0.7900,
+  'JPY': 149.50, 'AUD': 1.5300, 'NZD': 1.6400, 'HKD': 7.8200,
+  'SGD': 1.3400, 'SEK': 10.40, 'NOK': 10.55, 'DKK': 6.8800,
+  'MXN': 17.10, 'BRL': 4.9500
+};
+
+async function fetchFxRate(cur) {
+  if (cur === 'USD') return 1;
+  try {
+    // Twelve Data: USD/CAD retourne combien de CAD pour 1 USD
+    const res = await fetch(`/api/prices?symbols=USD/${cur}`);
+    const data = await res.json();
+    const rate = data[`USD/${cur}`];
+    // Validation: le taux doit être raisonnable
+    if (rate && rate > 0 && rate < 10000) {
+      // Pour JPY, SEK, NOK etc. le taux peut être > 100, c'est normal
+      return rate;
+    }
+  } catch(e) {}
+  // Fallback
+  return FX_FALLBACK[cur] || 1;
+}
+
 async function setCurrency(cur) {
   accountCurrency = cur;
   localStorage.setItem('nc_currency', cur);
-  if (cur === 'USD') { fxRate = 1; updateFxDisplay(); renderAll(); return; }
-  try {
-    const res = await fetch(`/api/prices?symbols=USD/${cur}`);
-    const data = await res.json();
-    fxRate = data[`USD/${cur}`] || 1;
-  } catch(e) { fxRate = 1; }
+  fxRate = await fetchFxRate(cur);
   updateFxDisplay();
   renderAll();
 }
 function updateFxDisplay() {
-  document.getElementById('fx-rate-display').textContent = `1 USD = ${fxRate.toFixed(4)} ${accountCurrency}`;
+  const el = document.getElementById('fx-rate-display');
+  if (!el) return;
+  if (accountCurrency === 'USD') {
+    el.textContent = '';
+    return;
+  }
+  const decimals = fxRate > 100 ? 2 : 4;
+  el.textContent = `1 USD = ${fxRate.toFixed(decimals)} ${accountCurrency}`;
 }
 function conv(usdAmount) { return usdAmount * fxRate; }
 function fmtC(n, posCur) {
@@ -1077,15 +1104,29 @@ function setCashType(type) {
   }
   updateCashPreview();
 }
-function updateCashPreview() {
+async function updateCashPreview() {
   const amt = parseFloat(document.getElementById('cash-input')?.value);
-  const cur = document.getElementById('cash-currency-input')?.value || 'USD';
+  const inputCur = document.getElementById('cash-currency-input')?.value || 'USD';
   const hint = document.getElementById('cash-convert-hint');
   const preview = document.getElementById('cash-preview-current');
   if (preview) preview.textContent = fmtC(cash);
-  if (!isNaN(amt) && hint) {
-    const converted = accountCurrency !== cur ? amt * fxRate : amt;
-    hint.textContent = `${amt} ${cur} = ${fmtC(converted)} après conversion`;
+  if (!isNaN(amt) && amt > 0 && hint) {
+    let convertedAmt = amt;
+    if (inputCur !== accountCurrency) {
+      // Chercher le taux inputCur -> accountCurrency
+      if (inputCur === 'USD') {
+        convertedAmt = amt * fxRate; // USD -> accountCurrency
+      } else if (accountCurrency === 'USD') {
+        const inputRate = await fetchFxRate(inputCur);
+        convertedAmt = amt / inputRate; // inputCur -> USD
+      } else {
+        // inputCur -> USD -> accountCurrency
+        const inputRate = await fetchFxRate(inputCur);
+        convertedAmt = (amt / inputRate) * fxRate;
+      }
+    }
+    const decimals = convertedAmt > 1000 ? 0 : 2;
+    hint.textContent = `${amt} ${inputCur} → ${convertedAmt.toFixed(decimals)} ${accountCurrency}`;
   } else if (hint) { hint.textContent = ''; }
 }
 function toggleCashPopup(e) {
@@ -1101,17 +1142,30 @@ function closeCashPopup() {
   document.getElementById('cash-input').value = '';
 }
 
-function updateCash() {
+async function updateCash() {
   const inputAmt = parseFloat(document.getElementById('cash-input').value);
   if (isNaN(inputAmt) || inputAmt <= 0) { alert('Entre un montant valide.'); return; }
   const inputCur = document.getElementById('cash-currency-input')?.value || 'USD';
-  // Convertir en devise du compte
-  const convertedAmt = inputCur === accountCurrency ? inputAmt : inputAmt * fxRate;
   const date = new Date().toISOString().split('T')[0];
   const type = cashType === 'depot' ? 'Dépôt' : 'Retrait';
+
+  // Conversion inputCur -> accountCurrency
+  let convertedAmt = inputAmt;
+  if (inputCur !== accountCurrency) {
+    if (inputCur === 'USD') {
+      convertedAmt = inputAmt * fxRate;
+    } else if (accountCurrency === 'USD') {
+      const inputRate = await fetchFxRate(inputCur);
+      convertedAmt = inputAmt / inputRate;
+    } else {
+      const inputRate = await fetchFxRate(inputCur);
+      convertedAmt = (inputAmt / inputRate) * fxRate;
+    }
+  }
+
   const newCash = cashType === 'depot' ? cash + convertedAmt : Math.max(0, cash - convertedAmt);
-  const diff = newCash - cash;
-  trades.unshift({date, symbol:'CASH', dir:'—', type, price:0, size:Math.abs(diff), profit:0, montantFinal:newCash, cashBalance:newCash, currency:inputCur});
+  const diff = Math.abs(newCash - cash);
+  trades.unshift({date, symbol:'CASH', dir:'—', type, price:0, size:diff, profit:0, montantFinal:newCash, cashBalance:newCash, currency:inputCur, originalAmt:inputAmt});
   cash = newCash;
   closeCashPopup();
   buildPortfolioHistory();
