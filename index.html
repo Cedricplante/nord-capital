@@ -846,7 +846,14 @@ function updateFxDisplay() {
   const decimals = fxRate > 100 ? 2 : 4;
   el.textContent = `1 USD = ${fxRate.toFixed(decimals)} ${accountCurrency}`;
 }
-function conv(usdAmount) { return usdAmount * fxRate; }
+function conv(amount, posCurrency) {
+  const posC = posCurrency || 'USD';
+  if (posC === accountCurrency) return amount; // même devise, pas de conversion
+  if (posC === 'USD') return amount * fxRate;  // USD → devise du compte
+  if (accountCurrency === 'USD') return amount / (FX_FALLBACK[posC] || fxRate); // devise → USD
+  // devise A → USD → devise du compte
+  return (amount / (FX_FALLBACK[posC] || 1)) * fxRate;
+}
 function fmtC(n, posCur) {
   // Si la position a une devise native, convertir via USD
   if (posCur && posCur !== 'USD' && posCur !== accountCurrency) {
