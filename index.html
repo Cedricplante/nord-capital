@@ -458,6 +458,10 @@ const SYMBOLS = [
   {s:'TQQQ.TO', n:'BMO Ultra NASDAQ ETF (CAD)',       inst:'BMO',        cat:'ETF Levier', cur:'CAD', td:'TQQQ.TO'},
   {s:'HMAX.TO', n:'Hamilton Canadian Financials Yield Maximizer', inst:'Hamilton', cat:'ETF', cur:'CAD', td:'HMAX.TO'},
   {s:'ZMMK.TO', n:'BMO Money Market ETF',             inst:'BMO',        cat:'ETF',        cur:'CAD', td:'ZMMK.TO'},
+  // ── ETF CAD ──
+  {s:'VFV.TO',  n:'Vanguard S&P 500 Index ETF (CAD)',   inst:'Vanguard', cat:'ETF', cur:'CAD', td:'VFV.TO'},
+  {s:'XQQ.TO',  n:'iShares NASDAQ 100 Index ETF (CAD)', inst:'iShares',  cat:'ETF', cur:'CAD', td:'XQQ.TO'},
+  {s:'ZSP.TO',  n:'BMO S&P 500 Index ETF (CAD)',        inst:'BMO',      cat:'ETF', cur:'CAD', td:'ZSP.TO'},
   // ── ETF US ──
   {s:'QQQ',   n:'Invesco QQQ Trust',                 inst:'Invesco',    cat:'ETF',        cur:'USD', td:'QQQ'},
   {s:'SPY',   n:'SPDR S&P 500 ETF Trust',            inst:'State Street',cat:'ETF',       cur:'USD', td:'SPY'},
@@ -486,30 +490,30 @@ const SYMBOLS = [
   {s:'PLTR',  n:'Palantir Technologies Inc.',        inst:'NYSE',       cat:'Action',     cur:'USD', td:'PLTR'},
   {s:'RIOT',  n:'Riot Platforms Inc.',               inst:'NASDAQ',     cat:'Action',     cur:'USD', td:'RIOT'},
   // ── Crypto ──
-  {s:'BTC/USD',    n:'Bitcoin',              inst:'Crypto', cat:'Crypto', cur:'USD', td:'BTC/USD'},
-  {s:'ETH/USD',    n:'Ethereum',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'ETH/USD'},
-  {s:'SOL/USD',    n:'Solana',               inst:'Crypto', cat:'Crypto', cur:'USD', td:'SOL/USD'},
-  {s:'BNB/USD',    n:'BNB (Binance Coin)',   inst:'Crypto', cat:'Crypto', cur:'USD', td:'BNB/USD'},
-  {s:'XRP/USD',    n:'XRP (Ripple)',         inst:'Crypto', cat:'Crypto', cur:'USD', td:'XRP/USD'},
-  {s:'ADA/USD',    n:'Cardano',              inst:'Crypto', cat:'Crypto', cur:'USD', td:'ADA/USD'},
-  {s:'AVAX/USD',   n:'Avalanche',            inst:'Crypto', cat:'Crypto', cur:'USD', td:'AVAX/USD'},
-  {s:'DOGE/USD',   n:'Dogecoin',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'DOGE/USD'},
-  {s:'DOT/USD',    n:'Polkadot',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'DOT/USD'},
-  {s:'MATIC/USD',  n:'Polygon (MATIC)',      inst:'Crypto', cat:'Crypto', cur:'USD', td:'MATIC/USD'},
-  {s:'TAO/USD',    n:'Bittensor (TAO)',       inst:'Crypto', cat:'Crypto', cur:'USD', td:'TAO/USD'},
-  {s:'RENDER/USD', n:'Render Network',       inst:'Crypto', cat:'Crypto', cur:'USD', td:'RNDR/USD'},
-  {s:'AKASH/USD',  n:'Akash Network (AKT)',  inst:'Crypto', cat:'Crypto', cur:'USD', td:'AKT/USD'},
-  {s:'ONDO/USD',   n:'Ondo Finance',         inst:'Crypto', cat:'Crypto', cur:'USD', td:'ONDO/USD'},
-  {s:'FET/USD',    n:'Fetch.ai (ASI)',        inst:'Crypto', cat:'Crypto', cur:'USD', td:'FET/USD'},
-  {s:'RSR/USD',    n:'Reserve Rights (RSR)', inst:'Crypto', cat:'Crypto', cur:'USD', td:'RSR/USD'},
-  {s:'PYTH/USD',   n:'Pyth Network',         inst:'Crypto', cat:'Crypto', cur:'USD', td:'PYTH/USD'},
-  {s:'INJ/USD',    n:'Injective Protocol',   inst:'Crypto', cat:'Crypto', cur:'USD', td:'INJ/USD'},
-  {s:'SUI/USD',    n:'Sui',                  inst:'Crypto', cat:'Crypto', cur:'USD', td:'SUI/USD'},
-  {s:'APT/USD',    n:'Aptos',                inst:'Crypto', cat:'Crypto', cur:'USD', td:'APT/USD'},
-  {s:'ARB/USD',    n:'Arbitrum',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'ARB/USD'},
-  {s:'OP/USD',     n:'Optimism',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'OP/USD'},
-  {s:'LINK/USD',   n:'Chainlink',            inst:'Crypto', cat:'Crypto', cur:'USD', td:'LINK/USD'},
-  {s:'LTC/USD',    n:'Litecoin',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'LTC/USD'},
+  {s:'BTC/USD',    n:'Bitcoin',              inst:'Crypto', cat:'Crypto', cur:'USD', td:'BTC-USD'},
+  {s:'ETH/USD',    n:'Ethereum',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'ETH-USD'},
+  {s:'SOL/USD',    n:'Solana',               inst:'Crypto', cat:'Crypto', cur:'USD', td:'SOL-USD'},
+  {s:'BNB/USD',    n:'BNB (Binance Coin)',   inst:'Crypto', cat:'Crypto', cur:'USD', td:'BNB-USD'},
+  {s:'XRP/USD',    n:'XRP (Ripple)',         inst:'Crypto', cat:'Crypto', cur:'USD', td:'XRP-USD'},
+  {s:'ADA/USD',    n:'Cardano',              inst:'Crypto', cat:'Crypto', cur:'USD', td:'ADA-USD'},
+  {s:'AVAX/USD',   n:'Avalanche',            inst:'Crypto', cat:'Crypto', cur:'USD', td:'AVAX-USD'},
+  {s:'DOGE/USD',   n:'Dogecoin',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'DOGE-USD'},
+  {s:'DOT/USD',    n:'Polkadot',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'DOT-USD'},
+  {s:'MATIC/USD',  n:'Polygon (MATIC)',      inst:'Crypto', cat:'Crypto', cur:'USD', td:'MATIC-USD'},
+  {s:'TAO/USD',    n:'Bittensor (TAO)',       inst:'Crypto', cat:'Crypto', cur:'USD', td:'TAO-USD'},
+  {s:'RENDER/USD', n:'Render Network',       inst:'Crypto', cat:'Crypto', cur:'USD', td:'RNDR-USD'},
+  {s:'AKASH/USD',  n:'Akash Network (AKT)',  inst:'Crypto', cat:'Crypto', cur:'USD', td:'AKT-USD'},
+  {s:'ONDO/USD',   n:'Ondo Finance',         inst:'Crypto', cat:'Crypto', cur:'USD', td:'ONDO-USD'},
+  {s:'FET/USD',    n:'Fetch.ai (ASI)',        inst:'Crypto', cat:'Crypto', cur:'USD', td:'FET-USD'},
+  {s:'RSR/USD',    n:'Reserve Rights (RSR)', inst:'Crypto', cat:'Crypto', cur:'USD', td:'RSR-USD'},
+  {s:'PYTH/USD',   n:'Pyth Network',         inst:'Crypto', cat:'Crypto', cur:'USD', td:'PYTH-USD'},
+  {s:'INJ/USD',    n:'Injective Protocol',   inst:'Crypto', cat:'Crypto', cur:'USD', td:'INJ-USD'},
+  {s:'SUI/USD',    n:'Sui',                  inst:'Crypto', cat:'Crypto', cur:'USD', td:'SUI-USD'},
+  {s:'APT/USD',    n:'Aptos',                inst:'Crypto', cat:'Crypto', cur:'USD', td:'APT-USD'},
+  {s:'ARB/USD',    n:'Arbitrum',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'ARB-USD'},
+  {s:'OP/USD',     n:'Optimism',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'OP-USD'},
+  {s:'LINK/USD',   n:'Chainlink',            inst:'Crypto', cat:'Crypto', cur:'USD', td:'LINK-USD'},
+  {s:'LTC/USD',    n:'Litecoin',             inst:'Crypto', cat:'Crypto', cur:'USD', td:'LTC-USD'},
   // ── Forex ──
   {s:'EUR/USD', n:'Euro / Dollar US',        inst:'Forex', cat:'Forex', cur:'USD', td:'EUR/USD'},
   {s:'GBP/USD', n:'Livre Sterling / Dollar', inst:'Forex', cat:'Forex', cur:'USD', td:'GBP/USD'},
@@ -529,20 +533,73 @@ const SYMBOLS = [
 ];
 
 
-// Map symbol -> Twelve Data ticker (généré depuis SYMBOLS)
-const TICKER_MAP = Object.fromEntries(SYMBOLS.map(s => [s.s, s.td || s.s]));
-// Overrides manuels pour symboles spéciaux
-Object.assign(TICKER_MAP, {
-  'RENDER/USD': 'RNDR/USD',
-  'AKASH/USD':  'AKT/USD',
+// Map symbol -> Yahoo Finance ticker
+const TICKER_MAP = {
+  // Cryptos — Yahoo utilise BTC-USD (tiret)
+  'BTC/USD':    'BTC-USD',
+  'ETH/USD':    'ETH-USD',
+  'SOL/USD':    'SOL-USD',
+  'BNB/USD':    'BNB-USD',
+  'XRP/USD':    'XRP-USD',
+  'ADA/USD':    'ADA-USD',
+  'AVAX/USD':   'AVAX-USD',
+  'DOGE/USD':   'DOGE-USD',
+  'DOT/USD':    'DOT-USD',
+  'MATIC/USD':  'MATIC-USD',
+  'TAO/USD':    'TAO-USD',
+  'RENDER/USD': 'RNDR-USD',
+  'RNDR/USD':   'RNDR-USD',
+  'AKASH/USD':  'AKT-USD',
+  'AKT/USD':    'AKT-USD',
+  'ONDO/USD':   'ONDO-USD',
+  'FET/USD':    'FET-USD',
+  'RSR/USD':    'RSR-USD',
+  'PYTH/USD':   'PYTH-USD',
+  'INJ/USD':    'INJ-USD',
+  'SUI/USD':    'SUI-USD',
+  'APT/USD':    'APT-USD',
+  'ARB/USD':    'ARB-USD',
+  'OP/USD':     'OP-USD',
+  'LINK/USD':   'LINK-USD',
+  'LTC/USD':    'LTC-USD',
+  // ETF canadiens — Yahoo utilise .TO
   'HMAX':       'HMAX.TO',
-  'ZMMK':       'ZMMK.TO',
-  'TQQQ.TO':    'TQQQ.TO',
   'HMAX.TO':    'HMAX.TO',
+  'ZMMK':       'ZMMK.TO',
   'ZMMK.TO':    'ZMMK.TO',
-});
+  'TQQQ.TO':    'TQQQ.TO',
+  'VFV':        'VFV.TO',
+  'VFV.TO':     'VFV.TO',
+  'XQQ':        'XQQ.TO',
+  'XQQ.TO':     'XQQ.TO',
+  'ZSP':        'ZSP.TO',
+  'ZSP.TO':     'ZSP.TO',
+  // Forex — Yahoo utilise EURUSD=X
+  'EUR/USD':    'EURUSD=X',
+  'GBP/USD':    'GBPUSD=X',
+  'USD/JPY':    'USDJPY=X',
+  'USD/CAD':    'USDCAD=X',
+  'AUD/USD':    'AUDUSD=X',
+  'USD/CHF':    'USDCHF=X',
+  'EUR/GBP':    'EURGBP=X',
+  'EUR/JPY':    'EURJPY=X',
+  'GBP/JPY':    'GBPJPY=X',
+  'NZD/USD':    'NZDUSD=X',
+  // Commodités
+  'XAU/USD':    'GC=F',
+  'XAG/USD':    'SI=F',
+  'WTI/USD':    'CL=F',
+  'BRENT/USD':  'BZ=F',
+};
+// Pour les ETF/actions US — pas besoin de mapping, Yahoo accepte directement TQQQ, UPRO etc.
 
-function getTicker(symbol) { return TICKER_MAP[symbol] || symbol; }
+
+function getTicker(symbol) {
+  if (TICKER_MAP[symbol]) return TICKER_MAP[symbol];
+  // Pour les cryptos X/USD non listées, convertir en X-USD pour Yahoo
+  if (symbol.endsWith('/USD')) return symbol.replace('/USD', '-USD');
+  return symbol;
+}
 
 // ─── STATE ───────────────────────────────────────────────────────
 let currentUser = null, accessToken = null;
@@ -707,17 +764,12 @@ const FX_FALLBACK = {
 async function fetchFxRate(cur) {
   if (cur === 'USD') return 1;
   try {
-    // Twelve Data: USD/CAD retourne combien de CAD pour 1 USD
-    const res = await fetch(`/api/prices?symbols=USD/${cur}`);
+    const yahooFxSymbol = `USD${cur}=X`;
+    const res = await fetch(`/api/prices?symbols=${yahooFxSymbol}`);
     const data = await res.json();
-    const rate = data[`USD/${cur}`];
-    // Validation: le taux doit être raisonnable
-    if (rate && rate > 0 && rate < 10000) {
-      // Pour JPY, SEK, NOK etc. le taux peut être > 100, c'est normal
-      return rate;
-    }
+    const rate = data[yahooFxSymbol];
+    if (rate && rate > 0 && rate < 100000) return rate;
   } catch(e) {}
-  // Fallback
   return FX_FALLBACK[cur] || 1;
 }
 
