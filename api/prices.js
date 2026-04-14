@@ -2,21 +2,28 @@ export default async function handler(req, res) {
   const { symbols } = req.query;
   if (!symbols) return res.status(400).json({ error: 'No symbols' });
 
-  const API_KEY = 'be911aeb43d14751898310faa83079ef';
-  const symbolList = symbols.split(',').map(s => s.trim());
+  const symbolList = symbols.split(',').map(s => s.trim()).filter(Boolean);
   const prices = {};
 
-  try {
-    await Promise.all(symbolList.map(async (symbol) => {
-      const url = `https://api.twelvedata.com/price?symbol=${symbol}&apikey=${API_KEY}`;
-      const res2 = await fetch(url);
+  await Promise.all(symbolList.map(async (symbol) => {
+    try {
+      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+      const res2 = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Referer': 'https://finance.yahoo.com',
+          'Origin': 'https://finance.yahoo.com',
+        }
+      });
       const data = await res2.json();
-      if (data.price) prices[symbol] = parseFloat(data.price);
-    }));
+      const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      if (price && price > 0) prices[symbol] = price;
+    } catch(e) {}
+  }));
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.status(200).json(prices);
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 's-maxage=60');
+  res.status(200).json(prices);
 }
