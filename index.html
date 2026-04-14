@@ -36,8 +36,8 @@
   .kpi.kpi-hero { padding: 0.75rem 1.25rem; }
   .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--blue); opacity: 0.4; }
   .kpi-label { font-size: 9px; color: var(--text3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1px; font-family: var(--mono); }
-  .kpi-val { font-size: 22px; font-weight: 600; color: var(--text); font-family: var(--mono); text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
-  .kpi-val-hero { font-size: 40px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -0.5px; }
+  .kpi-val { font-size: 24px; font-weight: 600; color: var(--text); font-family: var(--mono); text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
+  .kpi-val-hero { font-size: 40px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -0.5px; text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
   .kpi-sub { font-size: 10px; font-family: var(--mono); align-self: flex-start; }
   .pos { color: var(--green); } .neg { color: var(--red); } .neu { color: var(--text3); }
   td.pos, td.neg { font-size: 13px; font-weight: 600; }
@@ -166,36 +166,39 @@
       <button class="nav-tab" onclick="switchTab('allocation',this)">Allocation</button>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
-      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:1px;">
-        <div style="display:flex;align-items:center;gap:5px;">
-          <span style="font-family:var(--mono);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Devise</span>
-          <select id="currency-select" onchange="setCurrency(this.value)" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 6px;color:var(--text2);font-size:10px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
-            <option value="USD">USD</option>
-            <option value="CAD">CAD</option>
-            <option value="EUR">EUR</option>
-            <option value="CHF">CHF</option>
-            <option value="GBP">GBP</option>
-            <option value="JPY">JPY</option>
-            <option value="AUD">AUD</option>
-            <option value="NZD">NZD</option>
-            <option value="HKD">HKD</option>
-            <option value="SGD">SGD</option>
-            <option value="SEK">SEK</option>
-            <option value="NOK">NOK</option>
-            <option value="DKK">DKK</option>
-            <option value="MXN">MXN</option>
-            <option value="BRL">BRL</option>
-          </select>
-        </div>
-        <span id="fx-rate-display" style="font-family:var(--mono);font-size:9px;color:var(--text3);padding-left:2px;"></span>
-      </div>
       <div id="live-indicator" style="font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;align-items:center;">
         <span class="live-dot" id="live-dot" style="background:var(--text3);"></span>
         <span id="live-label">Hors ligne</span>
       </div>
-      <div class="nav-right">
-        <span id="nav-email"></span>
-        <button class="btn-logout" onclick="handleLogout()">Déconnexion</button>
+      <!-- Hamburger menu -->
+      <div style="position:relative;">
+        <button id="hamburger-btn" onclick="toggleHamburger(event)" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:6px 10px;cursor:pointer;color:var(--text2);font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border2)'">☰</button>
+        <div id="hamburger-menu" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:var(--bg2);border:0.5px solid var(--border2);border-radius:10px;padding:12px;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:200;">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--blue);font-weight:600;margin-bottom:10px;padding-bottom:8px;border-bottom:0.5px solid var(--border);">👋 Welcome, <span id="nav-username">Cédric</span></div>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px;">Devise du compte</div>
+          <select id="currency-select" onchange="setCurrency(this.value)" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:4px 8px;color:var(--text2);font-size:11px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;width:100%;margin-bottom:4px;">
+            <option value="USD">🇺🇸 USD</option>
+            <option value="CAD">🇨🇦 CAD</option>
+            <option value="EUR">🇪🇺 EUR</option>
+            <option value="CHF">🇨🇭 CHF</option>
+            <option value="GBP">🇬🇧 GBP</option>
+            <option value="JPY">🇯🇵 JPY</option>
+            <option value="AUD">🇦🇺 AUD</option>
+            <option value="NZD">🇳🇿 NZD</option>
+            <option value="HKD">🇭🇰 HKD</option>
+            <option value="SGD">🇸🇬 SGD</option>
+            <option value="SEK">🇸🇪 SEK</option>
+            <option value="NOK">🇳🇴 NOK</option>
+            <option value="DKK">🇩🇰 DKK</option>
+            <option value="MXN">🇲🇽 MXN</option>
+            <option value="BRL">🇧🇷 BRL</option>
+          </select>
+          <div id="fx-rate-display" style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:12px;"></div>
+          <div style="border-top:0.5px solid var(--border);padding-top:10px;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px;" id="nav-email"></div>
+            <button class="btn-logout" onclick="handleLogout()" style="width:100%;text-align:center;">Déconnexion</button>
+          </div>
+        </div>
       </div>
     </div>
   </nav>
@@ -204,17 +207,17 @@
     <!-- DASHBOARD -->
     <div id="tab-dashboard" class="section active">
       <div class="kpi-grid">
-        <div class="kpi kpi-hero"><div class="kpi-label">Valeur totale</div><div class="kpi-val-hero" id="kpi-total">—</div><div class="kpi-sub neu" id="kpi-total-sub">positions + cash</div>
+        <div class="kpi kpi-hero"><div class="kpi-label">Valeur totale</div><div class="kpi-val-hero" id="kpi-total">—</div>
           <div class="kpi-sub" id="kpi-day-change" style="margin-top:3px;">— aujourd'hui</div></div>
         <div class="kpi"><div class="kpi-label">P&amp;L ouvert</div><div class="kpi-val" id="kpi-pnl-open">—</div><div class="kpi-sub" id="kpi-pnl-open-pct">—</div></div>
         <div class="kpi"><div class="kpi-label">P&amp;L réalisé</div><div class="kpi-val" id="kpi-pnl-real">—</div><div class="kpi-sub neu" id="kpi-trades-count">—</div></div>
         <div class="kpi" style="position:relative;">
           <div class="kpi-label">Cash disponible</div>
           <div style="display:flex;align-items:center;gap:6px;">
-            <div class="kpi-val" id="kpi-cash">—</div>
-            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;" onmouseover="this.style.color='var(--blue)'" onmouseout="this.style.color='var(--text3)'">✎</button>
+            <div class="kpi-val" id="kpi-cash" style="font-size:18px;">—</div>
+            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;display:inline-block;transform:scaleX(-1);" onmouseover="this.style.color='var(--blue)'" onmouseout="this.style.color='var(--text3)'">✎</button>
           </div>
-          <div class="kpi-sub neu">liquidités</div>
+          
           <div id="cash-popup" style="display:none;position:absolute;top:calc(100% + 8px);left:0;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:12px;z-index:50;width:200px;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
             <div style="font-size:9px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.8px;font-family:var(--mono);">Nouveau solde</div>
             <input type="number" id="cash-input" placeholder="" style="margin-bottom:8px;" />
@@ -295,7 +298,7 @@
       </div>
       <div class="card">
         <div class="card-title">Positions actives — prix moyen pondéré</div>
-        <table><thead><tr><th>Symbole</th><th>Direction</th><th>Date</th><th>Shares</th><th>Prix moy.</th><th>Prix actuel</th><th>Valeur</th><th>P&amp;L $</th><th>P&amp;L %</th><th>Action</th></tr></thead><tbody id="pos-body"></tbody></table>
+        <table><thead><tr><th>Symbole</th><th>Direction</th><th>Date</th><th>Shares</th><th>Prix moy.</th><th>Coût total</th><th>Prix actuel</th><th>Valeur</th><th>P&amp;L $</th><th>P&amp;L %</th><th>Action</th></tr></thead><tbody id="pos-body"></tbody></table>
       </div>
     </div>
 
@@ -486,6 +489,18 @@ async function handleSignup() {
   if (data.error) { document.getElementById('signup-error').textContent = data.error.message; return; }
   const el = document.getElementById('signup-error'); el.style.color = 'var(--green)'; el.textContent = 'Compte créé ! Tu peux te connecter.';
 }
+function toggleHamburger(e) {
+  e.stopPropagation();
+  const m = document.getElementById('hamburger-menu');
+  m.style.display = m.style.display === 'block' ? 'none' : 'block';
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#hamburger-btn') && !e.target.closest('#hamburger-menu')) {
+    const m = document.getElementById('hamburger-menu');
+    if (m) m.style.display = 'none';
+  }
+});
+
 async function handleLogout() {
   localStorage.removeItem('nc_token'); localStorage.removeItem('nc_user');
   accessToken = null; currentUser = null; positions = []; trades = []; cash = 0; chartsInitialized = false;
@@ -534,25 +549,42 @@ async function loadData() {
 
 // ─── PORTFOLIO HISTORY ────────────────────────────────────────────
 function buildPortfolioHistory() {
-  if (!trades.length && !positions.length) { portfolioHistory = []; return; }
-  // Trouver la date de début
+  // Reconstruire l'historique à partir des trades
   const allDates = [...trades.map(t=>t.date), ...positions.flatMap(p=>p.entries||[]).map(e=>e.date)].filter(Boolean);
-  if (!allDates.length) { portfolioHistory = []; return; }
+  if (!allDates.length && !positions.length) { portfolioHistory = []; return; }
   allDates.sort();
-  const startDate = new Date(allDates[0]);
+  const startDate = allDates.length ? new Date(allDates[0]) : new Date();
   const today = new Date();
+  today.setHours(0,0,0,0);
   const history = [];
-  // Simuler la valeur jour par jour
+
+  // Reconstruire l'état du portfolio à chaque date
   for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
     const dateStr = d.toISOString().split('T')[0];
-    // Calculer la valeur totale à cette date basée sur les positions actives
-    const activePositions = positions.filter(p => {
-      const firstEntry = (p.entries || [{date: dateStr}])[0];
-      return firstEntry.date <= dateStr;
+    // Positions actives à cette date
+    const activePos = positions.filter(p => {
+      const entries = p.entries || [];
+      return entries.length > 0 && entries[0].date <= dateStr;
     });
-    const posValue = activePositions.reduce((s, p) => s + p.totalSize + calcPnl(p), 0);
+    // Pour aujourd'hui, utiliser le prix actuel live
+    const posValue = activePos.reduce((s, p) => {
+      const isToday = dateStr === today.toISOString().split('T')[0];
+      const pnl = isToday ? calcPnl(p) : 0; // Approximation: P&L seulement aujourd'hui
+      return s + p.totalSize + pnl;
+    }, 0);
     history.push({ date: dateStr, value: posValue + cash });
   }
+
+  // Toujours ajouter un point pour aujourd'hui avec la vraie valeur
+  const todayStr = today.toISOString().split('T')[0];
+  const realTodayValue = positions.reduce((s,p)=>s+p.totalSize+calcPnl(p),0) + cash;
+  const lastEntry = history[history.length-1];
+  if (lastEntry && lastEntry.date === todayStr) {
+    lastEntry.value = realTodayValue;
+  } else {
+    history.push({ date: todayStr, value: realTodayValue });
+  }
+
   portfolioHistory = history;
 }
 
@@ -660,6 +692,9 @@ document.addEventListener('click', e => {
 // ─── INIT ─────────────────────────────────────────────────────────
 async function startApp() {
   document.getElementById('nav-email').textContent = currentUser.email;
+  const username = currentUser.user_metadata?.username || currentUser.email.split('@')[0];
+  const unEl = document.getElementById('nav-username');
+  if (unEl) unEl.textContent = username.charAt(0).toUpperCase() + username.slice(1);
   document.getElementById('auth-screen').style.display = 'none';
   document.getElementById('main-app').style.display = 'flex';
   // Set today's date in form
@@ -707,8 +742,8 @@ function updateKPIs() {
   const losses = closedTrades.filter(t=>(t.profit||0)<=0).length;
   const winRate = closedTrades.length>0 ? Math.round(wins/closedTrades.length*100) : 0;
   const pnlPct = totalSize>0 ? (totalPnlOpen/totalSize)*100 : 0;
-  document.getElementById('kpi-total').textContent = fmtC(totalSize+cash);
-  document.getElementById('kpi-total-sub').textContent = `positions + cash · ${accountCurrency}`;
+  { const _e = document.getElementById('kpi-total'); if(_e) _e.textContent = fmtC(totalSize+cash); }
+  // kpi-total-sub removed
   // Variation du jour
   const todayStr = new Date().toISOString().split('T')[0];
   const todayHistory = portfolioHistory.filter(h => h.date === todayStr);
@@ -719,18 +754,19 @@ function updateKPIs() {
     const dayDiff = todayVal - yesterdayVal;
     const dayPct = yesterdayVal > 0 ? (dayDiff/yesterdayVal)*100 : 0;
     const el = document.getElementById('kpi-day-change');
-    if(el) { el.textContent = (dayDiff>=0?'+':'')+fmtCpnl(dayDiff)+' ('+fmtPct(dayPct)+') auj.'; el.className = 'kpi-sub ' + (dayDiff>=0?'pos':'neg'); }
+    el.textContent = '+'+fmtCpnl(Math.abs(dayDiff))+' ('+fmtPct(Math.abs(dayPct))+') auj.';
+    el.className = 'kpi-sub ' + (dayDiff>=0?'pos':'neg');
   } else {
-    const dayEl = document.getElementById('kpi-day-change'); if(dayEl) dayEl.textContent = '— aujourd\'hui';
-    document.getElementById('kpi-day-change').className = 'kpi-sub neu';
+    { const _e = document.getElementById('kpi-day-change'); if(_e) _e.textContent = '— aujourd\'hui'; }
+    // className handled above
   }
   const oe=document.getElementById('kpi-pnl-open'); oe.textContent=fmtCpnl(totalPnlOpen); oe.className='kpi-val '+(totalPnlOpen>=0?'pos':'neg');
   const op=document.getElementById('kpi-pnl-open-pct'); op.textContent=fmtPct(pnlPct); op.className='kpi-sub '+(totalPnlOpen>=0?'pos':'neg');
   const re=document.getElementById('kpi-pnl-real'); re.textContent=fmtCpnl(totalPnlReal); re.className='kpi-val '+(totalPnlReal>=0?'pos':'neg');
-  document.getElementById('kpi-trades-count').textContent=closedTrades.length+' trades fermés';
-  document.getElementById('kpi-cash').textContent=fmtC(cash);
+  { const _e = document.getElementById('kpi-trades-count'); if(_e) _e.textContent = closedTrades.length+' trades fermés'; }
+  { const _e = document.getElementById('kpi-cash'); if(_e) _e.textContent = fmtC(cash); }
   const we=document.getElementById('kpi-winrate'); we.textContent=winRate+'%'; we.className='kpi-val '+(winRate>=50?'pos':'neg');
-  document.getElementById('kpi-winrate-sub').textContent=wins+'W · '+losses+'L';
+  { const _e = document.getElementById('kpi-winrate-sub'); if(_e) _e.textContent = wins+'W · '+losses+'L'; }
 }
 
 function posRow(p, showAction, idx) {
@@ -746,12 +782,13 @@ function posRow(p, showAction, idx) {
     ${showAction ? `<td style="color:var(--text3);">${firstDate}</td>` : ''}
     ${showAction ? `<td style="color:var(--text2);">${sharesStr}</td>` : ''}
     <td>${fmtPrice(p.avgEntry)}</td><td>${fmtPrice(p.current)}</td>
+    ${showAction ? `<td style="color:var(--text3);">${fmtC(p.avgEntry * (p.shares||0))}</td>` : ''}
     ${showAction ? `<td>${fmtC(p.totalSize)}</td>` : `<td>${fmtC(p.totalSize)}</td>`}
     <td class="${cls}">${fmtCpnl(pnl)}</td><td class="${cls}">${fmtPct(pct)}</td>
     ${ac}</tr>`;
 }
 function renderDashPos() { const t=document.getElementById('dash-pos-body'); t.innerHTML=positions.length?positions.map((p,i)=>posRow(p,false,i)).join(''):'<tr><td colspan="7" class="empty">Aucune position ouverte</td></tr>'; }
-function renderPosTable() { const t=document.getElementById('pos-body'); t.innerHTML=positions.length?positions.map((p,i)=>posRow(p,true,i)).join(''):'<tr><td colspan="9" class="empty">Aucune position ouverte</td></tr>'; }
+function renderPosTable() { const t=document.getElementById('pos-body'); t.innerHTML=positions.length?positions.map((p,i)=>posRow(p,true,i)).join(''):'<tr><td colspan="11" class="empty">Aucune position ouverte</td></tr>'; }
 
 function openCloseModal(i) {
   closeTarget=i; const p=positions[i];
