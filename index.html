@@ -88,7 +88,7 @@
   .donut-pct { margin-left: auto; color: var(--text3); }
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: center; justify-content: center; }
   .modal-overlay.open { display: flex; }
-  .modal { background: var(--bg2); border: 0.5px solid var(--border2); border-radius: 10px; padding: 1.25rem; width: 400px; }
+  .modal { background: var(--bg2); border: 0.5px solid var(--border2); border-radius: 12px; padding: 1.75rem; width: 500px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
   .modal-title { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 0.4rem; font-family: var(--mono); }
   .modal-title span { color: var(--blue); }
   .modal-info { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-bottom: 1rem; line-height: 1.6; white-space: pre-line; }
@@ -361,28 +361,35 @@
   <div class="modal">
     <div class="modal-title">Fermer la position — <span id="modal-symbol"></span></div>
     <div class="modal-info" id="modal-info"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-      <div class="field">
-        <label>Shares à vendre</label>
-        <div style="display:flex;gap:6px;margin-bottom:6px;">
-          <button class="btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="setPartial(0.25)">25%</button>
-          <button class="btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="setPartial(0.50)">50%</button>
-          <button class="btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="setPartial(0.75)">75%</button>
-          <button class="btn-ghost" style="padding:3px 8px;font-size:10px;" onclick="setPartial(1.00)">100%</button>
-        </div>
-        <input type="number" id="modal-shares" step="any" placeholder="Shares" oninput="updatePartialSize()" />
-        <div style="font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--mono);" id="modal-shares-hint"></div>
+    <!-- Shares -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Quantité à vendre</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button class="btn-ghost" style="flex:1;padding:6px 0;font-size:11px;font-weight:600;" onclick="setPartial(0.25)">25%</button>
+        <button class="btn-ghost" style="flex:1;padding:6px 0;font-size:11px;font-weight:600;" onclick="setPartial(0.50)">50%</button>
+        <button class="btn-ghost" style="flex:1;padding:6px 0;font-size:11px;font-weight:600;" onclick="setPartial(0.75)">75%</button>
+        <button class="btn-ghost" style="flex:1;padding:6px 0;font-size:11px;font-weight:600;border-color:var(--blue);color:var(--blue);" onclick="setPartial(1.00)">100%</button>
       </div>
-      <div class="field">
-        <label>Prix de sortie</label>
-        <input type="number" id="modal-exit" step="any" />
-        <div style="font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--mono);">Prix actuel suggéré</div>
-      </div>
+      <input type="number" id="modal-shares" step="any" placeholder="Nombre de shares" oninput="updatePartialSize()" style="font-size:13px;padding:8px 12px;" />
+      <div style="font-size:11px;color:var(--text3);margin-top:5px;font-family:var(--mono);" id="modal-shares-hint"></div>
     </div>
-    <div style="background:var(--bg3);border-radius:6px;padding:8px 10px;margin-bottom:10px;font-family:var(--mono);font-size:11px;color:var(--text2);" id="modal-preview">—</div>
-    <div class="modal-btns">
-      <button class="btn" style="flex:1;" onclick="confirmClose()">Confirmer &amp; libérer le cash</button>
-      <button class="btn-ghost" onclick="cancelClose()">Annuler</button>
+
+    <!-- Prix de sortie -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Prix de sortie par share</div>
+      <input type="number" id="modal-exit" step="any" style="font-size:13px;padding:8px 12px;" oninput="updatePartialSize()" />
+      <div style="font-size:11px;color:var(--text3);margin-top:5px;font-family:var(--mono);">↑ Prix actuel pré-rempli — modifiable</div>
+    </div>
+
+    <!-- Aperçu P&L -->
+    <div style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">Aperçu de la transaction</div>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--text2);line-height:1.8;" id="modal-preview">—</div>
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <button class="btn" style="flex:1;padding:10px;" onclick="confirmClose()">Confirmer &amp; libérer le cash</button>
+      <button class="btn-ghost" style="padding:10px 16px;" onclick="cancelClose()">Annuler</button>
     </div>
   </div>
 </div>
@@ -549,40 +556,50 @@ async function loadData() {
 
 // ─── PORTFOLIO HISTORY ────────────────────────────────────────────
 function buildPortfolioHistory() {
-  // Reconstruire l'historique à partir des trades
-  const allDates = [...trades.map(t=>t.date), ...positions.flatMap(p=>p.entries||[]).map(e=>e.date)].filter(Boolean);
+  const allDates = [
+    ...trades.filter(t=>t.type!=='Dépôt'&&t.type!=='Retrait').map(t=>t.date),
+    ...positions.flatMap(p=>p.entries||[]).map(e=>e.date)
+  ].filter(Boolean);
+
   if (!allDates.length && !positions.length) { portfolioHistory = []; return; }
   allDates.sort();
-  const startDate = allDates.length ? new Date(allDates[0]) : new Date();
+
   const today = new Date();
   today.setHours(0,0,0,0);
+  const startDate = allDates.length ? new Date(allDates[0]) : today;
   const history = [];
 
-  // Reconstruire l'état du portfolio à chaque date
+  // Reconstruire l'état du cash à chaque date
+  const cashByDate = {};
+  let runningCash = 0;
+  [...trades].reverse().forEach(t => {
+    if (t.type === 'Dépôt') { runningCash += t.size; cashByDate[t.date] = runningCash; }
+    else if (t.type === 'Retrait') { runningCash -= t.size; cashByDate[t.date] = runningCash; }
+    else if (t.type === 'Vente') { runningCash += t.montantFinal || 0; cashByDate[t.date] = runningCash; }
+    else if (t.type === 'Achat') { runningCash -= t.size || 0; cashByDate[t.date] = runningCash; }
+  });
+
   for (let d = new Date(startDate); d <= today; d.setDate(d.getDate() + 1)) {
     const dateStr = d.toISOString().split('T')[0];
+    const isToday = dateStr === today.toISOString().split('T')[0];
+
     // Positions actives à cette date
     const activePos = positions.filter(p => {
       const entries = p.entries || [];
       return entries.length > 0 && entries[0].date <= dateStr;
     });
-    // Pour aujourd'hui, utiliser le prix actuel live
-    const posValue = activePos.reduce((s, p) => {
-      const isToday = dateStr === today.toISOString().split('T')[0];
-      const pnl = isToday ? calcPnl(p) : 0; // Approximation: P&L seulement aujourd'hui
-      return s + p.totalSize + pnl;
-    }, 0);
-    history.push({ date: dateStr, value: posValue + cash });
-  }
 
-  // Toujours ajouter un point pour aujourd'hui avec la vraie valeur
-  const todayStr = today.toISOString().split('T')[0];
-  const realTodayValue = positions.reduce((s,p)=>s+p.totalSize+calcPnl(p),0) + cash;
-  const lastEntry = history[history.length-1];
-  if (lastEntry && lastEntry.date === todayStr) {
-    lastEntry.value = realTodayValue;
-  } else {
-    history.push({ date: todayStr, value: realTodayValue });
+    // Valeur des positions
+    const posValue = activePos.reduce((s, p) => {
+      const shares = p.shares || 0;
+      if (isToday) return s + shares * p.current;
+      return s + shares * p.avgEntry; // approximation historique = coût
+    }, 0);
+
+    // Cash à cette date (utiliser la valeur actuelle pour aujourd'hui)
+    const cashAtDate = isToday ? cash : (cashByDate[dateStr] !== undefined ? cashByDate[dateStr] : cash);
+
+    history.push({ date: dateStr, value: posValue + cashAtDate });
   }
 
   portfolioHistory = history;
@@ -720,7 +737,17 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ─── LOGIQUE ──────────────────────────────────────────────────────
-function calcPnl(p) { const pct = p.dir==='Long' ? (p.current-p.avgEntry)/p.avgEntry : (p.avgEntry-p.current)/p.avgEntry; return p.totalSize * pct; }
+function calcPnl(p) {
+  const shares = p.shares || 0;
+  if (shares > 0) {
+    const coutTotal = shares * p.avgEntry;
+    const valeurMarche = shares * p.current;
+    return p.dir === 'Long' ? valeurMarche - coutTotal : coutTotal - valeurMarche;
+  }
+  // Fallback pour anciennes positions sans shares
+  const pct = p.dir==='Long' ? (p.current-p.avgEntry)/p.avgEntry : (p.avgEntry-p.current)/p.avgEntry;
+  return p.totalSize * pct;
+}
 function fmt(n) { return (n>=0?'+':'-')+'$'+Math.abs(n).toFixed(2); }
 function fmtPct(n) { return (n>=0?'+':'')+n.toFixed(2)+'%'; }
 function fmtUSD(n) { return '$'+Math.round(n).toLocaleString('en-US'); }
@@ -735,7 +762,7 @@ function getCat(symbol) {
 
 function updateKPIs() {
   const totalPnlOpen = positions.reduce((s,p)=>s+calcPnl(p),0);
-  const totalSize = positions.reduce((s,p)=>s+p.totalSize,0);
+  const totalSize = positions.reduce((s,p)=>s+((p.shares||0)*p.current),0); // valeur au marché
   const closedTrades = trades.filter(t=>t.type==='Vente');
   const totalPnlReal = closedTrades.reduce((s,t)=>s+(t.profit||0),0);
   const wins = closedTrades.filter(t=>(t.profit||0)>0).length;
@@ -770,22 +797,46 @@ function updateKPIs() {
 }
 
 function posRow(p, showAction, idx) {
-  const pnl=calcPnl(p), pct=(pnl/p.totalSize)*100, cls=pnl>=0?'pos':'neg';
-  const isDca=p.entries&&p.entries.length>1;
-  const firstDate = p.entries&&p.entries[0] ? p.entries[0].date : '—';
+  // Formules corrigées:
+  // Coût total = shares × prix moyen
+  // Prix actuel = prix live d'un share
+  // Valeur au marché = shares × prix actuel
+  // P&L = valeur au marché - coût total
+  const shares = p.shares || 0;
+  const coutTotal = shares * p.avgEntry;
+  const valeurMarche = shares * p.current;
+  const pnl = p.dir === 'Long' ? valeurMarche - coutTotal : coutTotal - valeurMarche;
+  const pct = coutTotal > 0 ? (pnl / coutTotal) * 100 : 0;
+  const cls = pnl >= 0 ? 'pos' : 'neg';
+  const isDca = p.entries && p.entries.length > 1;
+  const firstDate = p.entries && p.entries[0] ? p.entries[0].date : '—';
   const ac = showAction ? `<td><button class="btn-danger" onclick="openCloseModal(${idx})">Fermer</button></td>` : '';
-  const sharesStr = p.shares ? p.shares.toLocaleString('en-US', {maximumFractionDigits:4}) : '—';
+  const sharesStr = shares ? shares.toLocaleString('en-US', {maximumFractionDigits:4}) : '—';
   const curBadge = p.currency && p.currency !== 'USD' ? `<span style="font-size:9px;color:var(--amber);font-family:var(--mono);margin-left:4px;">${p.currency}</span>` : '';
-  return `<tr>
-    <td class="sym">${p.symbol}${isDca?'<span class="badge-dca">DCA×'+p.entries.length+'</span>':''}${curBadge}</td>
-    <td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td>
-    ${showAction ? `<td style="color:var(--text3);">${firstDate}</td>` : ''}
-    ${showAction ? `<td style="color:var(--text2);">${sharesStr}</td>` : ''}
-    <td>${fmtPrice(p.avgEntry)}</td><td>${fmtPrice(p.current)}</td>
-    ${showAction ? `<td style="color:var(--text3);">${fmtC(p.avgEntry * (p.shares||0))}</td>` : ''}
-    ${showAction ? `<td>${fmtC(p.totalSize)}</td>` : `<td>${fmtC(p.totalSize)}</td>`}
-    <td class="${cls}">${fmtCpnl(pnl)}</td><td class="${cls}">${fmtPct(pct)}</td>
-    ${ac}</tr>`;
+  if (showAction) {
+    return `<tr>
+      <td class="sym">${p.symbol}${isDca?'<span class="badge-dca">DCA×'+p.entries.length+'</span>':''}${curBadge}</td>
+      <td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td>
+      <td style="color:var(--text3);">${firstDate}</td>
+      <td style="color:var(--text2);">${sharesStr}</td>
+      <td>${fmtPrice(p.avgEntry)}</td>
+      <td style="color:var(--text3);">${fmtC(coutTotal)}</td>
+      <td>${fmtPrice(p.current)}</td>
+      <td>${fmtC(valeurMarche)}</td>
+      <td class="${cls}">${fmtCpnl(pnl)}</td>
+      <td class="${cls}">${fmtPct(pct)}</td>
+      ${ac}</tr>`;
+  } else {
+    return `<tr>
+      <td class="sym">${p.symbol}${isDca?'<span class="badge-dca">DCA×'+p.entries.length+'</span>':''}${curBadge}</td>
+      <td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td>
+      <td>${fmtPrice(p.avgEntry)}</td>
+      <td>${fmtPrice(p.current)}</td>
+      <td>${fmtC(valeurMarche)}</td>
+      <td class="${cls}">${fmtCpnl(pnl)}</td>
+      <td class="${cls}">${fmtPct(pct)}</td>
+      </tr>`;
+  }
 }
 function renderDashPos() { const t=document.getElementById('dash-pos-body'); t.innerHTML=positions.length?positions.map((p,i)=>posRow(p,false,i)).join(''):'<tr><td colspan="7" class="empty">Aucune position ouverte</td></tr>'; }
 function renderPosTable() { const t=document.getElementById('pos-body'); t.innerHTML=positions.length?positions.map((p,i)=>posRow(p,true,i)).join(''):'<tr><td colspan="11" class="empty">Aucune position ouverte</td></tr>'; }
@@ -888,16 +939,51 @@ function renderHistory() {
     return true;
   });
   tbody.innerHTML=filteredTrades.map(t=>{
-    if(t.type==='Vente'){
+    if(t.type==='Dépôt'||t.type==='Retrait'){
+      const isDeposit = t.type==='Dépôt';
+      const color = isDeposit ? 'var(--green)' : 'var(--amber)';
+      const badgeStyle = isDeposit
+        ? 'background:rgba(45,212,160,0.1);color:var(--green);border:0.5px solid rgba(45,212,160,0.25);'
+        : 'background:rgba(246,200,67,0.1);color:var(--amber);border:0.5px solid rgba(246,200,67,0.25);';
+      return`<tr style="opacity:0.85;">
+        <td>${t.date}</td>
+        <td class="sym" style="color:var(--text3);">—</td>
+        <td><span class="badge" style="${badgeStyle}">${t.type}</span></td>
+        <td style="color:var(--text3);">—</td>
+        <td style="color:${color};">${isDeposit?'+':'-'}${fmtC(t.size)}</td>
+        <td style="color:var(--text2);">${fmtC(t.montantFinal)} cash</td>
+        <td style="color:var(--text3);">—</td>
+        <td style="color:var(--text3);">—</td>
+      </tr>`;
+    } else if(t.type==='Vente'){
       const profit=t.profit||0; totalPnl+=profit; profit>0?wins++:losses++;
-      const cls=profit>=0?'pos':'neg', roi=t.size>0?(profit/t.size)*100:0, isDca=t.dcaCount&&t.dcaCount>1;
-      return`<tr><td>${t.date}</td><td class="sym">${t.symbol}${isDca?'<span class="badge-dca">DCA×'+t.dcaCount+'</span>':''}</td><td><span class="badge badge-vente">Vente</span></td><td style="color:var(--text3);">${fmtPrice(t.avgEntry||t.price)} → ${fmtPrice(t.price)}</td><td>${fmtC(t.size)}</td><td class="${cls}">${fmtC(t.montantFinal||t.size+profit)}</td><td class="${cls}">${fmtCpnl(profit)}</td><td class="${cls}">${fmtPct(roi)}</td></tr>`;
+      const cls=profit>=0?'pos':'neg',roi=t.size>0?(profit/t.size)*100:0,isDca=t.dcaCount&&t.dcaCount>1;
+      return`<tr>
+        <td>${t.date}</td>
+        <td class="sym">${t.symbol}${isDca?'<span class="badge-dca">DCA×'+t.dcaCount+'</span>':''}</td>
+        <td><span class="badge badge-vente">Vente</span></td>
+        <td style="color:var(--text3);">${fmtPrice(t.avgEntry||t.price)} → ${fmtPrice(t.price)}</td>
+        <td>${fmtC(t.size)}</td>
+        <td class="${cls}">${fmtC(t.montantFinal||t.size+profit)}</td>
+        <td class="${cls}">${fmtCpnl(profit)}</td>
+        <td class="${cls}">${fmtPct(roi)}</td>
+      </tr>`;
     } else {
-      return`<tr><td>${t.date}</td><td class="sym">${t.symbol}</td><td><span class="badge badge-achat">Achat</span></td><td>${fmtPrice(t.price)}</td><td>${fmtC(t.size)}</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
+      return`<tr>
+        <td>${t.date}</td>
+        <td class="sym">${t.symbol}</td>
+        <td><span class="badge badge-achat">Achat</span></td>
+        <td>${fmtPrice(t.price)}</td>
+        <td>${fmtC(t.size)}</td>
+        <td style="color:var(--text3);">—</td>
+        <td style="color:var(--text3);">—</td>
+        <td style="color:var(--text3);">—</td>
+      </tr>`;
     }
   }).join('')||'<tr><td colspan="8" class="empty">Aucune transaction</td></tr>';
   const cls=totalPnl>=0?'pos':'neg';
-  document.getElementById('hist-summary-inline').innerHTML=`P&L réalisé : <strong class="${cls}">${fmtCpnl(totalPnl)}</strong> &nbsp;·&nbsp; Gains : <strong class="pos">${wins}</strong> &nbsp;·&nbsp; Pertes : <strong class="neg">${losses}</strong>`;
+  const sumEl = document.getElementById('hist-summary-inline');
+  if(sumEl) sumEl.innerHTML=`P&L réalisé : <strong class="${cls}">${fmtCpnl(totalPnl)}</strong> &nbsp;·&nbsp; Gains : <strong class="pos">${wins}</strong> &nbsp;·&nbsp; Pertes : <strong class="neg">${losses}</strong>`;
 }
 
 function updatePnlBar() {
@@ -950,7 +1036,18 @@ document.addEventListener('click', e => { if (!e.target.closest('.kpi')) closeCa
 
 function updateCash() {
   const v=parseFloat(document.getElementById('cash-input').value);
-  if(!isNaN(v)){cash=v;document.getElementById('cash-input').value='';closeCashPopup();buildPortfolioHistory();saveData();updateKPIs();}
+  if(!isNaN(v)){
+    const date=new Date().toISOString().split('T')[0];
+    const diff = v - cash;
+    const type = diff >= 0 ? 'Dépôt' : 'Retrait';
+    trades.unshift({date, symbol:'CASH', dir:'—', type, price:0, size:Math.abs(diff), profit:0, montantFinal:v, cashBalance:v});
+    cash=v;
+    document.getElementById('cash-input').value='';
+    closeCashPopup();
+    buildPortfolioHistory();
+    saveData();
+    renderAll();
+  }
 }
 
 function switchTab(name,el) {
