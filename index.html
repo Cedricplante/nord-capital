@@ -1117,7 +1117,7 @@ function posRow(p, showAction, idx) {
       </tr>`;
   }
 }
-function renderDashPos() { const t=document.getElementById('dash-pos-body'); t.innerHTML=positions.length?positions.map((p,i)=>posRow(p,false,i)).join(''):'<tr><td colspan="7" class="empty">Aucune position ouverte</td></tr>'; }
+function renderDashPos() { /* section supprimée du dashboard */ }
 function renderPosTable() { const t=document.getElementById('pos-body'); t.innerHTML=positions.length?positions.map((p,i)=>posRow(p,true,i)).join(''):'<tr><td colspan="11" class="empty">Aucune position ouverte</td></tr>'; }
 
 function openCloseModal(i) {
