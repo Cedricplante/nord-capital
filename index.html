@@ -1438,7 +1438,20 @@ function getFilteredHistory() {
 function updatePerfChart() {
   if (!perfChart) return;
   const filtered = getFilteredHistory();
-  if (!filtered.length) { perfChart.data.labels=[]; perfChart.data.datasets[0].data=[]; perfChart.update(); return; }
+  const chartWrap = document.querySelector('#tab-dashboard .chart-wrap');
+  const existingMsg = document.getElementById('perf-chart-empty');
+  if (filtered.length < 2) {
+    perfChart.data.labels=[]; perfChart.data.datasets[0].data=[]; perfChart.update();
+    if (chartWrap && !existingMsg) {
+      const msg = document.createElement('div');
+      msg.id = 'perf-chart-empty';
+      msg.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;color:var(--text3);pointer-events:none;';
+      msg.textContent = 'En attente de données historiques — effectue une transaction sur au moins 2 jours distincts';
+      chartWrap.appendChild(msg);
+    }
+    return;
+  }
+  if (existingMsg) existingMsg.remove();
   // Échantillonner max 30 points
   const step = Math.max(1, Math.floor(filtered.length / 30));
   const sampled = filtered.filter((_, i) => i % step === 0 || i === filtered.length - 1);
