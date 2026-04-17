@@ -861,7 +861,8 @@ if(inputCur!==accountCurrency){
   else if(accountCurrency==='USD') c=inputAmt/(FX_FALLBACK[inputCur]||1);
   else c=inputAmt/(FX_FALLBACK[inputCur]||1)*fxRate;
 }
-  const newCash=cashType==='depot'?cash+c:Math.max(0,cash-c),diff=Math.abs(newCash-cash);
+  const cUSD=inputCur==='USD'?inputAmt:inputAmt/(FX_FALLBACK[inputCur]||1);
+const newCash=cashType==='depot'?cash+cUSD:Math.max(0,cash-cUSD),diff=Math.abs(newCash-cash);
   trades.unshift({date,symbol:'CASH',dir:'—',type,price:0,size:diff,profit:0,montantFinal:newCash,cashBalance:newCash,currency:inputCur,originalAmt:inputAmt});
   cash=newCash;closeCashPopup();saveData();renderAll();
 }
