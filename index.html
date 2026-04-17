@@ -673,7 +673,24 @@ async function startApp(){
   const savedCur=localStorage.getItem('nc_currency');
   if(savedCur){accountCurrency=savedCur;document.getElementById('currency-select').value=savedCur;await setCurrency(savedCur);}
   else{renderAll();}
-  fetchLivePrices();
+  if (portfolioHistory.length === 0 && positions.length > 0) {
+  const firstTradeDate = trades.length > 0
+    ? [...trades].sort((a, b) => a.date.localeCompare(b.date))[0].date
+    : new Date().toISOString().split('T')[0];
+  const today = new Date().toISOString().split('T')[0];
+  const initialValue = positions.reduce((s, p) => s + conv((p.shares || 0) * p.current, p.currency || 'USD'), 0) + cash;
+  await saveSnapshot(initialValue);
+  if (firstTradeDate < today) {
+    await fetch(`${SB_URL}/rest/v1/portfolio_history`, {
+      method: 'POST',
+      headers: { ...sbHeaders(), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ user_id: currentUser.id, date: firstTradeDate, value: parseFloat(initialValue.toFixed(2)), updated_at: new Date().toISOString() })
+    });
+    await loadPortfolioHistory();
+    await backfillMissingDays();
+  }
+}
+fetchLivePrices();
   setInterval(fetchLivePrices,900000);
 }
 window.addEventListener('DOMContentLoaded',async()=>{
