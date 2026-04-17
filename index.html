@@ -434,6 +434,7 @@ const SYMBOLS = [
   {s:'GBP/JPY',n:'Livre Sterling / Yen',inst:'Forex',cat:'Forex',cur:'JPY'},{s:'NZD/USD',n:'Dollar néo-zélandais / Dollar',inst:'Forex',cat:'Forex',cur:'USD'},
   {s:'XAU/USD',n:'Or (Gold)',inst:'Spot',cat:'Commodité',cur:'USD'},{s:'XAG/USD',n:'Argent (Silver)',inst:'Spot',cat:'Commodité',cur:'USD'},
   {s:'WTI/USD',n:'Pétrole WTI',inst:'Futures',cat:'Commodité',cur:'USD'},{s:'BRENT/USD',n:'Pétrole Brent',inst:'Futures',cat:'Commodité',cur:'USD'},
+  {s:'AAVE/USD',n:'Aave',inst:'Crypto',cat:'Crypto',cur:'USD'},{s:'ATOM/USD',n:'Cosmos (ATOM)',inst:'Crypto',cat:'Crypto',cur:'USD'},
 ];
 
 const TICKER_MAP = {
@@ -446,7 +447,7 @@ const TICKER_MAP = {
   'VFV':'VFV.TO','VFV.TO':'VFV.TO','XQQ':'XQQ.TO','XQQ.TO':'XQQ.TO','ZSP':'ZSP.TO','ZSP.TO':'ZSP.TO',
   'EUR/USD':'EURUSD=X','GBP/USD':'GBPUSD=X','USD/JPY':'USDJPY=X','USD/CAD':'USDCAD=X','AUD/USD':'AUDUSD=X',
   'USD/CHF':'USDCHF=X','EUR/GBP':'EURGBP=X','EUR/JPY':'EURJPY=X','GBP/JPY':'GBPJPY=X','NZD/USD':'NZDUSD=X',
-  'XAU/USD':'GC=F','XAG/USD':'SI=F','WTI/USD':'CL=F','BRENT/USD':'BZ=F',
+  'XAU/USD':'GC=F','XAG/USD':'SI=F','WTI/USD':'CL=F','BRENT/USD':'BZ=F','AAVE/USD':'AAVE-USD','ATOM/USD':'ATOM-USD',
 };
 
 function getTicker(symbol) {
