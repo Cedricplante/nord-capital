@@ -855,7 +855,12 @@ function closeCashPopup(){document.getElementById('cash-modal-overlay').classLis
 async function updateCash(){
   const inputAmt=parseFloat(document.getElementById('cash-input').value);if(isNaN(inputAmt)||inputAmt<=0){alert('Entre un montant valide.');return;}
   const inputCur=document.getElementById('cash-currency-input')?.value||'USD',date=new Date().toISOString().split('T')[0],type=cashType==='depot'?'Dépôt':'Retrait';
-  let c=inputAmt;if(inputCur!==accountCurrency){if(inputCur==='USD')c=inputAmt*fxRate;else if(accountCurrency==='USD'){const r=await fetchFxRate(inputCur);c=inputAmt/r;}else{const r=await fetchFxRate(inputCur);c=(inputAmt/r)*fxRate;}}
+  let c=inputAmt;
+if(inputCur!==accountCurrency){
+  if(inputCur==='USD') c=inputAmt*fxRate;
+  else if(accountCurrency==='USD'){const r=await fetchFxRate(inputCur);c=inputAmt/r;}
+  else{const r=await fetchFxRate(inputCur);c=(inputAmt/r)*fxRate;}
+}
   const newCash=cashType==='depot'?cash+c:Math.max(0,cash-c),diff=Math.abs(newCash-cash);
   trades.unshift({date,symbol:'CASH',dir:'—',type,price:0,size:diff,profit:0,montantFinal:newCash,cashBalance:newCash,currency:inputCur,originalAmt:inputAmt});
   cash=newCash;closeCashPopup();saveData();renderAll();
