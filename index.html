@@ -847,7 +847,7 @@ async function updateCashPreview(){
   const amt=parseFloat(document.getElementById('cash-input')?.value),inputCur=document.getElementById('cash-currency-input')?.value||'USD';
   const hint=document.getElementById('cash-convert-hint'),preview=document.getElementById('cash-preview-current');
   if(preview)preview.textContent=fmtC(cash);
-  if(!isNaN(amt)&&amt>0&&hint){let c=amt;if(inputCur!==accountCurrency){if(inputCur==='USD')c=amt*fxRate;else if(accountCurrency==='USD'){const r=await fetchFxRate(inputCur);c=amt/r;}else{const r=await fetchFxRate(inputCur);c=(amt/r)*fxRate;}}hint.textContent=`${amt} ${inputCur} → ${c.toFixed(c>1000?0:2)} ${accountCurrency}`;}
+  if(!isNaN(amt)&&amt>0&&hint){let c=amt;if(inputCur!==accountCurrency){const toUSD=inputCur==='USD'?1:1/(FX_FALLBACK[inputCur]||1);const fromUSD=accountCurrency==='USD'?1:fxRate;c=amt*toUSD*fromUSD;}hint.textContent=`${amt} ${inputCur} → ${c.toFixed(c>1000?0:2)} ${accountCurrency}`;}
   else if(hint)hint.textContent='';
 }
 function toggleCashPopup(e){e.stopPropagation();document.getElementById('cash-modal-overlay').classList.add('open');const p=document.getElementById('cash-preview-current');if(p)p.textContent=fmtC(cash);setTimeout(()=>document.getElementById('cash-input').focus(),100);}
