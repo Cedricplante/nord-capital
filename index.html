@@ -629,8 +629,8 @@ async function fetchLivePrices(){
     positions.forEach(p=>{const t=getTicker(p.symbol);if(data[t]&&data[t]>0){p.current=data[t];updated++;}});
     if(updated>0){
       saveData();
-      // Calculer la valeur totale et sauvegarder le snapshot du jour
-      const totalValue=positions.reduce((s,p)=>s+conv((p.shares||0)*p.current,p.currency||'USD'),0)+cash;
+      // Snapshot en USD (pivot) — pas de conv()
+      const totalValue=positions.reduce((s,p)=>s+((p.shares||0)*p.current*(p.currency&&p.currency!=='USD'?1/(FX_FALLBACK[p.currency]||1):1)),0)+cash;
       await saveSnapshot(totalValue);
       renderAll();
       setLiveStatus('live');
@@ -909,7 +909,7 @@ function updatePerfChart(){
   const step=Math.max(1,Math.floor(filtered.length/60));
   const sampled=filtered.filter((_,i)=>i%step===0||i===filtered.length-1);
   perfChart.data.labels=sampled.map(h=>h.date.slice(5));
-  perfChart.data.datasets[0].data=sampled.map(h=>parseFloat(conv(h.value).toFixed(2)));
+  perfChart.data.datasets[0].data=sampled.map(h=>parseFloat((h.value*fxRate).toFixed(2)));
   perfChart.update();
 }
 
