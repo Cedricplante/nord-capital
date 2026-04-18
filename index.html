@@ -41,12 +41,12 @@
   .section { display: none; } .section.active { display: block; }
   .kpi-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
   .kpi-grid-2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 0.75rem; }
-  .kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 1.25rem 1.5rem; position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 110px; transition: border-color 0.15s; }
+  .kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 1rem 1.4rem; position: relative; overflow: hidden; display: flex; flex-direction: column; height: 110px; transition: border-color 0.15s; }
   .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--blue); opacity: 0.4; }
-  .kpi-label { font-size: 10px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1.2px; font-family: var(--mono); font-weight: 600; }
-  .kpi-val { font-size: 26px; font-weight: 700; color: var(--text); font-family: var(--mono); text-align: center; margin-top: auto; margin-bottom: auto; display: flex; align-items: center; justify-content: center; padding: 8px 0; }
-  .kpi-val-hero { font-size: 44px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -1px; text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
-  .kpi-sub { font-size: 10px; font-family: var(--mono); align-self: flex-start; }
+  .kpi-label { font-size: 10px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1.2px; font-family: var(--mono); font-weight: 600; flex-shrink: 0; }
+  .kpi-val { font-size: 26px; font-weight: 700; color: var(--text); font-family: var(--mono); text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
+  .kpi-val-hero { font-size: 38px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -1px; text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
+  .kpi-sub { font-size: 10px; font-family: var(--mono); flex-shrink: 0; }
   .pos { color: var(--green); } .neg { color: var(--red); } .neu { color: var(--text3); }
   td.pos, td.neg { font-size: 13px; font-weight: 600; }
   .grid-2-1 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 0.75rem; }
