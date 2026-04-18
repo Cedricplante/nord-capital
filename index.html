@@ -850,18 +850,28 @@ function setCashType(type){
 async function updateCashPreview(){
   const amt=parseFloat(document.getElementById('cash-input')?.value),inputCur=document.getElementById('cash-currency-input')?.value||'USD';
   const hint=document.getElementById('cash-convert-hint'),preview=document.getElementById('cash-preview-current');
-  if(preview)preview.textContent=fmtC(cash);
-  if(!isNaN(amt)&&amt>0&&hint){let c=amt;if(inputCur!==accountCurrency){if(inputCur==='USD')c=amt*fxRate;else if(accountCurrency==='USD'){const r=await fetchFxRate(inputCur);c=amt/r;}else{const r=await fetchFxRate(inputCur);c=(amt/r)*fxRate;}}hint.textContent=`${amt} ${inputCur} → ${c.toFixed(c>1000?0:2)} ${accountCurrency}`;}
-  else if(hint)hint.textContent='';
+  if(preview)preview.textContent='$'+Math.round(cash*fxRate).toLocaleString('en-US')+' '+accountCurrency;
+  if(!isNaN(amt)&&amt>0&&hint){
+    // Convertir inputAmt vers accountCurrency pour le hint (juste visuel)
+    let display=amt;
+    if(inputCur==='USD') display=amt*fxRate;
+    else if(inputCur===accountCurrency) display=amt;
+    else display=amt/(FX_FALLBACK[inputCur]||1)*fxRate;
+    if(inputCur!==accountCurrency) hint.textContent=`${amt} ${inputCur} → ${display.toFixed(display>1000?0:2)} ${accountCurrency}`;
+    else hint.textContent='';
+  } else if(hint) hint.textContent='';
 }
-function toggleCashPopup(e){e.stopPropagation();document.getElementById('cash-modal-overlay').classList.add('open');const p=document.getElementById('cash-preview-current');if(p)p.textContent=fmtC(cash);setTimeout(()=>document.getElementById('cash-input').focus(),100);}
+function toggleCashPopup(e){e.stopPropagation();document.getElementById('cash-modal-overlay').classList.add('open');const p=document.getElementById('cash-preview-current');if(p)p.textContent='$'+Math.round(cash*fxRate).toLocaleString('en-US')+' '+accountCurrency;setTimeout(()=>document.getElementById('cash-input').focus(),100);}
 function closeCashPopup(){document.getElementById('cash-modal-overlay').classList.remove('open');document.getElementById('cash-input').value='';}
 async function updateCash(){
   const inputAmt=parseFloat(document.getElementById('cash-input').value);if(isNaN(inputAmt)||inputAmt<=0){alert('Entre un montant valide.');return;}
   const inputCur=document.getElementById('cash-currency-input')?.value||'USD',date=new Date().toISOString().split('T')[0],type=cashType==='depot'?'Dépôt':'Retrait';
-  let c=inputAmt;if(inputCur!==accountCurrency){if(inputCur==='USD')c=inputAmt*fxRate;else if(accountCurrency==='USD'){const r=await fetchFxRate(inputCur);c=inputAmt/r;}else{const r=await fetchFxRate(inputCur);c=(inputAmt/r)*fxRate;}}
-  const newCash=cashType==='depot'?cash+c:Math.max(0,cash-c),diff=Math.abs(newCash-cash);
-  trades.unshift({date,symbol:'CASH',dir:'—',type,price:0,size:diff,profit:0,montantFinal:newCash,cashBalance:newCash,currency:inputCur,originalAmt:inputAmt});
+  // Toujours convertir vers USD (devise pivot de stockage)
+  let amtUSD=inputAmt;
+  if(inputCur==='USD') amtUSD=inputAmt;
+  else amtUSD=inputAmt/(FX_FALLBACK[inputCur]||1);
+  const newCash=cashType==='depot'?cash+amtUSD:Math.max(0,cash-amtUSD);
+  trades.unshift({date,symbol:'CASH',dir:'—',type,price:0,size:amtUSD,profit:0,montantFinal:newCash,cashBalance:newCash,currency:inputCur,originalAmt:inputAmt});
   cash=newCash;closeCashPopup();saveData();renderAll();
 }
 
