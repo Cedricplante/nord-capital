@@ -44,7 +44,7 @@
   .kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r); padding: 1.25rem 1.5rem; position: relative; overflow: hidden; display: flex; flex-direction: column; min-height: 110px; transition: border-color 0.15s; }
   .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--blue); opacity: 0.4; }
   .kpi-label { font-size: 10px; color: var(--text2); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1.2px; font-family: var(--mono); font-weight: 600; }
-  .kpi-val { font-size: 26px; font-weight: 700; color: var(--text); font-family: var(--mono); text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
+  .kpi-val { font-size: 26px; font-weight: 700; color: var(--text); font-family: var(--mono); text-align: center; margin-top: auto; margin-bottom: auto; display: flex; align-items: center; justify-content: center; padding: 8px 0; }
   .kpi-val-hero { font-size: 44px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -1px; text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
   .kpi-sub { font-size: 10px; font-family: var(--mono); align-self: flex-start; }
   .pos { color: var(--green); } .neg { color: var(--red); } .neu { color: var(--text3); }
@@ -213,15 +213,15 @@
         <div class="kpi"><div class="kpi-label">P&amp;L réalisé</div><div class="kpi-val" id="kpi-pnl-real">—</div><div class="kpi-sub neu" id="kpi-trades-count">—</div></div>
       </div>
       <div class="kpi-grid-2">
-        <div class="kpi" style="min-height:80px;">
+        <div class="kpi">
           <div class="kpi-label">Cash disponible</div>
           <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex:1;">
             <div class="kpi-val" id="kpi-cash" style="flex:unset;">—</div>
             <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;transform:scaleX(-1);" onmouseover="this.style.color='var(--blue)'" onmouseout="this.style.color='var(--text3)'">✎</button>
           </div>
         </div>
-        <div class="kpi" style="min-height:80px;"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div></div>
-        <div class="kpi" style="min-height:80px;"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
+        <div class="kpi"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div></div>
+        <div class="kpi"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
       </div>
       <div class="grid-2-1">
         <div class="card">
