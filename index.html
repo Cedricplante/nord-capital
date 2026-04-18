@@ -22,7 +22,7 @@
     --border: #e0e0e0; --border2: #d0d0d0;
     --blue: #2563eb; --blue-dim: #dbeafe; --blue-glow: rgba(37,99,235,0.1);
     --green: #059669; --red: #dc2626; --amber: #d97706; --purple: #7c3aed; --cyan: #0284c7;
-    --text: #0a0a0a; --text2: #404040; --text3: #909090;
+    --text: #000000; --text2: #000000; --text3: #000000;
     --shadow: 0 2px 8px rgba(0,0,0,0.08);
   }
   html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 12px; }
@@ -216,12 +216,12 @@
         <div class="kpi" style="min-height:80px;">
           <div class="kpi-label">Cash disponible</div>
           <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex:1;">
-            <div class="kpi-val" id="kpi-cash" style="flex:unset;font-size:22px;">—</div>
+            <div class="kpi-val" id="kpi-cash" style="flex:unset;">—</div>
             <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;transform:scaleX(-1);" onmouseover="this.style.color='var(--blue)'" onmouseout="this.style.color='var(--text3)'">✎</button>
           </div>
         </div>
-        <div class="kpi" style="min-height:80px;"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions" style="font-size:22px;">—</div></div>
-        <div class="kpi" style="min-height:80px;"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate" style="font-size:22px;">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
+        <div class="kpi" style="min-height:80px;"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div></div>
+        <div class="kpi" style="min-height:80px;"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
       </div>
       <div class="grid-2-1">
         <div class="card">
