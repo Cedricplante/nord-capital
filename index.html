@@ -695,20 +695,24 @@ window.addEventListener('DOMContentLoaded',async()=>{
 
 // ─── LOGIQUE ──────────────────────────────────────────────────────
 function calcPnl(p){const shares=p.shares||0;if(shares>0){const cout=shares*p.avgEntry,val=shares*p.current;return p.dir==='Long'?val-cout:cout-val;}const pct=p.dir==='Long'?(p.current-p.avgEntry)/p.avgEntry:(p.avgEntry-p.current)/p.avgEntry;return p.totalSize*pct;}
+// Version USD pivot : retourne le PnL en USD quelle que soit la devise de la position
+function calcPnlUSD(p){const pnl=calcPnl(p);const pc=p.currency||'USD';if(pc==='USD')return pnl;return pnl/(FX_FALLBACK[pc]||1);}
 function fmtPct(n){return(n>=0?'+':'')+n.toFixed(2)+'%';}
 function fmtPrice(p){return p>100?p.toFixed(2):p.toFixed(4);}
 function getCat(symbol){const found=SYMBOLS.find(s=>s.s===symbol);if(found)return found.cat;if(symbol.includes('/'))return symbol.includes('USD')&&!symbol.includes('EUR')&&!symbol.includes('GBP')?'Crypto':'Forex';return'Action';}
 
 function updateKPIs(){
-  const totalPnlOpen=positions.reduce((s,p)=>s+conv(calcPnl(p),p.currency||'USD'),0);
-  const totalSize=positions.reduce((s,p)=>s+conv((p.shares||0)*p.current,p.currency||'USD'),0);
+  // Tout en USD — fmtC/fmtCpnl s'occupent de la conversion à l'affichage
+  const totalPnlOpen=positions.reduce((s,p)=>s+calcPnlUSD(p),0);
+  const totalSize=positions.reduce((s,p)=>s+((p.shares||0)*p.current*(p.currency&&p.currency!=='USD'?1/(FX_FALLBACK[p.currency]||1):1)),0);
   const closedTrades=trades.filter(t=>t.type==='Vente');
-  const totalPnlReal=closedTrades.reduce((s,t)=>s+(t.profit||0),0);
-  const wins=closedTrades.filter(t=>(t.profit||0)>0).length, losses=closedTrades.filter(t=>(t.profit||0)<=0).length;
+  const totalPnlReal=closedTrades.reduce((s,t)=>s+(t.profitUSD||t.profit||0),0);
+  const wins=closedTrades.filter(t=>(t.profitUSD||t.profit||0)>0).length, losses=closedTrades.filter(t=>(t.profitUSD||t.profit||0)<=0).length;
   const winRate=closedTrades.length>0?Math.round(wins/closedTrades.length*100):0;
   const pnlPct=totalSize>0?(totalPnlOpen/totalSize)*100:0;
-  {const _e=document.getElementById('kpi-total');if(_e)_e.textContent=fmtC(totalSize+cash);}
-  // Variation du jour
+  // Valeur totale = positions (USD) + cash (USD) → converti à l'affichage
+  {const _e=document.getElementById('kpi-total');if(_e)_e.textContent='$'+Math.round((totalSize+cash)*fxRate).toLocaleString('en-US')+' '+accountCurrency;}
+  // Variation du jour — portfolioHistory stocké en accountCurrency
   const todayStr=new Date().toISOString().split('T')[0];
   const todayPt=portfolioHistory.filter(h=>h.date===todayStr);
   const yesterdayPt=portfolioHistory.filter(h=>h.date<todayStr);
@@ -717,18 +721,20 @@ function updateKPIs(){
     const todayVal=todayPt[todayPt.length-1].value, yesterdayVal=yesterdayPt[yesterdayPt.length-1].value;
     const dayDiff=todayVal-yesterdayVal, dayPct=yesterdayVal>0?(dayDiff/yesterdayVal)*100:0;
     const sign=dayDiff>=0?'+':'-';
-    if(dayEl){dayEl.textContent=sign+'$'+conv(Math.abs(dayDiff)).toFixed(2)+' '+accountCurrency+' ('+fmtPct(Math.abs(dayPct))+') auj.';dayEl.className='kpi-sub '+(dayDiff>=0?'pos':'neg');}
+    if(dayEl){dayEl.textContent=sign+'$'+Math.abs(dayDiff*fxRate).toFixed(2)+' '+accountCurrency+' ('+fmtPct(Math.abs(dayPct))+') auj.';dayEl.className='kpi-sub '+(dayDiff>=0?'pos':'neg');}
   } else{if(dayEl){dayEl.textContent='— aujourd\'hui';dayEl.className='kpi-sub neu';}}
-  const oe=document.getElementById('kpi-pnl-open');oe.textContent=fmtCpnl(totalPnlOpen);oe.className='kpi-val '+(totalPnlOpen>=0?'pos':'neg');
+  // PnL en USD → fmtCpnl convertit
+  const oe=document.getElementById('kpi-pnl-open');oe.textContent='$'+(totalPnlOpen*fxRate>=0?'+':'')+Math.abs(totalPnlOpen*fxRate).toFixed(2)+' '+accountCurrency;oe.className='kpi-val '+(totalPnlOpen>=0?'pos':'neg');
   const op=document.getElementById('kpi-pnl-open-pct');op.textContent=fmtPct(pnlPct);op.className='kpi-sub '+(totalPnlOpen>=0?'pos':'neg');
-  const re=document.getElementById('kpi-pnl-real');re.textContent=fmtCpnl(totalPnlReal);re.className='kpi-val '+(totalPnlReal>=0?'pos':'neg');
+  const re=document.getElementById('kpi-pnl-real');re.textContent='$'+(totalPnlReal*fxRate>=0?'+':'')+Math.abs(totalPnlReal*fxRate).toFixed(2)+' '+accountCurrency;re.className='kpi-val '+(totalPnlReal>=0?'pos':'neg');
   {const _e=document.getElementById('kpi-trades-count');if(_e)_e.textContent=closedTrades.length+' trades fermés';}
-  {const _e=document.getElementById('kpi-cash');if(_e)_e.textContent=fmtC(cash);}
+  // Cash en USD → multiplier par fxRate
+  {const _e=document.getElementById('kpi-cash');if(_e)_e.textContent='$'+Math.round(cash*fxRate).toLocaleString('en-US')+' '+accountCurrency;}
   const we=document.getElementById('kpi-winrate');we.textContent=winRate+'%';we.className='kpi-val '+(winRate>=50?'pos':'neg');
   {const _e=document.getElementById('kpi-winrate-sub');if(_e)_e.textContent=wins+'W · '+losses+'L';}
-  // Total investi et nb positions
-  const totalInvested=positions.reduce((s,p)=>s+conv((p.shares||0)*p.avgEntry,p.currency||'USD'),0);
-  {const _e=document.getElementById('kpi-invested');if(_e)_e.textContent=fmtC(totalInvested);}
+  // Total investi en USD → fxRate pour affichage
+  const totalInvested=positions.reduce((s,p)=>s+((p.shares||0)*p.avgEntry*(p.currency&&p.currency!=='USD'?1/(FX_FALLBACK[p.currency]||1):1)),0);
+  {const _e=document.getElementById('kpi-invested');if(_e)_e.textContent='$'+Math.round(totalInvested*fxRate).toLocaleString('en-US')+' '+accountCurrency;}
   {const _e=document.getElementById('kpi-nb-positions');if(_e)_e.textContent=positions.length;}
 }
 
@@ -797,7 +803,7 @@ function renderHistory(){
     if(t.type==='Dépôt'||t.type==='Retrait'){
       const isDeposit=t.type==='Dépôt',color=isDeposit?'var(--green)':'var(--amber)';
       const bs=isDeposit?'background:rgba(45,212,160,0.1);color:var(--green);border:0.5px solid rgba(45,212,160,0.25);':'background:rgba(246,200,67,0.1);color:var(--amber);border:0.5px solid rgba(246,200,67,0.25);';
-      return`<tr style="opacity:0.85;"><td>${t.date}</td><td class="sym" style="color:var(--text3);">—</td><td><span class="badge" style="${bs}">${t.type}</span></td><td style="color:var(--text3);">—</td><td style="color:${color};">${isDeposit?'+':'-'}${fmtC(t.size)}</td><td style="color:var(--text2);">${fmtC(t.montantFinal)} cash</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
+      return`<tr style="opacity:0.85;"><td>${t.date}</td><td class="sym" style="color:var(--text3);">—</td><td><span class="badge" style="${bs}">${t.type}</span></td><td style="color:var(--text3);">—</td><td style="color:${color};">${isDeposit?'+':'-'}$${Math.round(t.size*fxRate).toLocaleString('en-US')} ${accountCurrency}</td><td style="color:var(--text2);">$${Math.round(t.montantFinal*fxRate).toLocaleString('en-US')} ${accountCurrency} cash</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
     }else if(t.type==='Vente'){
       const profit=t.profit||0;totalPnl+=profit;profit>0?wins++:losses++;
       const cls=profit>=0?'pos':'neg',roi=t.size>0?(profit/t.size)*100:0,isDca=t.dcaCount&&t.dcaCount>1;
