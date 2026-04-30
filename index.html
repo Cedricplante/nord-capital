@@ -208,6 +208,41 @@
   .filter-select:hover { border-color: var(--green); color: var(--text); }
   .filter-label { font-size: 11px; color: var(--text3); font-family: var(--sans); font-weight: 500; }
 
+  /* ALLOCATION TAB - Ledger Style */
+  .alloc-hero { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.75rem 2rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 2rem; transition: all 0.25s ease; }
+  #tab-allocation .alloc-hero:hover { border-color: rgba(0,255,136,0.6) !important; background: linear-gradient(180deg, rgba(0,255,136,0.08), var(--bg2)) !important; box-shadow: 0 0 28px rgba(0,255,136,0.15); }
+  [data-theme="light"] #tab-allocation .alloc-hero:hover { border-color: rgba(0,184,124,0.6) !important; background: linear-gradient(180deg, rgba(0,184,124,0.08), var(--bg2)) !important; box-shadow: 0 0 28px rgba(0,184,124,0.15); }
+  .alloc-hero-left { flex: 1; }
+  .alloc-hero-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin-bottom: 8px; }
+  .alloc-hero-val { font-size: 42px; font-weight: 800; color: var(--text); font-family: var(--mono); letter-spacing: -1.5px; line-height: 1; margin-bottom: 14px; }
+  .alloc-hero-meta { display: flex; align-items: center; gap: 20px; font-size: 12px; color: var(--text2); font-weight: 500; }
+  .alloc-hero-meta span { display: inline-flex; align-items: center; gap: 6px; font-family: var(--sans); }
+  .alloc-hero-meta span span { font-family: var(--mono); color: var(--text); font-weight: 600; }
+  .alloc-hero-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .alloc-hero-right { display: flex; gap: 14px; }
+  .alloc-mini-stat { background: var(--bg3); border: 0.5px solid var(--border); border-radius: 8px; padding: 12px 18px; min-width: 120px; transition: border-color 0.2s; }
+  .alloc-mini-stat:hover { border-color: var(--border2); }
+  .alloc-mini-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 6px; }
+  .alloc-mini-val { font-size: 18px; font-weight: 700; color: var(--text); font-family: var(--mono); }
+
+  .alloc-section-title { font-size: 13px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 1.5px; margin: 1.75rem 0 0.85rem 0; padding-left: 2px; }
+  .alloc-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .alloc-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .alloc-panel { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.25rem 1.5rem; transition: all 0.25s ease; display: flex; flex-direction: column; }
+  #tab-allocation .alloc-panel:hover { border-color: rgba(0,255,136,0.6) !important; background: linear-gradient(180deg, rgba(0,255,136,0.05), var(--bg2)) !important; box-shadow: 0 0 24px rgba(0,255,136,0.1); }
+  [data-theme="light"] #tab-allocation .alloc-panel:hover { border-color: rgba(0,184,124,0.6) !important; background: linear-gradient(180deg, rgba(0,184,124,0.05), var(--bg2)) !important; box-shadow: 0 0 24px rgba(0,184,124,0.1); }
+  .alloc-panel-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem; }
+  .alloc-panel-title { font-size: 12px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 1px; }
+  .alloc-panel-sub { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+  .alloc-donut-wrap { position: relative; height: 180px; }
+  .alloc-account-panel { padding: 1.25rem; }
+  .alloc-account-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; }
+  .alloc-account-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
+  .alloc-account-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .alloc-account-val { font-size: 14px; color: var(--text2); font-family: var(--mono); font-weight: 600; }
+
+  .alloc-empty-state { text-align: center; padding: 1.5rem 0.5rem; color: var(--text3); font-size: 11px; font-family: var(--sans); }
+
   /* ACCOUNT BADGE COLORS */
   .acc-celi { background: rgba(0,255,136,0.1); color: var(--green); border: 0.5px solid rgba(0,255,136,0.25); }
   .acc-celiapp { background: rgba(0,217,255,0.1); color: var(--cyan); border: 0.5px solid rgba(0,217,255,0.25); }
@@ -421,38 +456,107 @@
 
     <!-- ALLOCATION -->
     <div id="tab-allocation" class="section">
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-title">Par symbole</div>
-          <div class="chart-wrap" style="height:160px;"><canvas id="allocSymChart"></canvas></div>
+      <!-- Hero header avec valeur totale -->
+      <div class="alloc-hero">
+        <div class="alloc-hero-left">
+          <div class="alloc-hero-label">Valeur du portefeuille</div>
+          <div class="alloc-hero-val" id="alloc-hero-total">—</div>
+          <div class="alloc-hero-meta">
+            <span><span class="alloc-hero-dot" style="background:var(--green);"></span>Positions <span id="alloc-hero-pos">—</span></span>
+            <span><span class="alloc-hero-dot" style="background:var(--cyan);"></span>Cash <span id="alloc-hero-cash">—</span></span>
+            <span class="neu">·</span>
+            <span class="neu" id="alloc-hero-nbpos">— positions actives</span>
+          </div>
+        </div>
+        <div class="alloc-hero-right">
+          <div class="alloc-mini-stat">
+            <div class="alloc-mini-label">Win rate</div>
+            <div class="alloc-mini-val" id="alloc-mini-winrate">—</div>
+          </div>
+          <div class="alloc-mini-stat">
+            <div class="alloc-mini-label">P&L réalisé</div>
+            <div class="alloc-mini-val" id="alloc-mini-pnlreal">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section principale : 2 grands donuts -->
+      <div class="alloc-section-title">Répartition globale</div>
+      <div class="alloc-grid-2">
+        <div class="alloc-panel">
+          <div class="alloc-panel-header">
+            <div class="alloc-panel-title">Par symbole</div>
+            <div class="alloc-panel-sub" id="alloc-sym-count">—</div>
+          </div>
+          <div class="alloc-donut-wrap">
+            <canvas id="allocSymChart"></canvas>
+          </div>
           <div class="donut-leg" id="alloc-sym-legend"></div>
         </div>
-        <div class="card">
-          <div class="card-title">Par catégorie</div>
-          <div class="chart-wrap" style="height:160px;"><canvas id="allocCatChart"></canvas></div>
+        <div class="alloc-panel">
+          <div class="alloc-panel-header">
+            <div class="alloc-panel-title">Par catégorie d'actif</div>
+            <div class="alloc-panel-sub" id="alloc-cat-count">—</div>
+          </div>
+          <div class="alloc-donut-wrap">
+            <canvas id="allocCatChart"></canvas>
+          </div>
           <div class="donut-leg" id="alloc-cat-legend"></div>
         </div>
       </div>
-      <div class="grid-3">
-        <div class="card">
-          <div class="card-title">CELI</div>
-          <div class="chart-wrap" style="height:150px;"><canvas id="celiChart"></canvas></div>
+
+      <!-- Section Comptes -->
+      <div class="alloc-section-title">Par compte</div>
+      <div class="alloc-grid-3">
+        <div class="alloc-panel alloc-account-panel" data-account="CELI">
+          <div class="alloc-account-header">
+            <div class="alloc-account-icon" style="background:rgba(0,255,136,0.12);color:var(--green);">C</div>
+            <div>
+              <div class="alloc-account-name">CELI</div>
+              <div class="alloc-account-val" id="celi-total">—</div>
+            </div>
+          </div>
+          <div class="alloc-donut-wrap" style="height:130px;">
+            <canvas id="celiChart"></canvas>
+          </div>
           <div class="donut-leg" id="celi-legend"></div>
         </div>
-        <div class="card">
-          <div class="card-title">CELIAPP</div>
-          <div class="chart-wrap" style="height:150px;"><canvas id="celiappChart"></canvas></div>
+        <div class="alloc-panel alloc-account-panel" data-account="CELIAPP">
+          <div class="alloc-account-header">
+            <div class="alloc-account-icon" style="background:rgba(0,217,255,0.12);color:var(--cyan);">A</div>
+            <div>
+              <div class="alloc-account-name">CELIAPP</div>
+              <div class="alloc-account-val" id="celiapp-total">—</div>
+            </div>
+          </div>
+          <div class="alloc-donut-wrap" style="height:130px;">
+            <canvas id="celiappChart"></canvas>
+          </div>
           <div class="donut-leg" id="celiapp-legend"></div>
         </div>
-        <div class="card">
-          <div class="card-title">Crypto</div>
-          <div class="chart-wrap" style="height:150px;"><canvas id="cryptoAllocChart"></canvas></div>
+        <div class="alloc-panel alloc-account-panel" data-account="Crypto">
+          <div class="alloc-account-header">
+            <div class="alloc-account-icon" style="background:rgba(255,181,71,0.12);color:var(--amber);">₿</div>
+            <div>
+              <div class="alloc-account-name">Crypto</div>
+              <div class="alloc-account-val" id="crypto-total">—</div>
+            </div>
+          </div>
+          <div class="alloc-donut-wrap" style="height:130px;">
+            <canvas id="cryptoAllocChart"></canvas>
+          </div>
           <div class="donut-leg" id="crypto-legend"></div>
         </div>
       </div>
-      <div class="card">
-        <div class="card-title">Performance par classe d'actif</div>
-        <div class="chart-wrap" style="height:150px;"><canvas id="assetPerfChart"></canvas></div>
+
+      <!-- Performance par classe -->
+      <div class="alloc-section-title">Performance</div>
+      <div class="alloc-panel">
+        <div class="alloc-panel-header">
+          <div class="alloc-panel-title">P&amp;L par classe d'actif</div>
+          <div class="alloc-panel-sub">Positions ouvertes</div>
+        </div>
+        <div class="chart-wrap" style="height:180px;margin-top:1rem;"><canvas id="assetPerfChart"></canvas></div>
       </div>
     </div>
   </div>
@@ -1231,37 +1335,75 @@ function renderAllocDashboard(){
 
 function renderAllocCharts(){
   const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
-  if(!totalSizeUSD)return;
+  const totalUSD=totalSizeUSD+cash;
 
-  // Par symbole (allocation tab)
+  // Hero header
+  const heroTotal=document.getElementById('alloc-hero-total');
+  if(heroTotal)heroTotal.textContent=fmtAmtRound(totalUSD*fxRate);
+  const heroPos=document.getElementById('alloc-hero-pos');
+  if(heroPos)heroPos.textContent=fmtAmtRound(totalSizeUSD*fxRate);
+  const heroCash=document.getElementById('alloc-hero-cash');
+  if(heroCash)heroCash.textContent=fmtAmtRound(cash*fxRate);
+  const heroNb=document.getElementById('alloc-hero-nbpos');
+  if(heroNb)heroNb.textContent=positions.length+' positions actives';
+
+  // Mini stats
+  const closedTrades=trades.filter(t=>t.type==='Vente');
+  const wins=closedTrades.filter(t=>(t.profit||0)>0).length;
+  const winRate=closedTrades.length>0?Math.round(wins/closedTrades.length*100):0;
+  const totalPnlRealUSD=closedTrades.reduce((s,t)=>s+toUSD(t.profit||0,t.currency||'USD'),0);
+  const wr=document.getElementById('alloc-mini-winrate');
+  if(wr){wr.textContent=winRate+'%';wr.className='alloc-mini-val '+(winRate>=50?'pos':winRate>0?'neg':'');}
+  const pr=document.getElementById('alloc-mini-pnlreal');
+  if(pr){pr.textContent=(totalPnlRealUSD>=0?'+':'-')+fmtAmt(Math.abs(totalPnlRealUSD*fxRate));pr.className='alloc-mini-val '+(totalPnlRealUSD>=0?'pos':'neg');}
+
+  if(!totalSizeUSD){
+    // Empty states
+    ['alloc-sym-legend','alloc-cat-legend','celi-legend','celiapp-legend','crypto-legend'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<div class="alloc-empty-state">Aucune position</div>';});
+    ['alloc-sym-count','alloc-cat-count'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+    ['celi-total','celiapp-total','crypto-total'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+    return;
+  }
+
+  // Par symbole
   const syms=positions.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'}));
   const{labels:sLabels,values:sValues}=mkDonutData(syms,totalSizeUSD);
   updateDonut(allocSymChart,sLabels,sValues,COLORS.slice(0,sLabels.length));
   buildLegend('alloc-sym-legend',sLabels,sValues,COLORS.slice(0,sLabels.length));
+  const symCount=document.getElementById('alloc-sym-count');
+  if(symCount)symCount.textContent=sLabels.length+' actifs';
 
-  // Par catégorie (allocation tab)
+  // Par catégorie
   const cats={};positions.forEach(p=>{const c=getCat(p.symbol);cats[c]=(cats[c]||0)+toUSD((p.shares||0)*p.current,p.currency||'USD');});
   const cLabels=Object.keys(cats),cValues=cLabels.map(c=>parseFloat((cats[c]/totalSizeUSD*100).toFixed(1)));
   updateDonut(allocCatChart,cLabels,cValues,COLORS.slice(0,cLabels.length));
   buildLegend('alloc-cat-legend',cLabels,cValues,COLORS.slice(0,cLabels.length));
+  const catCount=document.getElementById('alloc-cat-count');
+  if(catCount)catCount.textContent=cLabels.length+' classes';
 
   // CELI
   const celiPos=positions.filter(p=>p.account==='CELI');
   const celiTotal=celiPos.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
+  const celiTotalEl=document.getElementById('celi-total');
+  if(celiTotalEl)celiTotalEl.textContent=fmtAmtRound(celiTotal*fxRate);
   if(celiTotal>0){const d=mkDonutData(celiPos.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'})),celiTotal);updateDonut(celiChart,d.labels,d.values,COLORS.slice(0,d.labels.length));buildLegend('celi-legend',d.labels,d.values,COLORS.slice(0,d.labels.length));}
-  else{updateDonut(celiChart,[],[],[]);document.getElementById('celi-legend').innerHTML='<div class="empty" style="padding:0.5rem;">Aucune position CELI</div>';}
+  else{updateDonut(celiChart,[],[],[]);document.getElementById('celi-legend').innerHTML='<div class="alloc-empty-state">Aucune position CELI</div>';}
 
   // CELIAPP
   const celiappPos=positions.filter(p=>p.account==='CELIAPP');
   const celiappTotal=celiappPos.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
+  const celiappTotalEl=document.getElementById('celiapp-total');
+  if(celiappTotalEl)celiappTotalEl.textContent=fmtAmtRound(celiappTotal*fxRate);
   if(celiappTotal>0){const d=mkDonutData(celiappPos.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'})),celiappTotal);updateDonut(celiappChart,d.labels,d.values,COLORS.slice(0,d.labels.length));buildLegend('celiapp-legend',d.labels,d.values,COLORS.slice(0,d.labels.length));}
-  else{updateDonut(celiappChart,[],[],[]);document.getElementById('celiapp-legend').innerHTML='<div class="empty" style="padding:0.5rem;">Aucune position CELIAPP</div>';}
+  else{updateDonut(celiappChart,[],[],[]);document.getElementById('celiapp-legend').innerHTML='<div class="alloc-empty-state">Aucune position CELIAPP</div>';}
 
   // Crypto
   const cryptoPos=positions.filter(p=>getCat(p.symbol)==='Crypto');
   const cryptoTotal=cryptoPos.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
+  const cryptoTotalEl=document.getElementById('crypto-total');
+  if(cryptoTotalEl)cryptoTotalEl.textContent=fmtAmtRound(cryptoTotal*fxRate);
   if(cryptoTotal>0){const d=mkDonutData(cryptoPos.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'})),cryptoTotal);updateDonut(cryptoAllocChart,d.labels,d.values,COLORS.slice(0,d.labels.length));buildLegend('crypto-legend',d.labels,d.values,COLORS.slice(0,d.labels.length));}
-  else{updateDonut(cryptoAllocChart,[],[],[]);document.getElementById('crypto-legend').innerHTML='<div class="empty" style="padding:0.5rem;">Aucune crypto</div>';}
+  else{updateDonut(cryptoAllocChart,[],[],[]);document.getElementById('crypto-legend').innerHTML='<div class="alloc-empty-state">Aucune crypto</div>';}
 
   // P&L par classe
   const catPnl={};positions.forEach(p=>{const c=getCat(p.symbol);catPnl[c]=(catPnl[c]||0)+calcPnlUSD(p)*fxRate;});
@@ -1275,7 +1417,7 @@ function exportCSV(){
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='nord_capital_transactions.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 function clearHistory(){if(!confirm('Effacer tout l\'historique ? Irréversible.'))return;trades=[];saveData();renderAll();}
-function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();updatePerfChart();}
+function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();}
 
 function initCharts(){
   if(chartsInitialized)return;chartsInitialized=true;
