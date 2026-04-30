@@ -49,13 +49,13 @@
   /* KPI GRID */
   .kpi-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
   .kpi-grid-2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
-  .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1rem 1.4rem; position: relative; overflow: hidden; display: flex; flex-direction: column; height: 110px; transition: border-color 0.2s, box-shadow 0.2s; box-shadow: var(--card-glow); cursor: default; }
+  .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 0.9rem 1.4rem; position: relative; overflow: hidden; display: flex; flex-direction: column; height: 108px; transition: border-color 0.2s, box-shadow 0.2s; box-shadow: var(--card-glow); cursor: default; }
   .kpi:hover { border-color: var(--border2); box-shadow: var(--card-glow), 0 0 20px rgba(91,156,246,0.05); }
   .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--blue), transparent); opacity: 0.5; }
-  .kpi-label { font-size: 10px; color: var(--text3); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 1.5px; font-family: var(--mono); font-weight: 500; flex-shrink: 0; }
-  .kpi-val { font-size: 26px; font-weight: 700; color: var(--text); font-family: var(--mono); text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; transition: transform 0.15s; }
-  .kpi-val-hero { font-size: 38px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -1px; text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
-  .kpi-sub { font-size: 10px; font-family: var(--mono); flex-shrink: 0; }
+  .kpi-label { font-size: 10px; color: var(--text3); margin-bottom: 0; text-transform: uppercase; letter-spacing: 1.5px; font-family: var(--mono); font-weight: 500; flex-shrink: 0; height: 16px; display:flex; align-items:center; }
+  .kpi-val { font-size: 24px; font-weight: 700; color: var(--text); font-family: var(--mono); text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; transition: transform 0.15s; }
+  .kpi-val-hero { font-size: 36px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -1px; text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; }
+  .kpi-sub { font-size: 10px; font-family: var(--mono); flex-shrink: 0; height: 16px; display:flex; align-items:center; }
   .pos { color: var(--green); } .neg { color: var(--red); } .neu { color: var(--text3); }
   td.pos, td.neg { font-size: 13px; font-weight: 600; }
 
@@ -165,7 +165,21 @@
   .tooltip-wrap:hover .tooltip-box { opacity: 1; pointer-events: auto; transform: translateY(-4px); }
   .tooltip-box { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%) translateY(0); background: var(--bg4); border: 0.5px solid var(--border2); border-radius: 6px; padding: 5px 10px; font-family: var(--mono); font-size: 10px; color: var(--text2); white-space: nowrap; opacity: 0; pointer-events: none; transition: all 0.15s; z-index: 50; }
 
-  /* ACCOUNT BADGE COLORS */
+  /* POSITIONS TAB LAYOUT */
+  .pos-tab-wrap { display: flex; flex-direction: column; height: calc(100vh - 56px - 2.5rem); }
+  .pos-form-sticky { position: sticky; top: 56px; z-index: 90; background: var(--bg); padding-bottom: 8px; }
+  .pos-table-scroll { flex: 1; overflow-y: auto; }
+  /* Selected row */
+  tr.row-selected td { background: rgba(91,156,246,0.13) !important; }
+  tr.row-selected:hover td { background: rgba(91,156,246,0.18) !important; }
+  /* DCA detail rows */
+  .dca-detail-row td { background: rgba(167,139,250,0.05) !important; font-size: 11px; color: var(--text3); padding: 4px 10px; border-bottom: 0.5px solid rgba(167,139,250,0.1); }
+  .dca-detail-row:hover td { background: rgba(167,139,250,0.1) !important; }
+  /* Filter bar */
+  .filter-bar { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; align-items:center; }
+  .filter-select { background:var(--bg3); border:0.5px solid var(--border2); border-radius:6px; padding:5px 10px; color:var(--text2); font-size:10px; font-family:var(--mono); cursor:pointer; appearance:none; outline:none; transition:border-color 0.15s; }
+  .filter-select:hover { border-color:var(--blue); }
+  .filter-label { font-size:10px; color:var(--text3); font-family:var(--mono); }
   .acc-celi { background: rgba(45,212,160,0.1); color: var(--green); border: 0.5px solid rgba(45,212,160,0.25); }
   .acc-celiapp { background: rgba(56,189,248,0.1); color: var(--cyan); border: 0.5px solid rgba(56,189,248,0.25); }
   .acc-reer { background: rgba(167,139,250,0.1); color: var(--purple); border: 0.5px solid rgba(167,139,250,0.25); }
@@ -309,71 +323,48 @@
 
     <!-- POSITIONS -->
     <div id="tab-positions" class="section">
-      <div class="card">
-        <div class="card-title">➕ Ajouter / DCA une position</div>
-        <div class="form-grid" style="grid-template-columns:1.4fr 0.7fr 0.7fr 0.9fr 0.9fr 0.9fr 0.9fr 0.65fr 1fr auto;">
-          <div class="field">
-            <label>Symbole</label>
-            <div class="autocomplete-wrap">
-              <input type="text" id="f-symbol" placeholder="TQQQ, BTC/USD…" autocomplete="off" oninput="onSymbolInput(this.value)" onkeydown="onSymbolKey(event)" />
-              <div class="autocomplete-list" id="symbol-dropdown"></div>
+      <div class="pos-tab-wrap">
+        <div class="pos-form-sticky">
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-title">➕ Ajouter / DCA une position</div>
+            <div class="form-grid" style="grid-template-columns:1.4fr 0.7fr 0.7fr 0.9fr 0.9fr 0.9fr 0.9fr 0.65fr 1fr auto;">
+              <div class="field"><label>Symbole</label><div class="autocomplete-wrap"><input type="text" id="f-symbol" placeholder="TQQQ, BTC/USD…" autocomplete="off" oninput="onSymbolInput(this.value)" onkeydown="onSymbolKey(event)" /><div class="autocomplete-list" id="symbol-dropdown"></div></div></div>
+              <div class="field"><label>Direction</label><select id="f-dir"><option>Long</option><option>Short</option></select></div>
+              <div class="field"><label>Date</label><input type="date" id="f-date" /></div>
+              <div class="field"><label>Prix achat ($)</label><input type="number" id="f-entry" step="any" oninput="calcMontant()" /></div>
+              <div class="field"><label>Shares</label><input type="number" id="f-shares" step="any" oninput="calcMontant()" /></div>
+              <div class="field"><label>Prix actuel ($)</label><input type="number" id="f-current" step="any" /></div>
+              <div class="field"><label>Montant</label><input type="number" id="f-size" step="any" readonly style="background:var(--bg3);color:var(--text3);cursor:not-allowed;" /></div>
+              <div class="field"><label>Devise</label><select id="f-currency"><option value="USD">USD</option><option value="CAD">CAD</option><option value="EUR">EUR</option><option value="CHF">CHF</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="NZD">NZD</option></select></div>
+              <div class="field"><label>Compte</label>
+                <select id="f-account">
+                  <option value="">—</option>
+                  <optgroup label="Enregistrés"><option value="CELI">CELI</option><option value="CELIAPP">CELIAPP</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
+                  <optgroup label="Non-enregistrés"><option value="Comptant">Comptant</option><option value="Marge">Marge</option></optgroup>
+                  <optgroup label="Crypto — Exchanges"><option value="Coinbase">Coinbase</option><option value="Binance">Binance</option><option value="Kraken">Kraken</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option><option value="Bybit">Bybit</option></optgroup>
+                  <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
+                  <optgroup label="Crypto — Autres"><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></optgroup>
+                </select>
+              </div>
+              <div class="field"><label>&nbsp;</label><button class="btn" onclick="addPosition()">+ Ajouter</button></div>
             </div>
+            <div class="dca-hint">Si le symbole existe déjà, le prix moyen sera recalculé automatiquement (DCA). Montant = shares × prix achat.</div>
           </div>
-          <div class="field"><label>Direction</label><select id="f-dir"><option>Long</option><option>Short</option></select></div>
-          <div class="field"><label>Date</label><input type="date" id="f-date" /></div>
-          <div class="field"><label>Prix achat ($)</label><input type="number" id="f-entry" step="any" oninput="calcMontant()" /></div>
-          <div class="field"><label>Shares</label><input type="number" id="f-shares" step="any" oninput="calcMontant()" /></div>
-          <div class="field"><label>Prix actuel ($)</label><input type="number" id="f-current" step="any" /></div>
-          <div class="field"><label>Montant</label><input type="number" id="f-size" step="any" readonly style="background:var(--bg3);color:var(--text3);cursor:not-allowed;" /></div>
-          <div class="field"><label>Devise</label>
-            <select id="f-currency">
-              <option value="USD">USD</option><option value="CAD">CAD</option><option value="EUR">EUR</option>
-              <option value="CHF">CHF</option><option value="GBP">GBP</option><option value="JPY">JPY</option>
-              <option value="AUD">AUD</option><option value="NZD">NZD</option>
-            </select>
-          </div>
-          <div class="field"><label>Compte</label>
-            <select id="f-account">
-              <option value="">—</option>
-              <optgroup label="Enregistrés">
-                <option value="CELI">CELI</option>
-                <option value="CELIAPP">CELIAPP</option>
-                <option value="REER">REER</option>
-                <option value="REEE">REEE</option>
-              </optgroup>
-              <optgroup label="Non-enregistrés">
-                <option value="Comptant">Comptant</option>
-                <option value="Marge">Marge</option>
-              </optgroup>
-              <optgroup label="Crypto — Exchanges">
-                <option value="Coinbase">Coinbase</option>
-                <option value="Binance">Binance</option>
-                <option value="Kraken">Kraken</option>
-                <option value="Bitget">Bitget</option>
-                <option value="OKX">OKX</option>
-                <option value="Bybit">Bybit</option>
-              </optgroup>
-              <optgroup label="Crypto — Hardware">
-                <option value="Ledger Nano S">Ledger Nano S</option>
-                <option value="Ledger Nano X">Ledger Nano X</option>
-                <option value="Ledger Stax">Ledger Stax</option>
-                <option value="Tangem">Tangem</option>
-                <option value="Trezor Model One">Trezor Model One</option>
-                <option value="Trezor Model T">Trezor Model T</option>
-              </optgroup>
-              <optgroup label="Crypto — Autres">
-                <option value="MetaMask">MetaMask</option>
-                <option value="Autre wallet">Autre wallet</option>
-              </optgroup>
-            </select>
-          </div>
-          <div class="field"><label>&nbsp;</label><button class="btn" onclick="addPosition()">+ Ajouter</button></div>
         </div>
-        <div class="dca-hint">Si le symbole existe déjà, le prix moyen sera recalculé automatiquement (DCA). Montant = shares × prix achat.</div>
-      </div>
-      <div class="card">
-        <div class="card-title">Positions actives — prix moyen pondéré</div>
-        <table><thead><tr><th>#</th><th>Symbole</th><th>Compte</th><th>Direction</th><th>Date</th><th>Shares</th><th>Prix moy.</th><th>Coût total</th><th>Prix actuel</th><th>Valeur</th><th>P&amp;L $</th><th>P&amp;L %</th><th>Action</th></tr></thead><tbody id="pos-body"></tbody></table>
+        <div class="pos-table-scroll">
+          <div class="card" style="margin-top:8px;">
+            <div class="card-title" style="flex-wrap:wrap;gap:8px;">
+              <span>Positions actives — <span id="pos-count-label" style="color:var(--text3);font-weight:400;font-size:10px;"></span></span>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                <select class="filter-select" id="pos-sort" onchange="renderPosTable()"><option value="default">Trier : Défaut</option><option value="date-asc">Date ↑</option><option value="date-desc">Date ↓</option><option value="pnl-desc">P&L ↓</option><option value="pnl-asc">P&L ↑</option><option value="val-desc">Valeur ↓</option><option value="val-asc">Valeur ↑</option></select>
+                <select class="filter-select" id="pos-filter-cat" onchange="renderPosTable()"><option value="">Type : Tous</option><option value="ETF Levier">ETF Levier</option><option value="ETF">ETF</option><option value="Action">Action</option><option value="Crypto">Crypto</option><option value="Forex">Forex</option><option value="Commodité">Commodité</option></select>
+                <select class="filter-select" id="pos-filter-account" onchange="renderPosTable()"><option value="">Compte : Tous</option><option value="CELI">CELI</option><option value="CELIAPP">CELIAPP</option><option value="REER">REER</option><option value="Comptant">Comptant</option><option value="Marge">Marge</option></select>
+                <select class="filter-select" id="pos-filter-period" onchange="renderPosTable()"><option value="">Période : Tous</option><option value="1m">Dernier mois</option><option value="3m">3 derniers mois</option><option value="1y">1 an</option></select>
+              </div>
+            </div>
+            <table><thead><tr><th>#</th><th>Symbole</th><th>Compte</th><th>Dir.</th><th>Date</th><th>Shares</th><th>Prix moy.</th><th>Coût total</th><th>Prix actuel</th><th>Valeur</th><th>P&amp;L $</th><th>P&amp;L %</th><th>Actions</th></tr></thead><tbody id="pos-body"></tbody></table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -503,6 +494,37 @@
 </div>
 
 <div class="saving-indicator" id="saving-indicator">✓ Sauvegardé</div>
+
+<!-- EDIT POSITION MODAL -->
+<div class="modal-overlay" id="edit-modal-overlay">
+  <div class="modal" style="width:560px;">
+    <div class="modal-title">✏️ Modifier la position — <span id="edit-modal-symbol" style="color:var(--blue);"></span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div class="field"><label>Direction</label><select id="edit-dir"><option>Long</option><option>Short</option></select></div>
+      <div class="field"><label>Date d'entrée</label><input type="date" id="edit-date" /></div>
+      <div class="field"><label>Prix moyen ($)</label><input type="number" id="edit-avgentry" step="any" /></div>
+      <div class="field"><label>Shares</label><input type="number" id="edit-shares" step="any" /></div>
+      <div class="field"><label>Prix actuel ($)</label><input type="number" id="edit-current" step="any" /></div>
+      <div class="field"><label>Devise</label>
+        <select id="edit-currency"><option value="USD">USD</option><option value="CAD">CAD</option><option value="EUR">EUR</option><option value="CHF">CHF</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="NZD">NZD</option></select>
+      </div>
+      <div class="field" style="grid-column:span 2;"><label>Compte</label>
+        <select id="edit-account">
+          <option value="">—</option>
+          <optgroup label="Enregistrés"><option value="CELI">CELI</option><option value="CELIAPP">CELIAPP</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
+          <optgroup label="Non-enregistrés"><option value="Comptant">Comptant</option><option value="Marge">Marge</option></optgroup>
+          <optgroup label="Crypto — Exchanges"><option value="Coinbase">Coinbase</option><option value="Binance">Binance</option><option value="Kraken">Kraken</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option><option value="Bybit">Bybit</option></optgroup>
+          <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
+          <optgroup label="Crypto — Autres"><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></optgroup>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn" style="flex:1;padding:10px;" onclick="confirmEdit()">✓ Sauvegarder</button>
+      <button class="btn-ghost" style="padding:10px 16px;" onclick="cancelEdit()">Annuler</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const SB_URL='https://spgcwvmehcixchtsfuaf.supabase.co';
@@ -806,19 +828,121 @@ function updateKPIs(){
   {const _e=document.getElementById('kpi-nb-positions');if(_e)_e.textContent=positions.length;}
 }
 
-function posRow(p,showAction,idx){
+function renderDashPos(){}
+
+let selectedPosIdx=null;
+let expandedDcaIdx=new Set();
+let editTarget=null;
+
+function posRow(p,idx,displayIdx){
   const shares=p.shares||0,coutTotal=shares*p.avgEntry,valeurMarche=shares*p.current;
   const pnl=p.dir==='Long'?valeurMarche-coutTotal:coutTotal-valeurMarche;
   const pct=coutTotal>0?(pnl/coutTotal)*100:0,cls=pnl>=0?'pos':'neg';
   const isDca=p.entries&&p.entries.length>1,firstDate=p.entries&&p.entries[0]?p.entries[0].date:'—';
   const sharesStr=shares?shares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—';
-  const curBadge=p.currency&&p.currency!=='USD'?`<span style="font-size:9px;color:var(--amber);font-family:var(--mono);margin-left:4px;">${p.currency}</span>`:'';
+  const curBadge=p.currency&&p.currency!=='USD'?`<span style="font-size:9px;color:var(--amber);margin-left:4px;">${p.currency}</span>`:'';
   const acctBadge=p.account?`<span class="badge-dca ${getAcctClass(p.account)}">${p.account}</span>`:'<span style="color:var(--text3);font-size:10px;">—</span>';
-  if(showAction)return`<tr><td style="color:var(--text3);font-size:10px;">#${idx+1}</td><td class="sym">${p.symbol}${isDca?'<span class="badge-dca">DCA×'+p.entries.length+'</span>':''}${curBadge}</td><td>${acctBadge}</td><td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td><td style="color:var(--text3);">${firstDate}</td><td style="color:var(--text2);">${sharesStr}</td><td>${fmtPrice(p.avgEntry)}</td><td style="color:var(--text3);">${fmtC(coutTotal,p.currency||'USD')}</td><td>${fmtPrice(p.current)}</td><td>${fmtC(valeurMarche,p.currency||'USD')}</td><td class="${cls}">${fmtCpnl(pnl,p.currency||'USD')}</td><td class="${cls}">${fmtPct(pct)}</td><td><button class="btn-danger" onclick="openCloseModal(${idx})">Fermer</button></td></tr>`;
-  return`<tr><td class="sym">${p.symbol}${isDca?'<span class="badge-dca">DCA×'+p.entries.length+'</span>':''}${curBadge}</td><td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td><td>${fmtPrice(p.avgEntry)}</td><td>${fmtPrice(p.current)}</td><td>${fmtC(valeurMarche,p.currency||'USD')}</td><td class="${cls}">${fmtCpnl(pnl,p.currency||'USD')}</td><td class="${cls}">${fmtPct(pct)}</td></tr>`;
+  const isExpanded=expandedDcaIdx.has(idx);
+  const isSelected=selectedPosIdx===idx;
+  const rowClass=isSelected?'row-selected':'';
+  const dcaToggle=isDca?`<span onclick="toggleDcaExpand(${idx},event)" style="cursor:pointer;color:var(--purple);font-size:10px;margin-left:4px;user-select:none;">${isExpanded?'▲':'▼'}</span>`:'';
+  let html=`<tr class="${rowClass}" onclick="selectPosRow(${idx})" style="cursor:pointer;">
+    <td style="color:var(--text3);font-size:10px;">#${displayIdx+1}</td>
+    <td class="sym">${p.symbol}${isDca?`<span class="badge-dca">DCA×${p.entries.length}</span>`:''}${dcaToggle}${curBadge}</td>
+    <td>${acctBadge}</td>
+    <td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td>
+    <td style="color:var(--text3);">${firstDate}</td>
+    <td style="color:var(--text2);">${sharesStr}</td>
+    <td>${fmtPrice(p.avgEntry)}</td>
+    <td style="color:var(--text3);">${fmtC(coutTotal,p.currency||'USD')}</td>
+    <td>${fmtPrice(p.current)}</td>
+    <td>${fmtC(valeurMarche,p.currency||'USD')}</td>
+    <td class="${cls}">${fmtCpnl(pnl,p.currency||'USD')}</td>
+    <td class="${cls}">${fmtPct(pct)}</td>
+    <td style="display:flex;gap:4px;white-space:nowrap;">
+      <button class="btn" onclick="openEditModal(${idx});event.stopPropagation();" style="padding:3px 8px;font-size:9px;">✏️</button>
+      <button class="btn-danger" onclick="openCloseModal(${idx});event.stopPropagation();">Fermer</button>
+    </td>
+  </tr>`;
+  if(isDca&&isExpanded){
+    html+=p.entries.map((e,ei)=>{
+      const entryPnlPct=p.current>0?((p.current-e.price)/e.price*100):0;
+      const entryPnlCls=entryPnlPct>=0?'pos':'neg';
+      return`<tr class="dca-detail-row">
+        <td></td><td colspan="2" style="padding-left:20px;color:var(--purple);">└ Achat ${ei+1}</td>
+        <td style="color:var(--text3);">${e.date||'—'}</td><td></td>
+        <td style="color:var(--text3);">${e.shares?e.shares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—'}</td>
+        <td>${fmtPrice(e.price)}</td>
+        <td style="color:var(--text3);">${fmtC(e.size,p.currency||'USD')}</td>
+        <td></td><td></td>
+        <td class="${entryPnlCls}">${entryPnlPct>=0?'+':''}${entryPnlPct.toFixed(2)}%</td>
+        <td></td><td></td>
+      </tr>`;
+    }).join('');
+  }
+  return html;
 }
-function renderDashPos(){}
-function renderPosTable(){const t=document.getElementById('pos-body');if(!t)return;t.innerHTML=positions.length?positions.map((p,i)=>posRow(p,true,i)).join(''):'<tr><td colspan="13" class="empty">Aucune position ouverte</td></tr>';}
+
+function selectPosRow(idx){selectedPosIdx=selectedPosIdx===idx?null:idx;renderPosTable();}
+function toggleDcaExpand(idx,e){e.stopPropagation();if(expandedDcaIdx.has(idx))expandedDcaIdx.delete(idx);else expandedDcaIdx.add(idx);renderPosTable();}
+
+function getFilteredSortedPositions(){
+  const sortVal=document.getElementById('pos-sort')?.value||'default';
+  const catFilter=document.getElementById('pos-filter-cat')?.value||'';
+  const accountFilter=document.getElementById('pos-filter-account')?.value||'';
+  const periodFilter=document.getElementById('pos-filter-period')?.value||'';
+  let filtered=positions.map((p,i)=>({...p,_origIdx:i}));
+  if(catFilter)filtered=filtered.filter(p=>getCat(p.symbol)===catFilter);
+  if(accountFilter)filtered=filtered.filter(p=>(p.account||'')===accountFilter);
+  if(periodFilter){
+    const now=new Date();
+    const cutoff=periodFilter==='1m'?new Date(now.getFullYear(),now.getMonth()-1,now.getDate()):periodFilter==='3m'?new Date(now.getFullYear(),now.getMonth()-3,now.getDate()):new Date(now.getFullYear()-1,now.getMonth(),now.getDate());
+    filtered=filtered.filter(p=>{const d=p.entries?.[0]?new Date(p.entries[0].date):null;return d&&d>=cutoff;});
+  }
+  if(sortVal==='date-asc')filtered.sort((a,b)=>(a.entries?.[0]?.date||'').localeCompare(b.entries?.[0]?.date||''));
+  else if(sortVal==='date-desc')filtered.sort((a,b)=>(b.entries?.[0]?.date||'').localeCompare(a.entries?.[0]?.date||''));
+  else if(sortVal==='pnl-desc')filtered.sort((a,b)=>calcPnlUSD(b)-calcPnlUSD(a));
+  else if(sortVal==='pnl-asc')filtered.sort((a,b)=>calcPnlUSD(a)-calcPnlUSD(b));
+  else if(sortVal==='val-desc')filtered.sort((a,b)=>toUSD((b.shares||0)*b.current,b.currency||'USD')-toUSD((a.shares||0)*a.current,a.currency||'USD'));
+  else if(sortVal==='val-asc')filtered.sort((a,b)=>toUSD((a.shares||0)*a.current,a.currency||'USD')-toUSD((b.shares||0)*b.current,b.currency||'USD'));
+  return filtered;
+}
+
+function renderPosTable(){
+  const t=document.getElementById('pos-body');if(!t)return;
+  const filtered=getFilteredSortedPositions();
+  const countEl=document.getElementById('pos-count-label');
+  if(countEl)countEl.textContent=`${filtered.length} / ${positions.length} positions`;
+  t.innerHTML=filtered.length?filtered.map((p,displayIdx)=>posRow(p,p._origIdx,displayIdx)).join(''):`<tr><td colspan="13" class="empty">Aucune position${positions.length?' (filtrée)':' ouverte'}</td></tr>`;
+}
+
+function openEditModal(idx){
+  editTarget=idx;const p=positions[idx];
+  document.getElementById('edit-modal-symbol').textContent=p.symbol;
+  document.getElementById('edit-dir').value=p.dir||'Long';
+  document.getElementById('edit-date').value=p.entries?.[0]?.date||new Date().toISOString().split('T')[0];
+  document.getElementById('edit-avgentry').value=p.avgEntry||'';
+  document.getElementById('edit-shares').value=p.shares||'';
+  document.getElementById('edit-current').value=p.current||'';
+  document.getElementById('edit-currency').value=p.currency||'USD';
+  document.getElementById('edit-account').value=p.account||'';
+  document.getElementById('edit-modal-overlay').classList.add('open');
+}
+function cancelEdit(){editTarget=null;document.getElementById('edit-modal-overlay').classList.remove('open');}
+function confirmEdit(){
+  if(editTarget===null)return;
+  const p=positions[editTarget];
+  p.dir=document.getElementById('edit-dir').value;
+  p.avgEntry=parseFloat(document.getElementById('edit-avgentry').value)||p.avgEntry;
+  p.shares=parseFloat(document.getElementById('edit-shares').value)||p.shares;
+  p.totalSize=p.avgEntry*p.shares;
+  p.current=parseFloat(document.getElementById('edit-current').value)||p.current;
+  p.currency=document.getElementById('edit-currency').value||p.currency;
+  p.account=document.getElementById('edit-account').value;
+  const newDate=document.getElementById('edit-date').value;
+  if(p.entries&&p.entries[0]&&newDate)p.entries[0].date=newDate;
+  cancelEdit();saveData();renderAll();
+}
 
 function openCloseModal(i){
   closeTarget=i;const p=positions[i];
@@ -1113,7 +1237,8 @@ function initCharts(){
 
 document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelClose();});
 document.getElementById('cash-modal-overlay').addEventListener('click',function(e){if(e.target===this)closeCashPopup();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')cancelClose();});
+document.getElementById('edit-modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelEdit();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){cancelClose();cancelEdit();}});
 </script>
 </body>
 </html>
