@@ -54,8 +54,19 @@
   .kpi-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
   .kpi-grid-2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
   .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.1rem 1.5rem; position: relative; overflow: hidden; display: flex; flex-direction: column; height: 110px; transition: all 0.25s ease; }
-  .kpi:hover { border-color: rgba(0,255,136,0.35); background: linear-gradient(180deg, rgba(0,255,136,0.04), var(--bg2)); transform: translateY(-2px); }
-  [data-theme="light"] .kpi:hover { border-color: rgba(0,184,124,0.35); background: linear-gradient(180deg, rgba(0,184,124,0.04), var(--bg2)); }
+  .kpi:hover { border-color: var(--border2); }
+  /* Hover vert intense uniquement sur KPIs Dashboard et Cards Allocation */
+  #tab-dashboard .kpi:hover, #tab-allocation .kpi:hover {
+    border-color: rgba(0,255,136,0.6) !important;
+    background: linear-gradient(180deg, rgba(0,255,136,0.10), var(--bg2)) !important;
+    box-shadow: 0 0 28px rgba(0,255,136,0.18);
+    transform: translateY(-2px);
+  }
+  [data-theme="light"] #tab-dashboard .kpi:hover, [data-theme="light"] #tab-allocation .kpi:hover {
+    border-color: rgba(0,184,124,0.6) !important;
+    background: linear-gradient(180deg, rgba(0,184,124,0.10), var(--bg2)) !important;
+    box-shadow: 0 0 28px rgba(0,184,124,0.18);
+  }
   .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: var(--green); opacity: 0.3; }
   .kpi-label { font-size: 11px; color: var(--text3); margin-bottom: 0; text-transform: uppercase; letter-spacing: 1px; font-family: var(--sans); font-weight: 600; flex-shrink: 0; height: 16px; display:flex; align-items:center; }
   .kpi-val { font-size: 24px; font-weight: 700; color: var(--text); font-family: var(--mono); text-align: center; flex: 1; display: flex; align-items: center; justify-content: center; letter-spacing: -0.5px; }
@@ -71,8 +82,18 @@
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
   .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.1rem 1.25rem; margin-bottom: 1.25rem; transition: all 0.2s; display: flex; flex-direction: column; }
-  .card:hover { border-color: rgba(0,255,136,0.35); background: linear-gradient(180deg, rgba(0,255,136,0.025), var(--bg2)); }
-  [data-theme="light"] .card:hover { border-color: rgba(0,184,124,0.35); background: linear-gradient(180deg, rgba(0,184,124,0.025), var(--bg2)); }
+  .card:hover { border-color: var(--border2); }
+  /* Hover vert intense sur Cards Allocation */
+  #tab-allocation .card:hover {
+    border-color: rgba(0,255,136,0.6) !important;
+    background: linear-gradient(180deg, rgba(0,255,136,0.08), var(--bg2)) !important;
+    box-shadow: 0 0 24px rgba(0,255,136,0.15);
+  }
+  [data-theme="light"] #tab-allocation .card:hover {
+    border-color: rgba(0,184,124,0.6) !important;
+    background: linear-gradient(180deg, rgba(0,184,124,0.08), var(--bg2)) !important;
+    box-shadow: 0 0 24px rgba(0,184,124,0.15);
+  }
   .card:last-child { margin-bottom: 0; }
   .card-title { font-size: 12px; color: var(--text); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1.2px; font-family: var(--sans); font-weight: 700; display:flex; align-items:center; justify-content:space-between; flex-shrink: 0; }
   .card-title-icon { font-size: 14px; margin-right: 6px; }
@@ -280,18 +301,7 @@
         <div class="kpi"><div class="kpi-label">P&amp;L ouvert</div><div class="kpi-val" id="kpi-pnl-open">—</div><div class="kpi-sub" id="kpi-pnl-open-pct">—</div></div>
         <div class="kpi"><div class="kpi-label">P&amp;L réalisé</div><div class="kpi-val" id="kpi-pnl-real">—</div><div class="kpi-sub neu" id="kpi-trades-count">—</div></div>
       </div>
-      <div class="kpi-grid-2">
-        <div class="kpi">
-          <div class="kpi-label">Cash disponible</div>
-          <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex:1;">
-            <div class="kpi-val" id="kpi-cash" style="flex:unset;">—</div>
-            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;transform:scaleX(-1);" onmouseover="this.style.color='var(--blue)'" onmouseout="this.style.color='var(--text3)'">✎</button>
-          </div>
-          <div class="kpi-sub neu" id="kpi-cash-pct">—% du portefeuille</div>
-        </div>
-        <div class="kpi"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div><div class="kpi-sub neu">actives</div></div>
-        <div class="kpi"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
-      </div>
+      <div class="kpi-grid-2" style="display:none;"></div>
       <div class="grid-2-1">
         <div class="card" style="grid-column:span 2;">
           <div class="card-title">
@@ -306,9 +316,9 @@
           <div class="chart-wrap" style="flex:1;min-height:200px;"><canvas id="perfChart"></canvas></div>
         </div>
         <div class="card">
-          <div class="card-title">Par catégorie</div>
-          <div class="chart-wrap" style="flex:1;min-height:140px;"><canvas id="allocCatDashChart"></canvas></div>
-          <div class="donut-leg" id="alloc-cat-dash-legend" style="max-height:80px;"></div>
+          <div class="card-title">Cash vs Positions</div>
+          <div class="chart-wrap" style="flex:1;min-height:140px;"><canvas id="cashAllocChart"></canvas></div>
+          <div class="donut-leg" id="cash-alloc-legend" style="max-height:80px;"></div>
         </div>
       </div>
       <div class="grid-2-1">
@@ -318,9 +328,9 @@
           <div class="donut-leg" id="alloc-legend" style="max-height:80px;"></div>
         </div>
         <div class="card">
-          <div class="card-title">Cash vs Positions</div>
-          <div class="chart-wrap" style="flex:1;min-height:140px;"><canvas id="cashAllocChart"></canvas></div>
-          <div class="donut-leg" id="cash-alloc-legend" style="max-height:80px;"></div>
+          <div class="card-title">Par catégorie</div>
+          <div class="chart-wrap" style="flex:1;min-height:140px;"><canvas id="allocCatDashChart"></canvas></div>
+          <div class="donut-leg" id="alloc-cat-dash-legend" style="max-height:80px;"></div>
         </div>
         <div class="card">
           <div class="card-title">P&amp;L par classe</div>
@@ -416,6 +426,18 @@
 
     <!-- ALLOCATION -->
     <div id="tab-allocation" class="section">
+      <div class="kpi-grid-2" style="margin-bottom:1.25rem;">
+        <div class="kpi">
+          <div class="kpi-label">Cash disponible</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex:1;">
+            <div class="kpi-val" id="kpi-cash" style="flex:unset;">—</div>
+            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;transform:scaleX(-1);" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">✎</button>
+          </div>
+          <div class="kpi-sub neu" id="kpi-cash-pct">—% du portefeuille</div>
+        </div>
+        <div class="kpi"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div><div class="kpi-sub neu">actives</div></div>
+        <div class="kpi"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
+      </div>
       <div class="grid-2">
         <div class="card">
           <div class="card-title">Par symbole</div>
