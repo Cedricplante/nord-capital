@@ -301,7 +301,18 @@
         <div class="kpi"><div class="kpi-label">P&amp;L ouvert</div><div class="kpi-val" id="kpi-pnl-open">—</div><div class="kpi-sub" id="kpi-pnl-open-pct">—</div></div>
         <div class="kpi"><div class="kpi-label">P&amp;L réalisé</div><div class="kpi-val" id="kpi-pnl-real">—</div><div class="kpi-sub neu" id="kpi-trades-count">—</div></div>
       </div>
-      <div class="kpi-grid-2" style="display:none;"></div>
+      <div class="kpi-grid-2">
+        <div class="kpi">
+          <div class="kpi-label">Cash disponible</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex:1;">
+            <div class="kpi-val" id="kpi-cash" style="flex:unset;">—</div>
+            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;transform:scaleX(-1);" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">✎</button>
+          </div>
+          <div class="kpi-sub neu" id="kpi-cash-pct">—% du portefeuille</div>
+        </div>
+        <div class="kpi"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div><div class="kpi-sub neu">actives</div></div>
+        <div class="kpi"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
+      </div>
       <div class="grid-2-1">
         <div class="card" style="grid-column:span 2;">
           <div class="card-title">
@@ -319,22 +330,6 @@
           <div class="card-title">Cash vs Positions</div>
           <div class="chart-wrap" style="flex:1;min-height:140px;"><canvas id="cashAllocChart"></canvas></div>
           <div class="donut-leg" id="cash-alloc-legend" style="max-height:80px;"></div>
-        </div>
-      </div>
-      <div class="grid-2-1">
-        <div class="card">
-          <div class="card-title">Par symbole</div>
-          <div class="chart-wrap" style="flex:1;min-height:140px;"><canvas id="allocChart"></canvas></div>
-          <div class="donut-leg" id="alloc-legend" style="max-height:80px;"></div>
-        </div>
-        <div class="card">
-          <div class="card-title">Par catégorie</div>
-          <div class="chart-wrap" style="flex:1;min-height:140px;"><canvas id="allocCatDashChart"></canvas></div>
-          <div class="donut-leg" id="alloc-cat-dash-legend" style="max-height:80px;"></div>
-        </div>
-        <div class="card">
-          <div class="card-title">P&amp;L par classe</div>
-          <div class="chart-wrap" style="flex:1;min-height:140px;"><canvas id="assetPerfDashChart"></canvas></div>
         </div>
       </div>
     </div>
@@ -426,18 +421,6 @@
 
     <!-- ALLOCATION -->
     <div id="tab-allocation" class="section">
-      <div class="kpi-grid-2" style="margin-bottom:1.25rem;">
-        <div class="kpi">
-          <div class="kpi-label">Cash disponible</div>
-          <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex:1;">
-            <div class="kpi-val" id="kpi-cash" style="flex:unset;">—</div>
-            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;transform:scaleX(-1);" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">✎</button>
-          </div>
-          <div class="kpi-sub neu" id="kpi-cash-pct">—% du portefeuille</div>
-        </div>
-        <div class="kpi"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div><div class="kpi-sub neu">actives</div></div>
-        <div class="kpi"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
-      </div>
       <div class="grid-2">
         <div class="card">
           <div class="card-title">Par symbole</div>
@@ -1207,7 +1190,7 @@ function updateDonut(chart,labels,values,colors){
 }
 
 function renderAllocDashboard(){
-  if(!allocChart||!allocCatDashChart||!cashAllocChart)return;
+  if(!cashAllocChart)return;
   const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
   const totalUSD=totalSizeUSD+cash;
 
@@ -1299,13 +1282,14 @@ function initCharts(){
   const cd={color:'#606075',font:{size:10,family:'DM Mono'}},gc='rgba(255,255,255,0.03)',bc='rgba(255,255,255,0.04)';
   const chartDefaults={responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{display:false}}};
 
-  perfChart=new Chart(document.getElementById('perfChart'),{type:'line',data:{labels:[],datasets:[{data:[],borderColor:'#00ff88',backgroundColor:'rgba(0,255,136,0.08)',borderWidth:2,pointRadius:2,pointHoverRadius:5,pointBackgroundColor:'#00ff88',fill:true,tension:0.4}]},options:{...chartDefaults,interaction:{mode:'index',intersect:false},scales:{x:{ticks:{...cd},grid:{color:gc},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
+  const safeNew=(id,cfg)=>{const el=document.getElementById(id);return el?new Chart(el,cfg):null;};
+  perfChart=safeNew('perfChart',{type:'line',data:{labels:[],datasets:[{data:[],borderColor:'#00ff88',backgroundColor:'rgba(0,255,136,0.08)',borderWidth:2,pointRadius:2,pointHoverRadius:5,pointBackgroundColor:'#00ff88',fill:true,tension:0.4}]},options:{...chartDefaults,interaction:{mode:'index',intersect:false},scales:{x:{ticks:{...cd},grid:{color:gc},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
 
-  pnlBarChart=new Chart(document.getElementById('pnlBarChart'),{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
+  pnlBarChart=safeNew('pnlBarChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
 
-  assetPerfDashChart=new Chart(document.getElementById('assetPerfDashChart'),{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
+  assetPerfDashChart=safeNew('assetPerfDashChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
 
-  assetPerfChart=new Chart(document.getElementById('assetPerfChart'),{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
+  assetPerfChart=safeNew('assetPerfChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
 
   allocChart=mkDonut('allocChart',[],[],[]);
   allocCatDashChart=mkDonut('allocCatDashChart',[],[],[]);
