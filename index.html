@@ -108,8 +108,9 @@
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   th { color: var(--text3); font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 0.5px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--sans); user-select: none; }
   /* Sticky header pour la table positions */
-  .pos-table-scroll { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 280px); border-radius: var(--r); }
-  .pos-table-scroll thead th { position: sticky; top: 0; z-index: 10; background: var(--bg2); box-shadow: 0 1px 0 var(--border); }
+  .pos-table-scroll { overflow: visible; }
+  .pos-table-inner { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 340px); border-radius: 0 0 var(--r) var(--r); }
+  .pos-table-inner thead th { position: sticky; top: 0; z-index: 10; background: var(--bg2); box-shadow: 0 1px 0 var(--border); }
   th.sortable { cursor: pointer; transition: color 0.15s; }
   th.sortable:hover { color: var(--text); }
   th.sortable .sort-arrow { display: inline-block; margin-left: 4px; opacity: 0.4; font-size: 9px; }
@@ -427,7 +428,7 @@
                 <button class="btn-export" onclick="resetPosFilters()" style="padding:6px 14px;">Réinitialiser</button>
               </div>
             </div>
-            <table><thead><tr>
+            <div class="pos-table-inner"><table><thead><tr>
               <th>#</th>
               <th class="sortable" onclick="sortBy('symbol')">Symbole<span class="sort-arrow" id="sort-symbol">⇅</span></th>
               <th class="sortable" onclick="sortBy('account')">Compte<span class="sort-arrow" id="sort-account">⇅</span></th>
@@ -441,7 +442,7 @@
               <th class="sortable" onclick="sortBy('pnl')">P&amp;L $<span class="sort-arrow" id="sort-pnl">⇅</span></th>
               <th class="sortable" onclick="sortBy('pnlPct')">P&amp;L %<span class="sort-arrow" id="sort-pnlPct">⇅</span></th>
               <th>Actions</th>
-            </tr></thead><tbody id="pos-body"></tbody></table>
+            </tr></thead><tbody id="pos-body"></tbody></table></div>
           </div>
         </div>
       </div>
