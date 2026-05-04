@@ -826,17 +826,34 @@ async function loadData(){
 // ─── PORTFOLIO HISTORY ────────────────────────────────────────────
 async function loadPortfolioHistory(){
   if(!currentUser||!accessToken)return;
-  try{const res=await fetch(`${SB_URL}/rest/v1/portfolio_history?user_id=eq.${currentUser.id}&order=date.asc&select=date,value`,{headers:sbHeaders()});if(!res.ok)return;const data=await res.json();portfolioHistory=(data||[]).map(r=>({date:r.date,value:parseFloat(r.value)}));}catch(e){portfolioHistory=[];}
+  try{
+    const res=await fetch(`${SB_URL}/rest/v1/portfolio_history?user_id=eq.${currentUser.id}&order=date.asc&select=date,value,currency`,{headers:sbHeaders()});
+    if(!res.ok)return;
+    const data=await res.json();
+    portfolioHistory=(data||[]).map(r=>{
+      let val=parseFloat(r.value);
+      // Migration : anciennes entrées sans currency sont en USD
+      // On les convertit dans la devise du compte pour homogénéité
+      const entryCur=r.currency||'USD';
+      if(entryCur==='USD'&&accountCurrency!=='USD'&&fxRate&&fxRate!==1){
+        val=parseFloat((val*fxRate).toFixed(2));
+      }
+      return{date:r.date,value:val,currency:entryCur};
+    });
+  }catch(e){portfolioHistory=[];}
 }
-async function saveSnapshot(value){
+async function saveSnapshot(valueUSD){
   if(!currentUser||!accessToken)return;
+  // Stocker dans la devise du compte pour éviter la dépendance au fxRate à l'affichage
+  const effectiveFx=(fxRate&&fxRate>0&&fxRate!==1)?fxRate:(FX_FALLBACK[accountCurrency]||1);
+  const valueInCurrency=parseFloat((valueUSD*effectiveFx).toFixed(2));
   const today=new Date().toISOString().split('T')[0];
   try{
-    await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:today,value:parseFloat(value.toFixed(2)),updated_at:new Date().toISOString()})});
+    await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:today,value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
     const idx=portfolioHistory.findIndex(h=>h.date===today);
-    if(idx>=0)portfolioHistory[idx].value=value;
-    else{portfolioHistory.push({date:today,value});portfolioHistory.sort((a,b)=>a.date.localeCompare(b.date));}
-  }catch(e){}
+    if(idx>=0){portfolioHistory[idx].value=valueInCurrency;portfolioHistory[idx].currency=accountCurrency;}
+    else{portfolioHistory.push({date:today,value:valueInCurrency,currency:accountCurrency});portfolioHistory.sort((a,b)=>a.date.localeCompare(b.date));}
+  }catch(e){console.error('[snapshot] Erreur sauvegarde:',e);}
 }
 // Ne plus écrire l'interpolation dans Supabase — ça écrasait les vraies valeurs.
 // Les jours manquants sont comblés côté client uniquement pour l'affichage du chart.
@@ -863,6 +880,36 @@ function getDisplayHistory(){
 // backfillMissingDays conservé mais ne fait plus rien — les vrais snapshots
 // sont écrits uniquement par saveSnapshot() lors des mises à jour de prix live.
 async function backfillMissingDays(){return;}
+
+// Nettoie les snapshots interpolés qui ont pu être écrits par l'ancienne version.
+// Conserve uniquement les entrées espacées d'au moins 1 jour "de vraie activité"
+// (heuristique : supprime les runs de dates consécutives dont les valeurs sont
+// parfaitement interpolées entre deux bornes).
+async function cleanInterpolatedSnapshots(){
+  if(!currentUser||!accessToken||portfolioHistory.length<3)return;
+  // Détecte les points qui sont sur une droite parfaite entre leurs voisins
+  const toDelete=[];
+  for(let i=1;i<portfolioHistory.length-1;i++){
+    const prev=portfolioHistory[i-1],cur=portfolioHistory[i],next=portfolioHistory[i+1];
+    const d0=new Date(prev.date).getTime(),d1=new Date(next.date).getTime(),dm=new Date(cur.date).getTime();
+    if(d1===d0)continue;
+    const expected=prev.value+(next.value-prev.value)*(dm-d0)/(d1-d0);
+    // Si la valeur est à moins de 0.01$ de l'interpolation linéaire → probablement un backfill
+    if(Math.abs(cur.value-expected)<0.01)toDelete.push(cur.date);
+  }
+  if(!toDelete.length)return;
+  console.log(`[history] Nettoyage de ${toDelete.length} snapshots interpolés`);
+  // Supprimer par batches de 50
+  for(let i=0;i<toDelete.length;i+=50){
+    const batch=toDelete.slice(i,i+50);
+    const filter=batch.map(d=>`date.eq.${d}`).join(',');
+    try{
+      await fetch(`${SB_URL}/rest/v1/portfolio_history?user_id=eq.${currentUser.id}&or=(${filter})`,{method:'DELETE',headers:sbHeaders()});
+    }catch(e){}
+  }
+  await loadPortfolioHistory();
+  console.log(`[history] Historique propre : ${portfolioHistory.length} vrais snapshots`);
+}
 
 // ─── CURRENCY ────────────────────────────────────────────────────
 const FX_FALLBACK={'CAD':1.3700,'EUR':0.9200,'CHF':0.8900,'GBP':0.7900,'JPY':149.50,'AUD':1.5300,'NZD':1.6400,'HKD':7.8200,'SGD':1.3400,'SEK':10.40,'NOK':10.55,'DKK':6.8800,'MXN':17.10,'BRL':4.9500};
@@ -917,20 +964,35 @@ async function fetchLivePrices(){
   const tickers=[...new Set(positions.map(p=>getTicker(p.symbol)))];
   try{
     const res=await fetch(`/api/prices?symbols=${encodeURIComponent(tickers.join(','))}`);
-    const data=await res.json();let updated=0;
-    positions.forEach(p=>{const t=getTicker(p.symbol);if(data[t]&&data[t]>0){p.current=data[t];updated++;}});
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const data=await res.json();
+    let updated=0,failed=[];
+    positions.forEach(p=>{
+      const t=getTicker(p.symbol);
+      if(data[t]&&data[t]>0){p.current=data[t];updated++;}
+      else failed.push(p.symbol);
+    });
+    console.log(`[prices] ${updated}/${positions.length} mis à jour.${failed.length?' Manquants: '+failed.join(','):''}`);
     if(updated>0){
       // Rafraîchir les taux live pour toutes les devises de positions avant calcul
       const posCurrencies=[...new Set(positions.map(p=>p.currency||'USD').filter(c=>c!=='USD'&&c!==accountCurrency))];
       await fetchAndCacheFxRates(posCurrencies);
+      // S'assurer que fxRate est bien chargé avant le snapshot
+      if(!fxRate||fxRate===0)fxRate=await fetchFxRate(accountCurrency);
       await saveData();
-      // Snapshot toujours en USD (valeur brute, fxRate appliqué uniquement à l'affichage)
-      // cash est TOUJOURS en USD en mémoire, pas besoin de convertir
+      // Snapshot en USD, converti dans la devise du compte par saveSnapshot()
       const totalValueUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0)+cash;
+      console.log(`[snapshot] Valeur USD: ${totalValueUSD.toFixed(2)}, devise: ${accountCurrency}, fxRate: ${fxRate}`);
       await saveSnapshot(totalValueUSD);
       renderAll();setLiveStatus('live');
-    }else setLiveStatus('error');
-  }catch(e){setLiveStatus('error');}
+    }else{
+      console.warn('[prices] Aucun prix reçu — snapshot non sauvegardé');
+      setLiveStatus('error');
+    }
+  }catch(e){
+    console.error('[prices] Erreur fetch:',e.message);
+    setLiveStatus('error');
+  }
 }
 
 // ─── AUTOCOMPLETE ─────────────────────────────────────────────────
@@ -973,18 +1035,19 @@ async function startApp(){
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   initCharts();
   await loadData();
-  await loadPortfolioHistory();
-  await backfillMissingDays();
-  // Devise primaire : chargée depuis Supabase dans loadData(), sinon fallback localStorage
+  // Résoudre la devise AVANT de charger l'historique (pour la migration USD→devise)
   const effectiveCur=accountCurrency!=='USD'?accountCurrency:(localStorage.getItem('nc_currency')||'USD');
-  if(effectiveCur!==accountCurrency){accountCurrency=effectiveCur;}
+  accountCurrency=effectiveCur;
   const sel=document.getElementById('currency-select');if(sel)sel.value=accountCurrency;
-  // Récupérer le taux live pour la devise du compte
+  // Charger fxRate en premier — critique pour la migration des snapshots USD
   fxRate=await fetchFxRate(accountCurrency);
+  updateFxDisplay();
+  // Maintenant charger l'historique (migration USD→accountCurrency si besoin)
+  await loadPortfolioHistory();
+  await cleanInterpolatedSnapshots();
   // Pré-cacher les taux des devises de positions non-USD et non-accountCurrency
   const posCurrencies=[...new Set(positions.map(p=>p.currency||'USD').filter(c=>c!=='USD'&&c!==accountCurrency))];
   await fetchAndCacheFxRates(posCurrencies);
-  updateFxDisplay();
   renderAll();
   if(portfolioHistory.length===0&&positions.length>0){
     const firstTradeDate=trades.length>0?[...trades].sort((a,b)=>a.date.localeCompare(b.date))[0].date:new Date().toISOString().split('T')[0];
@@ -1373,7 +1436,8 @@ function updatePerfChart(){
   const step=Math.max(1,Math.floor(filtered.length/60));
   const sampled=filtered.filter((_,i)=>i%step===0||i===filtered.length-1);
   perfChart.data.labels=sampled.map(h=>h.date.slice(5));
-  perfChart.data.datasets[0].data=sampled.map(h=>parseFloat((h.value*fxRate).toFixed(2)));
+  // Les valeurs sont stockées dans la devise du compte — pas de conversion nécessaire
+  perfChart.data.datasets[0].data=sampled.map(h=>parseFloat(h.value.toFixed(2)));
   perfChart.update();
 }
 
