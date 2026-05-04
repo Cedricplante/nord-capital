@@ -107,6 +107,9 @@
   /* TABLE */
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   th { color: var(--text3); font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 0.5px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--sans); user-select: none; }
+  /* Sticky header pour la table positions */
+  .pos-table-scroll { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 280px); border-radius: var(--r); }
+  .pos-table-scroll thead th { position: sticky; top: 0; z-index: 10; background: var(--bg2); box-shadow: 0 1px 0 var(--border); }
   th.sortable { cursor: pointer; transition: color 0.15s; }
   th.sortable:hover { color: var(--text); }
   th.sortable .sort-arrow { display: inline-block; margin-left: 4px; opacity: 0.4; font-size: 9px; }
@@ -1080,7 +1083,16 @@ window.addEventListener('DOMContentLoaded',async()=>{
 });
 
 // ─── LOGIQUE ──────────────────────────────────────────────────────
-function calcPnl(p){const shares=p.shares||0;if(shares>0){const cout=shares*p.avgEntry,val=shares*p.current;return p.dir==='Long'?val-cout:cout-val;}const pct=p.dir==='Long'?(p.current-p.avgEntry)/p.avgEntry:(p.avgEntry-p.current)/p.avgEntry;return p.totalSize*pct;}
+function calcPnl(p){
+  const shares=p.shares||0;
+  if(shares>0){
+    const coutReel=p.entries&&p.entries.length?p.entries.reduce((s,e)=>s+(e.size||0),0):shares*p.avgEntry;
+    const val=shares*p.current;
+    return p.dir==='Long'?val-coutReel:coutReel-val;
+  }
+  const pct=p.dir==='Long'?(p.current-p.avgEntry)/p.avgEntry:(p.avgEntry-p.current)/p.avgEntry;
+  return p.totalSize*pct;
+}
 function calcPnlUSD(p){return toUSD(calcPnl(p),p.currency||'USD');}
 function getCat(symbol){const found=SYMBOLS.find(s=>s.s===symbol);if(found)return found.cat;if(symbol.includes('/'))return symbol.includes('USD')&&!symbol.includes('EUR')&&!symbol.includes('GBP')?'Crypto':'Forex';return'Action';}
 function getAcctClass(acct){if(!acct)return'acc-default';if(acct==='CELI')return'acc-celi';if(acct==='CELIAPP')return'acc-celiapp';if(acct==='REER'||acct==='REEE')return'acc-reer';if(acct==='Marge')return'acc-marge';if(['Coinbase','Binance','Kraken','Bitget','OKX','Bybit','Ledger Nano S','Ledger Nano X','Ledger Stax','Tangem','Trezor Model One','Trezor Model T','MetaMask','Autre wallet'].includes(acct))return'acc-crypto';return'acc-default';}
@@ -1128,10 +1140,13 @@ let expandedDcaIdx=new Set();
 let editTarget=null;
 
 function posRow(p,idx,displayIdx){
-  const shares=p.shares||0,coutTotal=shares*p.avgEntry,valeurMarche=shares*p.current;
+  const shares=p.shares||0,valeurMarche=shares*p.current;
+  // Coût total = somme réelle des achats DCA, pas shares*avgEntry
+  const coutTotal=p.entries&&p.entries.length?p.entries.reduce((s,e)=>s+(e.size||0),0):shares*p.avgEntry;
   const pnl=p.dir==='Long'?valeurMarche-coutTotal:coutTotal-valeurMarche;
   const pct=coutTotal>0?(pnl/coutTotal)*100:0,cls=pnl>=0?'pos':'neg';
   const isDca=p.entries&&p.entries.length>1,firstDate=p.entries&&p.entries[0]?p.entries[0].date:'—';
+  // Le badge DCA×N se met à jour automatiquement via entries.length après FIFO
   const sharesStr=shares?shares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—';
   const curBadge=p.currency&&p.currency!=='USD'?`<span style="font-size:9px;color:var(--amber);margin-left:4px;">${p.currency}</span>`:'';
   const acctBadge=p.account?`<span class="badge-dca ${getAcctClass(p.account)}">${p.account}</span>`:'<span style="color:var(--text3);font-size:10px;">—</span>';
@@ -1304,8 +1319,37 @@ async function confirmClose(){
   const profitUSD=toUSD(profit,p.currency||'USD'),montantUSD=toUSD(montantFinal,p.currency||'USD');
   trades.unshift({date,symbol:p.symbol,dir:p.dir,type:'Vente',price:exitPrice,avgEntry:p.avgEntry,size:sizeToClose,profit,profitUSD,montantFinal,montantUSD,shares:sharesToSell,dcaCount:p.entries?p.entries.length:1,currency:p.currency||'USD',account:p.account||''});
   cash+=montantUSD;
-  if(pctToSell>=0.9999)positions.splice(closeTarget,1);
-  else{p.totalSize-=sizeToClose;p.shares-=sharesToSell;if(p.shares<0)p.shares=0;}
+  if(pctToSell>=0.9999){
+    positions.splice(closeTarget,1);
+  }else{
+    p.totalSize-=sizeToClose;
+    p.shares-=sharesToSell;
+    if(p.shares<0)p.shares=0;
+    // FIFO : supprimer les achats les plus anciens jusqu'à couvrir sharesToSell
+    if(p.entries&&p.entries.length>0){
+      let remaining=sharesToSell;
+      while(remaining>0&&p.entries.length>0){
+        const oldest=p.entries[0];
+        const oldestShares=oldest.shares||0;
+        if(oldestShares<=remaining){
+          // Cet achat est entièrement consommé → retirer
+          remaining-=oldestShares;
+          p.entries.shift();
+        }else{
+          // Achat partiellement consommé → réduire proportionnellement
+          const ratio=(oldestShares-remaining)/oldestShares;
+          oldest.shares=parseFloat((oldestShares-remaining).toFixed(6));
+          oldest.size=parseFloat((oldest.size*ratio).toFixed(2));
+          remaining=0;
+        }
+      }
+      // Recalculer avgEntry à partir des entries restantes
+      if(p.entries.length>0){
+        const totalShR=p.entries.reduce((s,e)=>s+(e.shares||0),0);
+        p.avgEntry=totalShR>0?p.entries.reduce((s,e)=>s+(e.price*(e.shares||0)),0)/totalShR:p.avgEntry;
+      }
+    }
+  }
   closeTarget=null;document.getElementById('modal-overlay').classList.remove('open');
   await saveData();renderAll();
 }
