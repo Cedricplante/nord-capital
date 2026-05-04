@@ -273,6 +273,20 @@
       <div class="auth-field"><label>Mot de passe</label><input type="password" id="signup-password" placeholder="Min. 6 caractères" /></div>
       <div class="auth-error" id="signup-error"></div>
       <div class="auth-field" style="margin-top:0.5rem;">
+        <label>Devise principale du compte</label>
+        <select id="signup-currency" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:9px 10px;color:var(--text);font-size:12px;font-family:var(--mono);width:100%;margin-top:4px;appearance:none;outline:none;transition:border-color 0.15s;">
+          <option value="CAD">🇨🇦 CAD — Dollar canadien</option>
+          <option value="USD">🇺🇸 USD — Dollar américain</option>
+          <option value="EUR">🇪🇺 EUR — Euro</option>
+          <option value="CHF">🇨🇭 CHF — Franc suisse</option>
+          <option value="GBP">🇬🇧 GBP — Livre sterling</option>
+          <option value="JPY">🇯🇵 JPY — Yen japonais</option>
+          <option value="AUD">🇦🇺 AUD — Dollar australien</option>
+          <option value="NZD">🇳🇿 NZD — Dollar néo-zélandais</option>
+        </select>
+        <div style="font-size:10px;color:var(--text3);margin-top:5px;font-family:var(--sans);">Les montants seront affichés dans cette devise. Les positions dans d'autres devises seront converties.</div>
+      </div>
+      <div class="auth-field" style="margin-top:0.5rem;">
         <label>Apparence préférée</label>
         <div style="display:flex;gap:8px;margin-top:4px;">
           <button type="button" id="signup-theme-dark" onclick="setSignupTheme('dark')" style="flex:1;padding:8px;font-size:12px;font-weight:600;border-radius:8px;border:1px solid var(--blue);background:var(--blue);color:#fff;cursor:pointer;transition:all 0.15s;">Sombre</button>
@@ -659,6 +673,8 @@
 
 <script>
 const SB_URL='https://spgcwvmehcixchtsfuaf.supabase.co';
+// SCHEMA user_data requis: user_id, positions (text), trades (text), cash (numeric), currency (text, default 'USD'), updated_at (timestamptz)
+// SCHEMA portfolio_history requis: user_id, date (date, PK avec user_id), value (numeric en USD), updated_at (timestamptz)
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwZ2N3dm1laGNpeGNodHNmdWFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTUxODcsImV4cCI6MjA4OTU5MTE4N30.-lK4uPIrL0-fxVoLZtqzqjat2mznKrqp0CglSseb2Gs';
 
 const SYMBOLS=[
@@ -750,9 +766,17 @@ async function handleSignup(){
   const email=document.getElementById('signup-email').value.trim(),password=document.getElementById('signup-password').value;
   document.getElementById('signup-error').textContent='';
   if(password.length<6){document.getElementById('signup-error').textContent='Min. 6 caractères.';return;}
-  const data=await authFetch('signup',{email,password});
+  const chosenCurrency=document.getElementById('signup-currency')?.value||'CAD';
+  const data=await authFetch('signup',{email,password,data:{preferred_currency:chosenCurrency,preferred_theme:signupThemeChoice}});
   if(data.error){document.getElementById('signup-error').textContent=data.error.message;return;}
   localStorage.setItem('nc_theme',signupThemeChoice);
+  localStorage.setItem('nc_currency',chosenCurrency);
+  // Si Supabase retourne directement le token (auto-confirm), initialiser les données
+  if(data.access_token){
+    try{
+      await fetch(`${SB_URL}/rest/v1/user_data`,{method:'POST',headers:{...{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':`Bearer ${data.access_token}`},'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:data.user.id,currency:chosenCurrency,positions:'[]',trades:'[]',cash:0,updated_at:new Date().toISOString()})});
+    }catch(e){}
+  }
   const el=document.getElementById('signup-error');el.style.color='var(--green)';el.textContent='Compte créé ! Tu peux te connecter.';
 }
 function setTheme(theme){
@@ -762,14 +786,24 @@ function setTheme(theme){
 }
 function toggleHamburger(e){e.stopPropagation();const m=document.getElementById('hamburger-menu');m.style.display=m.style.display==='block'?'none':'block';}
 document.addEventListener('click',e=>{if(!e.target.closest('#hamburger-btn')&&!e.target.closest('#hamburger-menu')){const m=document.getElementById('hamburger-menu');if(m)m.style.display='none';}});
-async function handleLogout(){localStorage.removeItem('nc_token');localStorage.removeItem('nc_user');accessToken=null;currentUser=null;positions=[];trades=[];cash=0;chartsInitialized=false;portfolioHistory=[];document.getElementById('main-app').style.display='none';document.getElementById('auth-screen').style.display='flex';}
+async function handleLogout(){
+  localStorage.removeItem('nc_token');localStorage.removeItem('nc_user');
+  accessToken=null;currentUser=null;positions=[];trades=[];cash=0;portfolioHistory=[];
+  // Détruire toutes les instances Chart.js pour éviter les conflits à la reconnexion
+  [perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart].forEach(c=>{try{if(c)c.destroy();}catch(e){}});
+  perfChart=allocChart=allocSymChart=allocCatChart=allocCatDashChart=assetPerfChart=assetPerfDashChart=pnlBarChart=cashAllocChart=celiChart=celiappChart=cryptoAllocChart=null;
+  chartsInitialized=false;
+  // Reset devise
+  accountCurrency='USD';fxRate=1;Object.keys(liveFxRates).forEach(k=>delete liveFxRates[k]);
+  document.getElementById('main-app').style.display='none';document.getElementById('auth-screen').style.display='flex';
+}
 
 // ─── DATA ────────────────────────────────────────────────────────
 function sbHeaders(){return{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':`Bearer ${accessToken}`};}
 function showSaving(){const el=document.getElementById('saving-indicator');el.classList.add('visible');setTimeout(()=>el.classList.remove('visible'),2000);}
 async function saveData(){
   if(!currentUser||!accessToken)return;
-  const payload={user_id:currentUser.id,positions:JSON.stringify(positions),trades:JSON.stringify(trades),cash,updated_at:new Date().toISOString()};
+  const payload={user_id:currentUser.id,positions:JSON.stringify(positions),trades:JSON.stringify(trades),cash,currency:accountCurrency,updated_at:new Date().toISOString()};
   const res=await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`,{method:'PATCH',headers:sbHeaders(),body:JSON.stringify(payload)});
   if(res.ok)showSaving();
   else{await fetch(`${SB_URL}/rest/v1/user_data`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});showSaving();}
@@ -779,7 +813,14 @@ async function loadData(){
   const res=await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}&select=*`,{headers:sbHeaders()});
   if(!res.ok)return;
   const data=await res.json();
-  if(data&&data.length>0){const row=data[0];try{positions=JSON.parse(row.positions)||[];}catch(e){positions=[];}try{trades=JSON.parse(row.trades)||[];}catch(e){trades=[];}cash=row.cash!==null?parseFloat(row.cash):0;}
+  if(data&&data.length>0){
+    const row=data[0];
+    try{positions=JSON.parse(row.positions)||[];}catch(e){positions=[];}
+    try{trades=JSON.parse(row.trades)||[];}catch(e){trades=[];}
+    cash=row.cash!==null?parseFloat(row.cash):0;
+    // Charger la devise primaire depuis Supabase (priorité sur localStorage)
+    if(row.currency){accountCurrency=row.currency;localStorage.setItem('nc_currency',row.currency);const sel=document.getElementById('currency-select');if(sel)sel.value=row.currency;}
+  }
 }
 
 // ─── PORTFOLIO HISTORY ────────────────────────────────────────────
@@ -824,9 +865,42 @@ async function backfillMissingDays(){
 // ─── CURRENCY ────────────────────────────────────────────────────
 const FX_FALLBACK={'CAD':1.3700,'EUR':0.9200,'CHF':0.8900,'GBP':0.7900,'JPY':149.50,'AUD':1.5300,'NZD':1.6400,'HKD':7.8200,'SGD':1.3400,'SEK':10.40,'NOK':10.55,'DKK':6.8800,'MXN':17.10,'BRL':4.9500};
 async function fetchFxRate(cur){if(cur==='USD')return 1;try{const res=await fetch(`/api/prices?symbols=USD${cur}=X`);const data=await res.json();const rate=data[`USD${cur}=X`];if(rate&&rate>0&&rate<100000)return rate;}catch(e){}return FX_FALLBACK[cur]||1;}
-async function setCurrency(cur){accountCurrency=cur;localStorage.setItem('nc_currency',cur);fxRate=await fetchFxRate(cur);updateFxDisplay();renderAll();}
+async function setCurrency(cur){
+  accountCurrency=cur;
+  // Sauvegarder dans Supabase user_data si connecté
+  if(currentUser&&accessToken){try{await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`,{method:'PATCH',headers:sbHeaders(),body:JSON.stringify({currency:cur,updated_at:new Date().toISOString()})});}catch(e){}}
+  localStorage.setItem('nc_currency',cur);
+  fxRate=await fetchFxRate(cur);
+  // Mettre à jour le cache live pour toutes les devises de positions
+  const posCurrencies=[...new Set(positions.map(p=>p.currency||'USD').filter(c=>c!=='USD'&&c!==cur))];
+  await fetchAndCacheFxRates(posCurrencies);
+  updateFxDisplay();renderAll();
+}
 function updateFxDisplay(){const el=document.getElementById('fx-rate-display');if(!el)return;if(accountCurrency==='USD'){el.textContent='';return;}el.textContent=`1 USD = ${fxRate.toFixed(fxRate>100?2:4)} ${accountCurrency}`;}
-function toUSD(amount,posCur){const pc=posCur||'USD';if(pc==='USD')return amount;return amount/(FX_FALLBACK[pc]||1);}
+
+// Cache des taux live pour conversion inter-devises (valeur = nb USD pour 1 unité de la devise)
+const liveFxRates={};
+async function fetchAndCacheFxRates(currencies){
+  const needed=currencies.filter(c=>c&&c!=='USD'&&!liveFxRates[c]);
+  if(!needed.length)return;
+  try{
+    const symbols=needed.map(c=>`USD${c}=X`).join(',');
+    const res=await fetch(`/api/prices?symbols=${encodeURIComponent(symbols)}`);
+    const data=await res.json();
+    needed.forEach(c=>{const rate=data[`USD${c}=X`];if(rate&&rate>0)liveFxRates[c]=1/rate;});
+  }catch(e){}
+}
+// Convertit un montant d'une devise vers USD en utilisant les taux live quand disponibles
+function toUSD(amount,posCur){
+  const pc=posCur||'USD';
+  if(pc==='USD')return amount;
+  // Devise du compte : on inverse fxRate (1 USD = fxRate accountCurrency)
+  if(pc===accountCurrency&&fxRate&&fxRate!==1)return amount/fxRate;
+  // Taux live en cache (1 pc = X USD)
+  if(liveFxRates[pc])return amount*liveFxRates[pc];
+  // Fallback statique (1 USD = FX_FALLBACK[pc] → 1 pc = 1/FX_FALLBACK[pc] USD)
+  return amount/(FX_FALLBACK[pc]||1);
+}
 
 // ─── LIVE PRICES ─────────────────────────────────────────────────
 function setLiveStatus(status){
@@ -844,9 +918,14 @@ async function fetchLivePrices(){
     const data=await res.json();let updated=0;
     positions.forEach(p=>{const t=getTicker(p.symbol);if(data[t]&&data[t]>0){p.current=data[t];updated++;}});
     if(updated>0){
-      saveData();
-      const totalValue=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0)+cash;
-      await saveSnapshot(totalValue);
+      // Rafraîchir les taux live pour toutes les devises de positions avant calcul
+      const posCurrencies=[...new Set(positions.map(p=>p.currency||'USD').filter(c=>c!=='USD'&&c!==accountCurrency))];
+      await fetchAndCacheFxRates(posCurrencies);
+      await saveData();
+      // Snapshot toujours en USD (valeur brute, fxRate appliqué uniquement à l'affichage)
+      // cash est TOUJOURS en USD en mémoire, pas besoin de convertir
+      const totalValueUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0)+cash;
+      await saveSnapshot(totalValueUSD);
       renderAll();setLiveStatus('live');
     }else setLiveStatus('error');
   }catch(e){setLiveStatus('error');}
@@ -894,9 +973,17 @@ async function startApp(){
   await loadData();
   await loadPortfolioHistory();
   await backfillMissingDays();
-  const savedCur=localStorage.getItem('nc_currency');
-  if(savedCur){accountCurrency=savedCur;document.getElementById('currency-select').value=savedCur;await setCurrency(savedCur);}
-  else renderAll();
+  // Devise primaire : chargée depuis Supabase dans loadData(), sinon fallback localStorage
+  const effectiveCur=accountCurrency!=='USD'?accountCurrency:(localStorage.getItem('nc_currency')||'USD');
+  if(effectiveCur!==accountCurrency){accountCurrency=effectiveCur;}
+  const sel=document.getElementById('currency-select');if(sel)sel.value=accountCurrency;
+  // Récupérer le taux live pour la devise du compte
+  fxRate=await fetchFxRate(accountCurrency);
+  // Pré-cacher les taux des devises de positions non-USD et non-accountCurrency
+  const posCurrencies=[...new Set(positions.map(p=>p.currency||'USD').filter(c=>c!=='USD'&&c!==accountCurrency))];
+  await fetchAndCacheFxRates(posCurrencies);
+  updateFxDisplay();
+  renderAll();
   if(portfolioHistory.length===0&&positions.length>0){
     const firstTradeDate=trades.length>0?[...trades].sort((a,b)=>a.date.localeCompare(b.date))[0].date:new Date().toISOString().split('T')[0];
     const today=new Date().toISOString().split('T')[0];
@@ -1196,7 +1283,19 @@ function addPosition(){
   if(!s||isNaN(e)||isNaN(shares)||isNaN(cur)||isNaN(sz)){alert('Remplis tous les champs (symbole, prix, shares, prix actuel).');return;}
   trades.unshift({date:dateVal,symbol:s,dir:d,type:'Achat',price:e,shares,size:sz,currency:posCurrency,account});
   const existing=positions.find(p=>p.symbol===s&&p.dir===d);
-  if(existing){const newTotal=existing.totalSize+sz;existing.avgEntry=(existing.avgEntry*existing.totalSize+e*sz)/newTotal;existing.totalSize=newTotal;existing.current=cur;existing.shares=(existing.shares||0)+shares;existing.currency=posCurrency;if(account)existing.account=account;existing.entries=existing.entries||[];existing.entries.push({price:e,shares,size:sz,date:dateVal});}
+  if(existing){
+    const newTotal=existing.totalSize+sz;
+    const existingShares=existing.shares||0;
+    // Calcul du prix moyen pondéré par le nombre de shares (pas par le montant $)
+    existing.avgEntry=(existingShares>0&&shares>0)?(existing.avgEntry*existingShares+e*shares)/(existingShares+shares):e;
+    existing.totalSize=newTotal;
+    existing.current=cur;
+    existing.shares=existingShares+shares;
+    existing.currency=posCurrency;
+    if(account)existing.account=account;
+    existing.entries=existing.entries||[];
+    existing.entries.push({price:e,shares,size:sz,date:dateVal});
+  }
   else positions.push({symbol:s,dir:d,avgEntry:e,current:cur,totalSize:sz,shares,currency:posCurrency,account,entries:[{price:e,shares,size:sz,date:dateVal}]});
   ['f-symbol','f-entry','f-shares','f-current','f-size'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-currency').value='USD';document.getElementById('f-account').value='';document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
@@ -1217,10 +1316,9 @@ async function updateCashPreview(){
   const hint=document.getElementById('cash-convert-hint'),preview=document.getElementById('cash-preview-current');
   if(preview)preview.textContent=fmtAmtRound(cash*fxRate);
   if(!isNaN(amt)&&amt>0&&hint){
-    let display=amt;
-    if(inputCur==='USD')display=amt*fxRate;
-    else if(inputCur===accountCurrency)display=amt;
-    else display=amt/(FX_FALLBACK[inputCur]||1)*fxRate;
+    // Convertir vers USD d'abord, puis vers devise du compte via fxRate
+    const amtUSD=toUSD(amt,inputCur);
+    const display=amtUSD*fxRate;
     if(inputCur!==accountCurrency)hint.textContent=`${amt} ${inputCur} → ${fmtAmt(display)}`;
     else hint.textContent='';
   }else if(hint)hint.textContent='';
@@ -1232,7 +1330,8 @@ async function updateCash(){
   const inputCur=document.getElementById('cash-currency-input')?.value||'USD',date=new Date().toISOString().split('T')[0],type=cashType==='depot'?'Dépôt':'Retrait';
   let amtUSD=inputAmt;
   if(inputCur==='USD')amtUSD=inputAmt;
-  else amtUSD=inputAmt/(FX_FALLBACK[inputCur]||1);
+  // Utiliser toUSD pour bénéficier des taux live
+  else amtUSD=toUSD(inputAmt,inputCur);
   const newCash=cashType==='depot'?cash+amtUSD:Math.max(0,cash-amtUSD);
   trades.unshift({date,symbol:'CASH',dir:'—',type,price:0,size:amtUSD,profit:0,montantFinal:newCash,cashBalance:newCash,currency:inputCur,originalAmt:inputAmt});
   cash=newCash;closeCashPopup();saveData();renderAll();
