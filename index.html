@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<link rel="icon" href="data:,">
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nord Capital — Portfolio Tracker</title>
@@ -1261,7 +1260,7 @@ function openEditModal(idx){
   document.getElementById('edit-modal-overlay').classList.add('open');
 }
 function cancelEdit(){editTarget=null;document.getElementById('edit-modal-overlay').classList.remove('open');}
-function confirmEdit(){
+async function confirmEdit(){
   if(editTarget===null)return;
   const p=positions[editTarget];
   p.dir=document.getElementById('edit-dir').value;
@@ -1273,7 +1272,7 @@ function confirmEdit(){
   p.account=document.getElementById('edit-account').value;
   const newDate=document.getElementById('edit-date').value;
   if(p.entries&&p.entries[0]&&newDate)p.entries[0].date=newDate;
-  cancelEdit();saveData();renderAll();
+  cancelEdit();await saveData();renderAll();
 }
 
 function openCloseModal(i){
@@ -1293,7 +1292,7 @@ function updatePartialSize(){
   else document.getElementById('modal-preview').textContent='—';
 }
 function cancelClose(){closeTarget=null;document.getElementById('modal-overlay').classList.remove('open');}
-function confirmClose(){
+async function confirmClose(){
   if(closeTarget===null)return;
   const exitPrice=parseFloat(document.getElementById('modal-exit').value),sharesToSell=parseFloat(document.getElementById('modal-shares').value);
   if(isNaN(exitPrice)||isNaN(sharesToSell)||sharesToSell<=0){alert('Entre un prix de sortie et le nombre de shares à vendre.');return;}
@@ -1308,7 +1307,7 @@ function confirmClose(){
   if(pctToSell>=0.9999)positions.splice(closeTarget,1);
   else{p.totalSize-=sizeToClose;p.shares-=sharesToSell;if(p.shares<0)p.shares=0;}
   closeTarget=null;document.getElementById('modal-overlay').classList.remove('open');
-  saveData();renderAll();
+  await saveData();renderAll();
 }
 
 function populateHistFilters(){
@@ -1350,7 +1349,7 @@ function updatePnlBar(){
   pnlBarChart.data.datasets[0].data=data;pnlBarChart.data.datasets[0].backgroundColor=data.map(v=>v>=0?'#00ff88':'#ff4d6d');pnlBarChart.update();
 }
 
-function addPosition(){
+async function addPosition(){
   const s=document.getElementById('f-symbol').value.trim().toUpperCase(),d=document.getElementById('f-dir').value;
   const dateVal=document.getElementById('f-date').value||new Date().toISOString().split('T')[0];
   const e=parseFloat(document.getElementById('f-entry').value),shares=parseFloat(document.getElementById('f-shares').value);
@@ -1376,7 +1375,7 @@ function addPosition(){
   ['f-symbol','f-entry','f-shares','f-current','f-size'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-currency').value='USD';document.getElementById('f-account').value='';document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('symbol-dropdown').classList.remove('open');
-  saveData();renderAll();
+  await saveData();renderAll();
 }
 
 let cashType='depot';
@@ -1410,7 +1409,7 @@ async function updateCash(){
   else amtUSD=toUSD(inputAmt,inputCur);
   const newCash=cashType==='depot'?cash+amtUSD:Math.max(0,cash-amtUSD);
   trades.unshift({date,symbol:'CASH',dir:'—',type,price:0,size:amtUSD,profit:0,montantFinal:newCash,cashBalance:newCash,currency:inputCur,originalAmt:inputAmt});
-  cash=newCash;closeCashPopup();saveData();renderAll();
+  cash=newCash;closeCashPopup();await saveData();renderAll();
 }
 
 function switchTab(name,el){
@@ -1594,7 +1593,7 @@ function exportCSV(){
   const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='nord_capital_transactions.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
-function clearHistory(){if(!confirm('Effacer tout l\'historique ? Irréversible.'))return;trades=[];saveData();renderAll();}
+async function clearHistory(){if(!confirm('Effacer tout l\'historique ? Irréversible.'))return;trades=[];await saveData();renderAll();}
 function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();}
 
 function initCharts(){
