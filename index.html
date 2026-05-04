@@ -848,11 +848,14 @@ async function saveSnapshot(valueUSD){
   const valueInCurrency=parseFloat((valueUSD*effectiveFx).toFixed(2));
   const today=new Date().toISOString().split('T')[0];
   try{
-    // Tenter un PATCH d'abord (update si existe)
-    const patchRes=await fetch(`${SB_URL}/rest/v1/portfolio_history?user_id=eq.${currentUser.id}&date=eq.${today}`,{method:'PATCH',headers:{...sbHeaders(),'Prefer':'return=minimal'},body:JSON.stringify({value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
-    // Si aucune ligne patchée (204 mais 0 rows), faire un INSERT
-    const count=patchRes.headers.get('content-range');
-    if(!count||count==='*/*'||count.startsWith('0')){
+    // Vérifier si une entrée existe déjà pour aujourd'hui
+    const checkRes=await fetch(`${SB_URL}/rest/v1/portfolio_history?user_id=eq.${currentUser.id}&date=eq.${today}&select=date`,{headers:sbHeaders()});
+    const existing=await checkRes.json();
+    if(existing&&existing.length>0){
+      // Ligne existante → PATCH
+      await fetch(`${SB_URL}/rest/v1/portfolio_history?user_id=eq.${currentUser.id}&date=eq.${today}`,{method:'PATCH',headers:{...sbHeaders(),'Prefer':'return=minimal'},body:JSON.stringify({value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
+    }else{
+      // Pas de ligne → INSERT
       await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:today,value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
     }
     // Mettre à jour le cache local
