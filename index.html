@@ -849,7 +849,7 @@ async function saveSnapshot(valueUSD){
   const valueInCurrency=parseFloat((valueUSD*effectiveFx).toFixed(2));
   const today=new Date().toISOString().split('T')[0];
   try{
-    await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:today,value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
+    await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal','on-conflict':'user_id,date'},body:JSON.stringify({user_id:currentUser.id,date:today,value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
     const idx=portfolioHistory.findIndex(h=>h.date===today);
     if(idx>=0){portfolioHistory[idx].value=valueInCurrency;portfolioHistory[idx].currency=accountCurrency;}
     else{portfolioHistory.push({date:today,value:valueInCurrency,currency:accountCurrency});portfolioHistory.sort((a,b)=>a.date.localeCompare(b.date));}
