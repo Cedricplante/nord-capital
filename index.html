@@ -844,16 +844,23 @@ async function loadPortfolioHistory(){
 }
 async function saveSnapshot(valueUSD){
   if(!currentUser||!accessToken)return;
-  // Stocker dans la devise du compte pour éviter la dépendance au fxRate à l'affichage
   const effectiveFx=(fxRate&&fxRate>0&&fxRate!==1)?fxRate:(FX_FALLBACK[accountCurrency]||1);
   const valueInCurrency=parseFloat((valueUSD*effectiveFx).toFixed(2));
   const today=new Date().toISOString().split('T')[0];
   try{
-    await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal','on-conflict':'user_id,date'},body:JSON.stringify({user_id:currentUser.id,date:today,value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
+    // Tenter un PATCH d'abord (update si existe)
+    const patchRes=await fetch(`${SB_URL}/rest/v1/portfolio_history?user_id=eq.${currentUser.id}&date=eq.${today}`,{method:'PATCH',headers:{...sbHeaders(),'Prefer':'return=minimal'},body:JSON.stringify({value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
+    // Si aucune ligne patchée (204 mais 0 rows), faire un INSERT
+    const count=patchRes.headers.get('content-range');
+    if(!count||count==='*/*'||count.startsWith('0')){
+      await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:today,value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
+    }
+    // Mettre à jour le cache local
     const idx=portfolioHistory.findIndex(h=>h.date===today);
     if(idx>=0){portfolioHistory[idx].value=valueInCurrency;portfolioHistory[idx].currency=accountCurrency;}
     else{portfolioHistory.push({date:today,value:valueInCurrency,currency:accountCurrency});portfolioHistory.sort((a,b)=>a.date.localeCompare(b.date));}
-  }catch(e){console.error('[snapshot] Erreur sauvegarde:',e);}
+    console.log(`[snapshot] Sauvegardé: ${valueInCurrency} ${accountCurrency} pour ${today}`);
+  }catch(e){console.error('[snapshot] Erreur:',e);}
 }
 // Ne plus écrire l'interpolation dans Supabase — ça écrasait les vraies valeurs.
 // Les jours manquants sont comblés côté client uniquement pour l'affichage du chart.
