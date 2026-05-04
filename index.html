@@ -1086,9 +1086,9 @@ window.addEventListener('DOMContentLoaded',async()=>{
 function calcPnl(p){
   const shares=p.shares||0;
   if(shares>0){
-    const coutReel=p.entries&&p.entries.length?p.entries.reduce((s,e)=>s+(e.size||0),0):shares*p.avgEntry;
-    const val=shares*p.current;
-    return p.dir==='Long'?val-coutReel:coutReel-val;
+    // avgEntry et current sont dans la même devise (devise de la position)
+    const cout=shares*p.avgEntry,val=shares*p.current;
+    return p.dir==='Long'?val-cout:cout-val;
   }
   const pct=p.dir==='Long'?(p.current-p.avgEntry)/p.avgEntry:(p.avgEntry-p.current)/p.avgEntry;
   return p.totalSize*pct;
@@ -1141,10 +1141,13 @@ let editTarget=null;
 
 function posRow(p,idx,displayIdx){
   const shares=p.shares||0,valeurMarche=shares*p.current;
-  // Coût total = somme réelle des achats DCA, pas shares*avgEntry
-  const coutTotal=p.entries&&p.entries.length?p.entries.reduce((s,e)=>s+(e.size||0),0):shares*p.avgEntry;
-  const pnl=p.dir==='Long'?valeurMarche-coutTotal:coutTotal-valeurMarche;
-  const pct=coutTotal>0?(pnl/coutTotal)*100:0,cls=pnl>=0?'pos':'neg';
+  // P&L calculé en devise de la position (prix courant × shares vs avgEntry × shares)
+  // avgEntry et current sont tous les deux dans la devise de la position → cohérent
+  const coutPnl=shares*p.avgEntry;
+  const pnl=p.dir==='Long'?valeurMarche-coutPnl:coutPnl-valeurMarche;
+  const pct=coutPnl>0?(pnl/coutPnl)*100:0,cls=pnl>=0?'pos':'neg';
+  // Coût total affiché = somme réelle des achats (peut être en devise différente si DCA mixte)
+  const coutTotal=p.entries&&p.entries.length?p.entries.reduce((s,e)=>s+(e.size||0),0):coutPnl;
   const isDca=p.entries&&p.entries.length>1,firstDate=p.entries&&p.entries[0]?p.entries[0].date:'—';
   // Le badge DCA×N se met à jour automatiquement via entries.length après FIFO
   const sharesStr=shares?shares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—';
