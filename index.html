@@ -811,10 +811,17 @@
 
     <!-- ÉTAPE 3 : Paliers d'entrée -->
     <div class="strat-pane" id="strat-pane-3" style="display:none;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
         <div style="font-size:11px;color:var(--text3);">Paliers d'achat échelonnés (DCA)</div>
-        <button class="btn-ghost" onclick="addEntryLevel()" style="padding:5px 12px;font-size:11px;">+ Ajouter palier</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="font-size:10px;color:var(--text3);">Devise montant :</span>
+          <select id="strat-amount-currency" onchange="onAmountCurrencyChange()" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:4px 8px;color:var(--text);font-size:11px;font-family:var(--mono);">
+            <option value="USD">USD</option><option value="CAD">CAD</option><option value="EUR">EUR</option><option value="CHF">CHF</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="NZD">NZD</option>
+          </select>
+          <button class="btn-ghost" onclick="addEntryLevel()" style="padding:5px 12px;font-size:11px;">+ Ajouter palier</button>
+        </div>
       </div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;font-family:var(--mono);" id="strat-fx-hint"></div>
       <div id="strat-entries-list"></div>
       <div style="margin-top:10px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:11px;color:var(--text2);font-family:var(--mono);">
         Total alloué : <span id="strat-entries-total" style="color:var(--green);font-weight:600;">0</span>
@@ -1066,12 +1073,16 @@ function renderStrategies(){
 function stratRow(s){
   const ep=s.entries_plan||[],xp=s.exits_plan||[];
   const epDone=ep.filter(e=>e.executed).length,xpDone=xp.filter(e=>e.executed).length;
+  const amtCur=s.amount_currency||s.currency||'USD';
   const cashAlloc=ep.filter(e=>!e.executed).reduce((sum,e)=>sum+(parseFloat(e.amount)||0),0);
-  // Profit potentiel : somme des (sortie - entrée) si tout exécuté
-  const totalEntry=ep.reduce((sum,e)=>sum+(parseFloat(e.amount)||0),0);
-  const totalExit=xp.reduce((sum,e)=>sum+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
-  const profitPot=totalExit-totalEntry;
-  const profitCls=profitPot>=0?'pos':'neg';
+  // Profit potentiel : N/A si sorties partielles ou aucune sortie
+  const totalEntryShares=ep.reduce((sum,e)=>sum+(parseFloat(e.shares)||0),0);
+  const totalExitShares=xp.reduce((sum,e)=>sum+(parseFloat(e.shares)||0),0);
+  const totalEntryInPrice=ep.reduce((sum,e)=>sum+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
+  const totalExitInPrice=xp.reduce((sum,e)=>sum+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
+  const isPartialExit=!xp.length||totalExitShares<totalEntryShares*0.99;
+  const profitPot=isPartialExit?null:(totalExitInPrice-totalEntryInPrice);
+  const profitCls=profitPot===null?'':(profitPot>=0?'pos':'neg');
   const statusColors={'Brouillon':'var(--text3)','Active':'var(--green)','Complétée':'var(--blue)','Archivée':'var(--text3)'};
   // Détecter paliers atteints non confirmés
   const pos=positions.find(p=>p.symbol===s.symbol);
@@ -1089,8 +1100,8 @@ function stratRow(s){
     <td style="color:var(--text3);">${s.account||'—'}</td>
     <td style="color:var(--text3);">${epDone}/${ep.length}</td>
     <td style="color:var(--text3);">${xpDone}/${xp.length}</td>
-    <td>${fmtC(cashAlloc,s.currency||'USD')}</td>
-    <td class="${profitCls}">${profitPot>=0?'+':''}${fmtC(profitPot,s.currency||'USD')}</td>
+    <td>${fmtC(cashAlloc,amtCur)}</td>
+    <td class="${profitCls}" style="${profitPot===null?'color:var(--text3);font-size:11px;':''}">${profitPot===null?'N/A':((profitPot>=0?'+':'')+fmtC(profitPot,s.currency||'USD'))}</td>
     <td onclick="event.stopPropagation();">
       <button onclick="openStratDetails('${s.id}')" title="Détails" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">👁</button>
       <button onclick="confirmDeleteStrategy('${s.id}')" title="Supprimer" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;">🗑</button>
@@ -1118,12 +1129,12 @@ async function confirmDeleteStrategy(id){
 }
 
 // ─── MODAL CRÉATION STRATÉGIE ──────────────────────────────────
-let stratDraft={id:null,type:null,symbol:'',currency:'USD',account:'',ath:null,ath_source:'auto',entries_plan:[],exits_plan:[],status:'Active',notes:''};
+let stratDraft={id:null,type:null,symbol:'',currency:'USD',amount_currency:'USD',account:'',ath:null,ath_source:'auto',entries_plan:[],exits_plan:[],status:'Active',notes:''};
 let stratCurrentStep=1;
 
 function openStratModal(existing){
   // Reset draft
-  stratDraft={id:null,type:null,symbol:'',currency:'USD',account:'',ath:null,ath_source:'auto',entries_plan:[],exits_plan:[],status:'Active',notes:''};
+  stratDraft={id:null,type:null,symbol:'',currency:'USD',amount_currency:accountCurrency||'USD',account:'',ath:null,ath_source:'auto',entries_plan:[],exits_plan:[],status:'Active',notes:''};
   if(existing){
     stratDraft={...existing,entries_plan:JSON.parse(JSON.stringify(existing.entries_plan||[])),exits_plan:JSON.parse(JSON.stringify(existing.exits_plan||[]))};
   }
@@ -1137,6 +1148,12 @@ function openStratModal(existing){
   document.getElementById('strat-ath-source').value=stratDraft.ath_source||'auto';
   document.getElementById('strat-notes').value=stratDraft.notes||'';
   document.getElementById('strat-status').value=stratDraft.status||'Active';
+  // Pré-remplir la devise du montant (par défaut = devise du compte de l'app)
+  const amtSel=document.getElementById('strat-amount-currency');
+  if(amtSel)amtSel.value=stratDraft.amount_currency||accountCurrency||'USD';
+  // Pré-cacher les taux de change
+  const cursToCache=[stratDraft.currency,stratDraft.amount_currency].filter(c=>c&&c!=='USD');
+  if(cursToCache.length)fetchAndCacheFxRates(cursToCache).then(()=>updateFxHint());
   // Sélectionner le type si édition
   document.querySelectorAll('.strat-type-card').forEach(c=>c.classList.remove('selected'));
   if(stratDraft.type){const card=document.querySelector(`.strat-type-card[data-type="${stratDraft.type}"]`);if(card)card.classList.add('selected');}
@@ -1223,21 +1240,22 @@ async function fetchATHForStrat(){
   const sym=document.getElementById('strat-symbol').value.trim().toUpperCase();
   if(!sym)return;
   const ticker=getTicker(sym);
-  document.getElementById('strat-ath-hint').textContent='Récupération de l\'ATH…';
+  const hintEl=document.getElementById('strat-ath-hint');
+  hintEl.textContent='Récupération de l\'ATH…';
   try{
-    const res=await fetch(`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1mo&range=max`);
+    const res=await fetch(`/api/ath?symbol=${encodeURIComponent(ticker)}`);
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
     const data=await res.json();
-    const highs=data?.chart?.result?.[0]?.indicators?.quote?.[0]?.high||[];
-    const ath=highs.filter(h=>h&&h>0).reduce((a,b)=>Math.max(a,b),0);
-    if(ath>0){
-      document.getElementById('strat-ath').value=ath.toFixed(2);
-      stratDraft.ath=ath;
-      document.getElementById('strat-ath-hint').textContent=`✓ ATH récupéré : ${ath.toFixed(2)}`;
+    if(data.ath&&data.ath>0){
+      document.getElementById('strat-ath').value=data.ath.toFixed(2);
+      stratDraft.ath=data.ath;
+      hintEl.textContent=`✓ ATH récupéré : ${data.ath.toFixed(2)}${data.ath_date?' ('+data.ath_date+')':''}`;
     }else{
-      document.getElementById('strat-ath-hint').textContent='ATH introuvable, entre-le manuellement';
+      hintEl.textContent='ATH introuvable, entre-le manuellement';
     }
   }catch(e){
-    document.getElementById('strat-ath-hint').textContent='Erreur lors du fetch, entre-le manuellement';
+    console.error('[ath] fetch error:',e);
+    hintEl.textContent='Erreur lors du fetch, entre-le manuellement';
   }
 }
 
@@ -1274,47 +1292,85 @@ function renderEntryLevels(){
   updateEntriesTotal();
 }
 
+// Retourne le taux pour convertir 1 unité de la devise du montant vers la devise du prix
+// Ex: amountCur=CAD, priceCur=USD → renvoie le facteur (CAD * facteur = USD)
+function getAmountToPriceRate(){
+  const amtCur=stratDraft.amount_currency||stratDraft.currency||'USD';
+  const priceCur=stratDraft.currency||'USD';
+  if(amtCur===priceCur)return 1;
+  // Convertir via USD : amtCur → USD → priceCur
+  const amtToUSD=amtCur==='USD'?1:(liveFxRates[amtCur]||(1/(FX_FALLBACK[amtCur]||1)));
+  const usdToPrice=priceCur==='USD'?1:(FX_FALLBACK[priceCur]||1)/(liveFxRates[priceCur]?1/liveFxRates[priceCur]:1);
+  // Plus simple : amount(amtCur) * amtToUSD = USD ; USD * (rate priceCur per USD) = priceCur
+  const usdPerPrice=priceCur==='USD'?1:(liveFxRates[priceCur]?(1/liveFxRates[priceCur]):(FX_FALLBACK[priceCur]||1));
+  return amtToUSD*usdPerPrice;
+}
+
 function updateEntryLevel(i,field,val){
   const e=stratDraft.entries_plan[i];if(!e)return;
   e[field]=val;
-  // Auto-calcul croisé : si on change retracement_pct → calcule price
+  // Auto-calcul retracement_pct → price (prix toujours en devise du sous-jacent)
   if(field==='retracement_pct'&&stratDraft.ath){
     const pct=parseFloat(val);
     if(!isNaN(pct)){
       const newPrice=stratDraft.ath*(1+pct/100);
-      e.price=newPrice.toFixed(2);
-      const row=document.querySelectorAll('.strat-level-row')[i];
+      e.price=newPrice.toFixed(4);
+      const row=document.querySelectorAll('#strat-entries-list .strat-level-row')[i];
       if(row){const inp=row.querySelectorAll('input')[0];if(inp)inp.value=e.price;}
     }
   }
-  // Auto-calcul price → retracement
   if(field==='price'&&stratDraft.ath){
     const pr=parseFloat(val);
     if(!isNaN(pr)&&pr>0){
       const pct=((pr-stratDraft.ath)/stratDraft.ath*100).toFixed(2);
       e.retracement_pct=pct;
-      const row=document.querySelectorAll('.strat-level-row')[i];
+      const row=document.querySelectorAll('#strat-entries-list .strat-level-row')[i];
       if(row){const inp=row.querySelectorAll('input')[1];if(inp)inp.value=pct;}
     }
   }
-  // Auto-calcul amount ↔ shares
+  // Auto-calcul amount ↔ shares (avec conversion de devise)
+  // amount est dans amount_currency, price est dans currency
+  // shares = amount_in_priceCurrency / price = (amount * fx) / price
+  const fx=getAmountToPriceRate();
   if(field==='amount'){
     const am=parseFloat(val),pr=parseFloat(e.price);
     if(!isNaN(am)&&!isNaN(pr)&&pr>0){
-      e.shares=(am/pr).toFixed(6);
-      const row=document.querySelectorAll('.strat-level-row')[i];
+      e.shares=((am*fx)/pr).toFixed(6);
+      const row=document.querySelectorAll('#strat-entries-list .strat-level-row')[i];
       if(row){const inp=row.querySelectorAll('input')[3];if(inp)inp.value=e.shares;}
     }
   }
   if(field==='shares'){
     const sh=parseFloat(val),pr=parseFloat(e.price);
-    if(!isNaN(sh)&&!isNaN(pr)&&pr>0){
-      e.amount=(sh*pr).toFixed(2);
-      const row=document.querySelectorAll('.strat-level-row')[i];
+    if(!isNaN(sh)&&!isNaN(pr)&&pr>0&&fx>0){
+      e.amount=((sh*pr)/fx).toFixed(2);
+      const row=document.querySelectorAll('#strat-entries-list .strat-level-row')[i];
       if(row){const inp=row.querySelectorAll('input')[2];if(inp)inp.value=e.amount;}
     }
   }
   updateEntriesTotal();
+}
+
+async function onAmountCurrencyChange(){
+  const sel=document.getElementById('strat-amount-currency');
+  if(!sel)return;
+  stratDraft.amount_currency=sel.value;
+  // S'assurer que le taux est en cache
+  if(sel.value!=='USD'&&!liveFxRates[sel.value])await fetchAndCacheFxRates([sel.value]);
+  if(stratDraft.currency&&stratDraft.currency!=='USD'&&!liveFxRates[stratDraft.currency])await fetchAndCacheFxRates([stratDraft.currency]);
+  updateFxHint();
+  // Recalculer toutes les lignes (re-render pour réafficher avec nouvelle devise)
+  renderEntryLevels();
+  renderExitLevels();
+}
+
+function updateFxHint(){
+  const el=document.getElementById('strat-fx-hint');if(!el)return;
+  const amtCur=stratDraft.amount_currency||stratDraft.currency||'USD';
+  const priceCur=stratDraft.currency||'USD';
+  if(amtCur===priceCur){el.textContent='';return;}
+  const fx=getAmountToPriceRate();
+  el.textContent=`Conversion live : 1 ${amtCur} = ${fx.toFixed(4)} ${priceCur} · les montants sont saisis en ${amtCur} et convertis automatiquement.`;
 }
 
 function collectEntryLevels(){
@@ -1360,39 +1416,51 @@ function renderExitLevels(){
   updateExitsTotal();
 }
 
+// Retourne le prix moyen de référence pour calculer le profit % d'une sortie.
+// Priorité : (1) prix moyen live de la position existante, (2) prix moyen théorique des paliers DCA prévus
+function getReferenceEntryPrice(){
+  const pos=positions.find(p=>p.symbol===stratDraft.symbol);
+  if(pos&&pos.avgEntry&&pos.shares>0)return pos.avgEntry;
+  // Fallback : moyenne pondérée des paliers DCA prévus (en devise du prix)
+  const totalShares=stratDraft.entries_plan.reduce((s,en)=>s+(parseFloat(en.shares)||0),0);
+  const totalCostInPriceCur=stratDraft.entries_plan.reduce((s,en)=>s+((parseFloat(en.shares)||0)*(parseFloat(en.price)||0)),0);
+  return totalShares>0?totalCostInPriceCur/totalShares:0;
+}
+
 function updateExitLevel(i,field,val){
   const e=stratDraft.exits_plan[i];if(!e)return;
   e[field]=val;
-  // Profit % ↔ Price (basé sur prix moyen d'entrée)
-  const avgEntryPrice=stratDraft.entries_plan.length?(stratDraft.entries_plan.reduce((s,en)=>s+(parseFloat(en.amount)||0),0)/stratDraft.entries_plan.reduce((s,en)=>s+(parseFloat(en.shares)||0),0)):0;
-  if(field==='profit_pct'&&avgEntryPrice>0){
+  const refPrice=getReferenceEntryPrice();
+  if(field==='profit_pct'&&refPrice>0){
     const pct=parseFloat(val);
     if(!isNaN(pct)){
-      e.price=(avgEntryPrice*(1+pct/100)).toFixed(2);
+      e.price=(refPrice*(1+pct/100)).toFixed(4);
       const row=document.querySelectorAll('#strat-exits-list .strat-level-row')[i];
       if(row){const inp=row.querySelectorAll('input')[0];if(inp)inp.value=e.price;}
     }
   }
-  if(field==='price'&&avgEntryPrice>0){
+  if(field==='price'&&refPrice>0){
     const pr=parseFloat(val);
     if(!isNaN(pr)&&pr>0){
-      e.profit_pct=((pr-avgEntryPrice)/avgEntryPrice*100).toFixed(2);
+      e.profit_pct=((pr-refPrice)/refPrice*100).toFixed(2);
       const row=document.querySelectorAll('#strat-exits-list .strat-level-row')[i];
       if(row){const inp=row.querySelectorAll('input')[1];if(inp)inp.value=e.profit_pct;}
     }
   }
+  // amount ↔ shares avec conversion de devise (montants en amount_currency, prix en currency)
+  const fx=getAmountToPriceRate();
   if(field==='amount'){
     const am=parseFloat(val),pr=parseFloat(e.price);
     if(!isNaN(am)&&!isNaN(pr)&&pr>0){
-      e.shares=(am/pr).toFixed(6);
+      e.shares=((am*fx)/pr).toFixed(6);
       const row=document.querySelectorAll('#strat-exits-list .strat-level-row')[i];
       if(row){const inp=row.querySelectorAll('input')[3];if(inp)inp.value=e.shares;}
     }
   }
   if(field==='shares'){
     const sh=parseFloat(val),pr=parseFloat(e.price);
-    if(!isNaN(sh)&&!isNaN(pr)&&pr>0){
-      e.amount=(sh*pr).toFixed(2);
+    if(!isNaN(sh)&&!isNaN(pr)&&pr>0&&fx>0){
+      e.amount=((sh*pr)/fx).toFixed(2);
       const row=document.querySelectorAll('#strat-exits-list .strat-level-row')[i];
       if(row){const inp=row.querySelectorAll('input')[2];if(inp)inp.value=e.amount;}
     }
@@ -1405,27 +1473,52 @@ function collectExitLevels(){
 }
 
 function updateExitsTotal(){
-  const totalEntry=stratDraft.entries_plan.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
-  const totalExit=stratDraft.exits_plan.reduce((s,e)=>s+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
-  const profit=totalExit-totalEntry;
+  const totalEntryShares=stratDraft.entries_plan.reduce((s,e)=>s+(parseFloat(e.shares)||0),0);
+  const totalExitShares=stratDraft.exits_plan.reduce((s,e)=>s+(parseFloat(e.shares)||0),0);
   const el=document.getElementById('strat-profit-total');
-  if(el){el.textContent=`${profit>=0?'+':''}${fmtC(profit,stratDraft.currency||'USD')}`;el.style.color=profit>=0?'var(--green)':'var(--red)';}
+  if(!el)return;
+  // Si pas de sorties OU si les sorties ne couvrent pas l'entièreté des entrées → N/A (prise de profit partielle)
+  if(!stratDraft.exits_plan.length||totalExitShares<totalEntryShares*0.99){
+    el.textContent='N/A — prise de profit partielle';
+    el.style.color='var(--text3)';
+    return;
+  }
+  // Sinon : profit en devise du prix (currency)
+  const totalEntryInPrice=stratDraft.entries_plan.reduce((s,e)=>s+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
+  const totalExitInPrice=stratDraft.exits_plan.reduce((s,e)=>s+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
+  const profit=totalExitInPrice-totalEntryInPrice;
+  const profitPct=totalEntryInPrice>0?((profit/totalEntryInPrice)*100):0;
+  const cur=stratDraft.currency||'USD';
+  el.textContent=`${profit>=0?'+':''}${fmtC(profit,cur)} (${profit>=0?'+':''}${profitPct.toFixed(1)}%)`;
+  el.style.color=profit>=0?'var(--green)':'var(--red)';
 }
 
 function renderStratSummary(){
   stratDraft.notes=document.getElementById('strat-notes').value;
   stratDraft.status=document.getElementById('strat-status').value;
-  const totalE=stratDraft.entries_plan.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
-  const totalX=stratDraft.exits_plan.reduce((s,e)=>s+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
-  const profit=totalX-totalE;
   const cur=stratDraft.currency||'USD';
+  const amtCur=stratDraft.amount_currency||cur;
+  const totalEntryAmt=stratDraft.entries_plan.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const totalEntryShares=stratDraft.entries_plan.reduce((s,e)=>s+(parseFloat(e.shares)||0),0);
+  const totalExitShares=stratDraft.exits_plan.reduce((s,e)=>s+(parseFloat(e.shares)||0),0);
+  const totalEntryInPrice=stratDraft.entries_plan.reduce((s,e)=>s+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
+  const totalExitInPrice=stratDraft.exits_plan.reduce((s,e)=>s+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
+  // Profit potentiel : N/A si sorties partielles
+  let profitHtml;
+  if(!stratDraft.exits_plan.length||totalExitShares<totalEntryShares*0.99){
+    profitHtml=`<strong style="color:var(--text3);">N/A — prise de profit partielle</strong>`;
+  }else{
+    const profit=totalExitInPrice-totalEntryInPrice;
+    const profitPct=totalEntryInPrice>0?(profit/totalEntryInPrice)*100:0;
+    profitHtml=`<strong style="color:${profit>=0?'var(--green)':'var(--red)'};">${profit>=0?'+':''}${fmtC(profit,cur)} (${profit>=0?'+':''}${profitPct.toFixed(1)}%)</strong>`;
+  }
   document.getElementById('strat-summary').innerHTML=`
     <div><span style="color:var(--text3);">Type :</span> <strong>${stratDraft.type}</strong></div>
     <div><span style="color:var(--text3);">Symbole :</span> <strong>${stratDraft.symbol}</strong> ${stratDraft.account?`<span style="color:var(--text3);">/ ${stratDraft.account}</span>`:''}</div>
     <div><span style="color:var(--text3);">ATH :</span> ${stratDraft.ath?fmtC(stratDraft.ath,cur):'—'} <span style="color:var(--text3);">(${stratDraft.ath_source})</span></div>
-    <div><span style="color:var(--text3);">Paliers entrée :</span> ${stratDraft.entries_plan.length} → <strong>${fmtC(totalE,cur)}</strong></div>
-    <div><span style="color:var(--text3);">Paliers sortie :</span> ${stratDraft.exits_plan.length} → <strong>${fmtC(totalX,cur)}</strong></div>
-    <div><span style="color:var(--text3);">Profit potentiel :</span> <strong style="color:${profit>=0?'var(--green)':'var(--red)'};">${profit>=0?'+':''}${fmtC(profit,cur)}</strong></div>
+    <div><span style="color:var(--text3);">Paliers entrée :</span> ${stratDraft.entries_plan.length} → <strong>${fmtC(totalEntryAmt,amtCur)}</strong> ${amtCur!==cur?`<span style="color:var(--text3);">(≈ ${fmtC(totalEntryInPrice,cur)})</span>`:''}</div>
+    <div><span style="color:var(--text3);">Paliers sortie :</span> ${stratDraft.exits_plan.length} ${stratDraft.exits_plan.length?`→ <strong>${fmtC(totalExitInPrice,cur)}</strong>`:''}</div>
+    <div><span style="color:var(--text3);">Profit potentiel :</span> ${profitHtml}</div>
   `;
 }
 
@@ -1455,6 +1548,7 @@ async function saveStratFromModal(){
     type:stratDraft.type,
     symbol:stratDraft.symbol,
     currency:stratDraft.currency,
+    amount_currency:stratDraft.amount_currency||stratDraft.currency,
     account:stratDraft.account||null,
     status:stratDraft.status,
     ath:stratDraft.ath,
