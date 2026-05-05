@@ -308,6 +308,7 @@
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
       <button class="nav-tab" onclick="switchTab('positions',this)">Positions</button>
+      <button class="nav-tab" onclick="switchTab('strategie',this)" style="position:relative;">Stratégie<span id="strat-badge" style="display:none;position:absolute;top:2px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);"></span></button>
       <button class="nav-tab" onclick="switchTab('historique',this)">Historique</button>
       <button class="nav-tab" onclick="switchTab('allocation',this)">Allocation</button>
     </div>
@@ -469,6 +470,50 @@
       <div class="card">
         <div class="card-title">Registre des transactions</div>
         <table><thead><tr><th>Date</th><th>Symbole</th><th>Type</th><th>Prix</th><th>Montant initial</th><th>Montant final</th><th>Profit $</th><th>ROI %</th></tr></thead><tbody id="hist-body"></tbody></table>
+      </div>
+    </div>
+
+    <!-- STRATÉGIE -->
+    <div id="tab-strategie" class="section">
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title">
+          <span>Stratégies — <span id="strat-count-label" style="color:var(--text3);font-weight:500;font-size:11px;">0 stratégies</span></span>
+          <div style="display:flex;gap:8px;align-items:center;margin-left:auto;">
+            <select class="filter-select" id="strat-filter-status" onchange="renderStrategies()">
+              <option value="">Statut : Tous</option>
+              <option value="Brouillon">Brouillon</option>
+              <option value="Active">Active</option>
+              <option value="Complétée">Complétée</option>
+              <option value="Archivée">Archivée</option>
+            </select>
+            <select class="filter-select" id="strat-filter-type" onchange="renderStrategies()">
+              <option value="">Type : Tous</option>
+              <option value="DCA">DCA</option>
+              <option value="Swing">Swing</option>
+              <option value="Libre">Libre</option>
+            </select>
+            <button class="btn" onclick="openStratModal()" style="padding:7px 14px;">+ Nouvelle stratégie</button>
+          </div>
+        </div>
+        <div id="strat-empty" style="padding:48px 20px;text-align:center;color:var(--text3);font-size:12px;display:none;">
+          Aucune stratégie enregistrée. Crée ta première stratégie pour planifier tes entrées et sorties.
+        </div>
+        <div class="pos-table-inner" id="strat-table-wrap" style="max-height:calc(100vh - 220px);">
+          <table>
+            <thead><tr>
+              <th>Symbole</th>
+              <th>Type</th>
+              <th>Statut</th>
+              <th>Compte</th>
+              <th>Paliers entrée</th>
+              <th>Paliers sortie</th>
+              <th>Cash alloué</th>
+              <th>Profit potentiel</th>
+              <th>Actions</th>
+            </tr></thead>
+            <tbody id="strat-body"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -729,7 +774,7 @@ function getTicker(s){if(TICKER_MAP[s])return TICKER_MAP[s];if(s.endsWith('/USD'
 
 // ─── STATE ───────────────────────────────────────────────────────
 let currentUser=null,accessToken=null;
-let cash=0,closeTarget=null,positions=[],trades=[];
+let cash=0,closeTarget=null,positions=[],trades=[],strategies=[];
 let perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart;
 let chartsInitialized=false;
 let accountCurrency='USD',fxRate=1;
@@ -792,7 +837,7 @@ function toggleHamburger(e){e.stopPropagation();const m=document.getElementById(
 document.addEventListener('click',e=>{if(!e.target.closest('#hamburger-btn')&&!e.target.closest('#hamburger-menu')){const m=document.getElementById('hamburger-menu');if(m)m.style.display='none';}});
 async function handleLogout(){
   localStorage.removeItem('nc_token');localStorage.removeItem('nc_user');
-  accessToken=null;currentUser=null;positions=[];trades=[];cash=0;portfolioHistory=[];
+  accessToken=null;currentUser=null;positions=[];trades=[];cash=0;portfolioHistory=[];strategies=[];
   // Détruire toutes les instances Chart.js pour éviter les conflits à la reconnexion
   [perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart].forEach(c=>{try{if(c)c.destroy();}catch(e){}});
   perfChart=allocChart=allocSymChart=allocCatChart=allocCatDashChart=assetPerfChart=assetPerfDashChart=pnlBarChart=cashAllocChart=celiChart=celiappChart=cryptoAllocChart=null;
@@ -828,6 +873,116 @@ async function loadData(){
 }
 
 // ─── PORTFOLIO HISTORY ────────────────────────────────────────────
+
+// ─── STRATÉGIES ─────────────────────────────────────────────────
+async function loadStrategies(){
+  if(!currentUser||!accessToken)return;
+  try{
+    const res=await fetch(`${SB_URL}/rest/v1/strategies?user_id=eq.${currentUser.id}&order=created_at.desc&select=*`,{headers:sbHeaders()});
+    if(!res.ok){strategies=[];return;}
+    strategies=await res.json()||[];
+  }catch(e){strategies=[];}
+}
+
+async function saveStrategy(strat){
+  if(!currentUser||!accessToken)return null;
+  const payload={...strat,user_id:currentUser.id,updated_at:new Date().toISOString()};
+  try{
+    if(strat.id){
+      const res=await fetch(`${SB_URL}/rest/v1/strategies?id=eq.${strat.id}`,{method:'PATCH',headers:{...sbHeaders(),'Prefer':'return=representation'},body:JSON.stringify(payload)});
+      const data=await res.json();return data&&data[0]?data[0]:null;
+    }else{
+      const res=await fetch(`${SB_URL}/rest/v1/strategies`,{method:'POST',headers:{...sbHeaders(),'Prefer':'return=representation'},body:JSON.stringify(payload)});
+      const data=await res.json();return data&&data[0]?data[0]:null;
+    }
+  }catch(e){console.error('[strategy] save error:',e);return null;}
+}
+
+async function deleteStrategy(id){
+  if(!currentUser||!accessToken)return false;
+  try{
+    await fetch(`${SB_URL}/rest/v1/strategies?id=eq.${id}`,{method:'DELETE',headers:sbHeaders()});
+    strategies=strategies.filter(s=>s.id!==id);
+    return true;
+  }catch(e){return false;}
+}
+
+function renderStrategies(){
+  const body=document.getElementById('strat-body');if(!body)return;
+  const empty=document.getElementById('strat-empty');
+  const wrap=document.getElementById('strat-table-wrap');
+  const lbl=document.getElementById('strat-count-label');
+  const fStatus=document.getElementById('strat-filter-status').value;
+  const fType=document.getElementById('strat-filter-type').value;
+  let list=strategies.slice();
+  if(fStatus)list=list.filter(s=>s.status===fStatus);
+  if(fType)list=list.filter(s=>s.type===fType);
+  if(lbl)lbl.textContent=`${list.length} ${list.length===1?'stratégie':'stratégies'}`;
+  if(!list.length){empty.style.display='block';wrap.style.display='none';body.innerHTML='';updateStratBadge();return;}
+  empty.style.display='none';wrap.style.display='block';
+  body.innerHTML=list.map(s=>stratRow(s)).join('');
+  updateStratBadge();
+}
+
+function stratRow(s){
+  const ep=s.entries_plan||[],xp=s.exits_plan||[];
+  const epDone=ep.filter(e=>e.executed).length,xpDone=xp.filter(e=>e.executed).length;
+  const cashAlloc=ep.filter(e=>!e.executed).reduce((sum,e)=>sum+(parseFloat(e.amount)||0),0);
+  // Profit potentiel : somme des (sortie - entrée) si tout exécuté
+  const totalEntry=ep.reduce((sum,e)=>sum+(parseFloat(e.amount)||0),0);
+  const totalExit=xp.reduce((sum,e)=>sum+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
+  const profitPot=totalExit-totalEntry;
+  const profitCls=profitPot>=0?'pos':'neg';
+  const statusColors={'Brouillon':'var(--text3)','Active':'var(--green)','Complétée':'var(--blue)','Archivée':'var(--text3)'};
+  // Détecter paliers atteints non confirmés
+  const pos=positions.find(p=>p.symbol===s.symbol);
+  const cur=pos?pos.current:null;
+  let triggers=0;
+  if(cur){
+    ep.forEach(e=>{if(!e.executed&&parseFloat(e.price)>=cur)triggers++;});
+    xp.forEach(e=>{if(!e.executed&&parseFloat(e.price)<=cur)triggers++;});
+  }
+  const triggerBadge=triggers>0?`<span style="display:inline-block;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px;">⚡ ${triggers}</span>`:'';
+  return `<tr onclick="openStratDetails('${s.id}')" style="cursor:pointer;">
+    <td><strong>${s.symbol}</strong>${triggerBadge}</td>
+    <td><span style="font-size:10px;background:var(--bg3);padding:2px 8px;border-radius:10px;">${s.type||'—'}</span></td>
+    <td><span style="font-size:10px;color:${statusColors[s.status]||'var(--text3)'};font-weight:600;">${s.status}</span></td>
+    <td style="color:var(--text3);">${s.account||'—'}</td>
+    <td style="color:var(--text3);">${epDone}/${ep.length}</td>
+    <td style="color:var(--text3);">${xpDone}/${xp.length}</td>
+    <td>${fmtC(cashAlloc,s.currency||'USD')}</td>
+    <td class="${profitCls}">${profitPot>=0?'+':''}${fmtC(profitPot,s.currency||'USD')}</td>
+    <td onclick="event.stopPropagation();">
+      <button onclick="openStratDetails('${s.id}')" title="Détails" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">👁</button>
+      <button onclick="confirmDeleteStrategy('${s.id}')" title="Supprimer" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;">🗑</button>
+    </td>
+  </tr>`;
+}
+
+function updateStratBadge(){
+  const badge=document.getElementById('strat-badge');if(!badge)return;
+  let totalTriggers=0;
+  strategies.forEach(s=>{
+    if(s.status!=='Active')return;
+    const pos=positions.find(p=>p.symbol===s.symbol);
+    if(!pos||!pos.current)return;
+    (s.entries_plan||[]).forEach(e=>{if(!e.executed&&parseFloat(e.price)>=pos.current)totalTriggers++;});
+    (s.exits_plan||[]).forEach(e=>{if(!e.executed&&parseFloat(e.price)<=pos.current)totalTriggers++;});
+  });
+  badge.style.display=totalTriggers>0?'block':'none';
+}
+
+async function confirmDeleteStrategy(id){
+  if(!confirm('Supprimer cette stratégie ? Les positions liées ne seront pas affectées.'))return;
+  await deleteStrategy(id);
+  renderStrategies();
+}
+
+// Stubs pour les modaux — implémentés à l'étape suivante
+function openStratModal(){alert('Modal de création — étape suivante');}
+function openStratDetails(id){alert('Modal détails pour '+id+' — étape suivante');}
+
+
 async function loadPortfolioHistory(){
   if(!currentUser||!accessToken)return;
   try{
@@ -1049,6 +1204,7 @@ async function startApp(){
   document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   initCharts();
   await loadData();
+  await loadStrategies();
   // Résoudre la devise AVANT de charger l'historique (pour la migration USD→devise)
   const effectiveCur=accountCurrency!=='USD'?accountCurrency:(localStorage.getItem('nc_currency')||'USD');
   accountCurrency=effectiveCur;
@@ -1642,7 +1798,7 @@ function exportCSV(){
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='nord_capital_transactions.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 async function clearHistory(){if(!confirm('Effacer tout l\'historique ? Irréversible.'))return;trades=[];await saveData();renderAll();}
-function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();}
+function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();}
 
 function initCharts(){
   if(chartsInitialized)return;chartsInitialized=true;
