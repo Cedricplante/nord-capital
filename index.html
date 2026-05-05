@@ -1104,6 +1104,7 @@ function stratRow(s){
     <td class="${profitCls}" style="${profitPot===null?'color:var(--text3);font-size:11px;':''}">${profitPot===null?'N/A':((profitPot>=0?'+':'')+fmtC(profitPot,s.currency||'USD'))}</td>
     <td onclick="event.stopPropagation();">
       <button onclick="openStratDetails('${s.id}')" title="Détails" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">👁</button>
+      <button onclick="editStrategy('${s.id}')" title="Modifier" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">✏️</button>
       <button onclick="confirmDeleteStrategy('${s.id}')" title="Supprimer" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;">🗑</button>
     </td>
   </tr>`;
@@ -1571,6 +1572,12 @@ async function saveStratFromModal(){
   }else{
     alert('Erreur lors de la sauvegarde. Vérifie la console.');
   }
+}
+
+function editStrategy(id){
+  const s=strategies.find(st=>st.id===id);
+  if(!s){alert('Stratégie introuvable');return;}
+  openStratModal(s);
 }
 
 function openStratDetails(id){alert('Modal détails pour '+id+' — étape suivante');}
