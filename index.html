@@ -161,6 +161,20 @@
 
   /* MODAL */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+  /* Strategy modal */
+  .strat-step { flex: 1; padding: 7px 10px; font-size: 10px; font-weight: 600; text-align: center; border-radius: 5px; background: var(--bg3); color: var(--text3); border: 0.5px solid var(--border); transition: all 0.15s; }
+  .strat-step.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .strat-step.done { background: rgba(0,255,136,0.15); color: var(--green); border-color: rgba(0,255,136,0.4); }
+  .strat-type-card { padding: 16px 14px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.15s; }
+  .strat-type-card:hover { border-color: var(--blue); background: var(--bg2); }
+  .strat-type-card.selected { border-color: var(--green); background: rgba(0,255,136,0.05); box-shadow: 0 0 12px rgba(0,255,136,0.15); }
+  .strat-level-row { display: grid; grid-template-columns: 36px 1.1fr 0.9fr 1fr 1fr 36px; gap: 8px; align-items: end; margin-bottom: 8px; padding: 10px; background: var(--bg3); border-radius: 8px; border: 0.5px solid var(--border); }
+  .strat-level-row .field { margin: 0; }
+  .strat-level-row label { font-size: 9px; }
+  .strat-level-row input { padding: 7px 9px; font-size: 11px; }
+  .strat-level-num { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--blue); background: var(--bg2); border-radius: 6px; height: 32px; }
+  .strat-level-del { background: transparent; border: 0.5px solid var(--border2); color: var(--red); border-radius: 6px; cursor: pointer; height: 32px; font-size: 14px; transition: all 0.15s; }
+  .strat-level-del:hover { background: rgba(255,80,80,0.1); border-color: var(--red); }
   .modal-overlay.open { display: flex; }
   .modal { background: var(--bg2); border: 0.5px solid var(--border2); border-radius: 12px; padding: 1.75rem; width: 520px; box-shadow: 0 24px 64px rgba(0,0,0,0.7); animation: modal-in 0.2s ease; }
   @keyframes modal-in { from{opacity:0;transform:translateY(12px) scale(0.97)} to{opacity:1;transform:translateY(0) scale(1)} }
@@ -720,6 +734,131 @@
   </div>
 </div>
 
+<!-- MODAL : NOUVELLE STRATÉGIE -->
+<div class="modal-overlay" id="strat-modal-overlay">
+  <div class="modal" style="width:680px;max-width:95vw;max-height:92vh;overflow-y:auto;">
+    <div class="modal-title" id="strat-modal-title">Nouvelle stratégie</div>
+
+    <!-- Stepper -->
+    <div style="display:flex;gap:6px;margin-bottom:20px;">
+      <div class="strat-step active" data-step="1">1. Type</div>
+      <div class="strat-step" data-step="2">2. Asset</div>
+      <div class="strat-step" data-step="3">3. Entrées</div>
+      <div class="strat-step" data-step="4">4. Sorties</div>
+      <div class="strat-step" data-step="5">5. Confirm</div>
+    </div>
+
+    <!-- ÉTAPE 1 : Type -->
+    <div class="strat-pane" id="strat-pane-1">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Choisis le type de stratégie</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div class="strat-type-card" data-type="DCA" onclick="selectStratType('DCA')">
+          <div style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:4px;">DCA</div>
+          <div style="font-size:10px;color:var(--text3);">Achats échelonnés à la baisse pour moyenner le prix d'entrée</div>
+        </div>
+        <div class="strat-type-card" data-type="Swing" onclick="selectStratType('Swing')">
+          <div style="font-size:14px;font-weight:600;color:var(--blue);margin-bottom:4px;">Swing</div>
+          <div style="font-size:10px;color:var(--text3);">Entrée/sortie technique sur supports et résistances</div>
+        </div>
+        <div class="strat-type-card" data-type="Libre" onclick="selectStratType('Libre')">
+          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">Libre</div>
+          <div style="font-size:10px;color:var(--text3);">Stratégie personnalisée sans contrainte particulière</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 2 : Asset -->
+    <div class="strat-pane" id="strat-pane-2" style="display:none;">
+      <div style="display:grid;grid-template-columns:1.4fr 0.8fr;gap:12px;margin-bottom:12px;">
+        <div class="field">
+          <label>Symbole</label>
+          <div class="autocomplete-wrap">
+            <input type="text" id="strat-symbol" placeholder="TQQQ, BTC/USD…" autocomplete="off" oninput="onStratSymbolInput(this.value)" />
+            <div class="autocomplete-list" id="strat-symbol-dropdown"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Devise</label>
+          <select id="strat-currency"><option value="USD">USD</option><option value="CAD">CAD</option><option value="EUR">EUR</option><option value="CHF">CHF</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="NZD">NZD</option></select>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label>Compte</label>
+        <select id="strat-account">
+          <option value="">—</option>
+          <optgroup label="Enregistrés"><option value="CELI">CELI</option><option value="CELIAPP">CELIAPP</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
+          <optgroup label="Non-enregistrés"><option value="Comptant">Comptant</option><option value="Marge">Marge</option></optgroup>
+          <optgroup label="Crypto — Exchanges"><option value="Coinbase">Coinbase</option><option value="Binance">Binance</option><option value="Kraken">Kraken</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option><option value="Bybit">Bybit</option></optgroup>
+          <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
+          <optgroup label="Crypto — Autres"><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></optgroup>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field">
+          <label>Sommet historique (ATH)</label>
+          <input type="number" id="strat-ath" step="any" placeholder="Auto-fetch ou manuel" />
+          <div style="font-size:10px;color:var(--text3);margin-top:4px;" id="strat-ath-hint">Sera auto-fetch après saisie du symbole</div>
+        </div>
+        <div class="field">
+          <label>Source ATH</label>
+          <select id="strat-ath-source">
+            <option value="auto">Auto (Yahoo)</option>
+            <option value="manuel">Manuel</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 3 : Paliers d'entrée -->
+    <div class="strat-pane" id="strat-pane-3" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:11px;color:var(--text3);">Paliers d'achat échelonnés (DCA)</div>
+        <button class="btn-ghost" onclick="addEntryLevel()" style="padding:5px 12px;font-size:11px;">+ Ajouter palier</button>
+      </div>
+      <div id="strat-entries-list"></div>
+      <div style="margin-top:10px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:11px;color:var(--text2);font-family:var(--mono);">
+        Total alloué : <span id="strat-entries-total" style="color:var(--green);font-weight:600;">0</span>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 4 : Paliers de sortie -->
+    <div class="strat-pane" id="strat-pane-4" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:11px;color:var(--text3);">Paliers de vente (un seul ou plusieurs)</div>
+        <button class="btn-ghost" onclick="addExitLevel()" style="padding:5px 12px;font-size:11px;">+ Ajouter palier</button>
+      </div>
+      <div id="strat-exits-list"></div>
+      <div style="margin-top:10px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:11px;color:var(--text2);font-family:var(--mono);">
+        Profit potentiel total : <span id="strat-profit-total" style="color:var(--green);font-weight:600;">—</span>
+      </div>
+    </div>
+
+    <!-- ÉTAPE 5 : Confirmation -->
+    <div class="strat-pane" id="strat-pane-5" style="display:none;">
+      <div class="field" style="margin-bottom:12px;">
+        <label>Notes (optionnel)</label>
+        <textarea id="strat-notes" rows="3" style="width:100%;background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:9px 10px;color:var(--text);font-size:12px;font-family:var(--sans);resize:vertical;"></textarea>
+      </div>
+      <div class="field" style="margin-bottom:16px;">
+        <label>Statut initial</label>
+        <select id="strat-status">
+          <option value="Brouillon">Brouillon</option>
+          <option value="Active" selected>Active</option>
+        </select>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:12px;font-size:11px;font-family:var(--mono);line-height:1.8;" id="strat-summary"></div>
+    </div>
+
+    <!-- Boutons navigation -->
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="btn-ghost" id="strat-prev-btn" onclick="stratStep(-1)" style="padding:9px 16px;display:none;">← Retour</button>
+      <button class="btn" id="strat-next-btn" onclick="stratStep(1)" style="flex:1;padding:9px;">Continuer →</button>
+      <button class="btn" id="strat-save-btn" onclick="saveStratFromModal()" style="flex:1;padding:9px;display:none;background:var(--green);color:#000;">Sauvegarder</button>
+      <button class="btn-ghost" onclick="closeStratModal()" style="padding:9px 16px;">Annuler</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SB_URL='https://spgcwvmehcixchtsfuaf.supabase.co';
 // SCHEMA user_data requis: user_id, positions (text), trades (text), cash (numeric), currency (text, default 'USD'), updated_at (timestamptz)
@@ -978,8 +1117,368 @@ async function confirmDeleteStrategy(id){
   renderStrategies();
 }
 
-// Stubs pour les modaux — implémentés à l'étape suivante
-function openStratModal(){alert('Modal de création — étape suivante');}
+// ─── MODAL CRÉATION STRATÉGIE ──────────────────────────────────
+let stratDraft={id:null,type:null,symbol:'',currency:'USD',account:'',ath:null,ath_source:'auto',entries_plan:[],exits_plan:[],status:'Active',notes:''};
+let stratCurrentStep=1;
+
+function openStratModal(existing){
+  // Reset draft
+  stratDraft={id:null,type:null,symbol:'',currency:'USD',account:'',ath:null,ath_source:'auto',entries_plan:[],exits_plan:[],status:'Active',notes:''};
+  if(existing){
+    stratDraft={...existing,entries_plan:JSON.parse(JSON.stringify(existing.entries_plan||[])),exits_plan:JSON.parse(JSON.stringify(existing.exits_plan||[]))};
+  }
+  stratCurrentStep=1;
+  document.getElementById('strat-modal-title').textContent=existing?'Modifier la stratégie':'Nouvelle stratégie';
+  // Pré-remplir si édition
+  document.getElementById('strat-symbol').value=stratDraft.symbol||'';
+  document.getElementById('strat-currency').value=stratDraft.currency||'USD';
+  document.getElementById('strat-account').value=stratDraft.account||'';
+  document.getElementById('strat-ath').value=stratDraft.ath||'';
+  document.getElementById('strat-ath-source').value=stratDraft.ath_source||'auto';
+  document.getElementById('strat-notes').value=stratDraft.notes||'';
+  document.getElementById('strat-status').value=stratDraft.status||'Active';
+  // Sélectionner le type si édition
+  document.querySelectorAll('.strat-type-card').forEach(c=>c.classList.remove('selected'));
+  if(stratDraft.type){const card=document.querySelector(`.strat-type-card[data-type="${stratDraft.type}"]`);if(card)card.classList.add('selected');}
+  renderEntryLevels();renderExitLevels();
+  showStratStep(1);
+  document.getElementById('strat-modal-overlay').classList.add('open');
+}
+
+function closeStratModal(){
+  document.getElementById('strat-modal-overlay').classList.remove('open');
+}
+
+function selectStratType(type){
+  stratDraft.type=type;
+  document.querySelectorAll('.strat-type-card').forEach(c=>c.classList.remove('selected'));
+  document.querySelector(`.strat-type-card[data-type="${type}"]`).classList.add('selected');
+}
+
+function showStratStep(n){
+  stratCurrentStep=n;
+  for(let i=1;i<=5;i++){
+    document.getElementById(`strat-pane-${i}`).style.display=(i===n)?'block':'none';
+    const stepEl=document.querySelector(`.strat-step[data-step="${i}"]`);
+    if(stepEl){
+      stepEl.classList.remove('active','done');
+      if(i===n)stepEl.classList.add('active');
+      else if(i<n)stepEl.classList.add('done');
+    }
+  }
+  document.getElementById('strat-prev-btn').style.display=(n>1)?'inline-block':'none';
+  document.getElementById('strat-next-btn').style.display=(n<5)?'inline-block':'none';
+  document.getElementById('strat-save-btn').style.display=(n===5)?'inline-block':'none';
+  if(n===5)renderStratSummary();
+}
+
+function stratStep(delta){
+  // Validation par étape
+  if(delta>0){
+    if(stratCurrentStep===1&&!stratDraft.type){alert('Choisis un type de stratégie');return;}
+    if(stratCurrentStep===2){
+      const sym=document.getElementById('strat-symbol').value.trim();
+      if(!sym){alert('Entre un symbole');return;}
+      stratDraft.symbol=sym.toUpperCase();
+      stratDraft.currency=document.getElementById('strat-currency').value;
+      stratDraft.account=document.getElementById('strat-account').value;
+      const athVal=parseFloat(document.getElementById('strat-ath').value);
+      stratDraft.ath=isNaN(athVal)?null:athVal;
+      stratDraft.ath_source=document.getElementById('strat-ath-source').value;
+      // Auto-fetch ATH si vide et source=auto
+      if(!stratDraft.ath&&stratDraft.ath_source==='auto')fetchATHForStrat();
+    }
+    if(stratCurrentStep===3){
+      collectEntryLevels();
+      if(!stratDraft.entries_plan.length){alert('Ajoute au moins un palier d\'entrée');return;}
+    }
+    if(stratCurrentStep===4){
+      collectExitLevels();
+    }
+  }
+  if(stratCurrentStep===2&&delta<0)collectEntryLevels();
+  if(stratCurrentStep===3)collectEntryLevels();
+  if(stratCurrentStep===4)collectExitLevels();
+  showStratStep(stratCurrentStep+delta);
+}
+
+// Auto-complete pour le symbole (réutilise SYMBOLS)
+function onStratSymbolInput(val){
+  const dropdown=document.getElementById('strat-symbol-dropdown');
+  if(!val||val.length<1){dropdown.style.display='none';return;}
+  const v=val.toUpperCase();
+  const matches=SYMBOLS.filter(s=>s.s.includes(v)||s.n.toUpperCase().includes(v)).slice(0,8);
+  if(!matches.length){dropdown.style.display='none';return;}
+  dropdown.innerHTML=matches.map(m=>`<div class="autocomplete-item" onclick="pickStratSymbol('${m.s}','${m.cur}')"><strong>${m.s}</strong> <span style="color:var(--text3);font-size:10px;">${m.n}</span></div>`).join('');
+  dropdown.style.display='block';
+}
+
+function pickStratSymbol(sym,cur){
+  document.getElementById('strat-symbol').value=sym;
+  document.getElementById('strat-currency').value=cur||'USD';
+  document.getElementById('strat-symbol-dropdown').style.display='none';
+}
+
+async function fetchATHForStrat(){
+  const sym=document.getElementById('strat-symbol').value.trim().toUpperCase();
+  if(!sym)return;
+  const ticker=getTicker(sym);
+  document.getElementById('strat-ath-hint').textContent='Récupération de l\'ATH…';
+  try{
+    const res=await fetch(`https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1mo&range=max`);
+    const data=await res.json();
+    const highs=data?.chart?.result?.[0]?.indicators?.quote?.[0]?.high||[];
+    const ath=highs.filter(h=>h&&h>0).reduce((a,b)=>Math.max(a,b),0);
+    if(ath>0){
+      document.getElementById('strat-ath').value=ath.toFixed(2);
+      stratDraft.ath=ath;
+      document.getElementById('strat-ath-hint').textContent=`✓ ATH récupéré : ${ath.toFixed(2)}`;
+    }else{
+      document.getElementById('strat-ath-hint').textContent='ATH introuvable, entre-le manuellement';
+    }
+  }catch(e){
+    document.getElementById('strat-ath-hint').textContent='Erreur lors du fetch, entre-le manuellement';
+  }
+}
+
+// ─── PALIERS D'ENTRÉE ──────────────────────────────────────────
+function addEntryLevel(){
+  stratDraft.entries_plan=stratDraft.entries_plan||[];
+  stratDraft.entries_plan.push({price:'',amount:'',shares:'',retracement_pct:'',executed:false});
+  renderEntryLevels();
+}
+
+function removeEntryLevel(i){
+  stratDraft.entries_plan.splice(i,1);
+  renderEntryLevels();
+}
+
+function renderEntryLevels(){
+  const list=document.getElementById('strat-entries-list');
+  if(!list)return;
+  if(!stratDraft.entries_plan.length){
+    list.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:11px;">Aucun palier. Ajoute-en un ci-dessus.</div>';
+    updateEntriesTotal();return;
+  }
+  list.innerHTML=stratDraft.entries_plan.map((e,i)=>{
+    const exDot=e.executed?'<span style="color:var(--green);font-size:10px;">✓ Exécuté</span>':'';
+    return `<div class="strat-level-row">
+      <div class="strat-level-num">${i+1}</div>
+      <div class="field"><label>Prix cible</label><input type="number" step="any" value="${e.price||''}" oninput="updateEntryLevel(${i},'price',this.value)" placeholder="0.00" /></div>
+      <div class="field"><label>Retrac. %</label><input type="number" step="any" value="${e.retracement_pct||''}" oninput="updateEntryLevel(${i},'retracement_pct',this.value)" placeholder="-25" /></div>
+      <div class="field"><label>Montant</label><input type="number" step="any" value="${e.amount||''}" oninput="updateEntryLevel(${i},'amount',this.value)" placeholder="500" /></div>
+      <div class="field"><label>Shares</label><input type="number" step="any" value="${e.shares||''}" oninput="updateEntryLevel(${i},'shares',this.value)" placeholder="auto" /></div>
+      <button class="strat-level-del" onclick="removeEntryLevel(${i})">×</button>
+    </div>${exDot?`<div style="margin-bottom:8px;padding-left:48px;">${exDot}</div>`:''}`;
+  }).join('');
+  updateEntriesTotal();
+}
+
+function updateEntryLevel(i,field,val){
+  const e=stratDraft.entries_plan[i];if(!e)return;
+  e[field]=val;
+  // Auto-calcul croisé : si on change retracement_pct → calcule price
+  if(field==='retracement_pct'&&stratDraft.ath){
+    const pct=parseFloat(val);
+    if(!isNaN(pct)){
+      const newPrice=stratDraft.ath*(1+pct/100);
+      e.price=newPrice.toFixed(2);
+      const row=document.querySelectorAll('.strat-level-row')[i];
+      if(row){const inp=row.querySelectorAll('input')[0];if(inp)inp.value=e.price;}
+    }
+  }
+  // Auto-calcul price → retracement
+  if(field==='price'&&stratDraft.ath){
+    const pr=parseFloat(val);
+    if(!isNaN(pr)&&pr>0){
+      const pct=((pr-stratDraft.ath)/stratDraft.ath*100).toFixed(2);
+      e.retracement_pct=pct;
+      const row=document.querySelectorAll('.strat-level-row')[i];
+      if(row){const inp=row.querySelectorAll('input')[1];if(inp)inp.value=pct;}
+    }
+  }
+  // Auto-calcul amount ↔ shares
+  if(field==='amount'){
+    const am=parseFloat(val),pr=parseFloat(e.price);
+    if(!isNaN(am)&&!isNaN(pr)&&pr>0){
+      e.shares=(am/pr).toFixed(6);
+      const row=document.querySelectorAll('.strat-level-row')[i];
+      if(row){const inp=row.querySelectorAll('input')[3];if(inp)inp.value=e.shares;}
+    }
+  }
+  if(field==='shares'){
+    const sh=parseFloat(val),pr=parseFloat(e.price);
+    if(!isNaN(sh)&&!isNaN(pr)&&pr>0){
+      e.amount=(sh*pr).toFixed(2);
+      const row=document.querySelectorAll('.strat-level-row')[i];
+      if(row){const inp=row.querySelectorAll('input')[2];if(inp)inp.value=e.amount;}
+    }
+  }
+  updateEntriesTotal();
+}
+
+function collectEntryLevels(){
+  // Pas besoin — déjà mis à jour à chaque oninput
+}
+
+function updateEntriesTotal(){
+  const total=stratDraft.entries_plan.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const el=document.getElementById('strat-entries-total');
+  if(el)el.textContent=fmtC(total,stratDraft.currency||'USD');
+}
+
+// ─── PALIERS DE SORTIE ─────────────────────────────────────────
+function addExitLevel(){
+  stratDraft.exits_plan=stratDraft.exits_plan||[];
+  stratDraft.exits_plan.push({price:'',amount:'',shares:'',profit_pct:'',executed:false});
+  renderExitLevels();
+}
+
+function removeExitLevel(i){
+  stratDraft.exits_plan.splice(i,1);
+  renderExitLevels();
+}
+
+function renderExitLevels(){
+  const list=document.getElementById('strat-exits-list');
+  if(!list)return;
+  if(!stratDraft.exits_plan.length){
+    list.innerHTML='<div style="text-align:center;padding:20px;color:var(--text3);font-size:11px;">Aucun palier de sortie. Ajoute-en un ci-dessus.</div>';
+    updateExitsTotal();return;
+  }
+  list.innerHTML=stratDraft.exits_plan.map((e,i)=>{
+    const exDot=e.executed?'<span style="color:var(--green);font-size:10px;">✓ Exécuté</span>':'';
+    return `<div class="strat-level-row">
+      <div class="strat-level-num">${i+1}</div>
+      <div class="field"><label>Prix sortie</label><input type="number" step="any" value="${e.price||''}" oninput="updateExitLevel(${i},'price',this.value)" placeholder="0.00" /></div>
+      <div class="field"><label>Profit %</label><input type="number" step="any" value="${e.profit_pct||''}" oninput="updateExitLevel(${i},'profit_pct',this.value)" placeholder="50" /></div>
+      <div class="field"><label>Montant</label><input type="number" step="any" value="${e.amount||''}" oninput="updateExitLevel(${i},'amount',this.value)" placeholder="auto" /></div>
+      <div class="field"><label>Shares</label><input type="number" step="any" value="${e.shares||''}" oninput="updateExitLevel(${i},'shares',this.value)" placeholder="auto" /></div>
+      <button class="strat-level-del" onclick="removeExitLevel(${i})">×</button>
+    </div>${exDot?`<div style="margin-bottom:8px;padding-left:48px;">${exDot}</div>`:''}`;
+  }).join('');
+  updateExitsTotal();
+}
+
+function updateExitLevel(i,field,val){
+  const e=stratDraft.exits_plan[i];if(!e)return;
+  e[field]=val;
+  // Profit % ↔ Price (basé sur prix moyen d'entrée)
+  const avgEntryPrice=stratDraft.entries_plan.length?(stratDraft.entries_plan.reduce((s,en)=>s+(parseFloat(en.amount)||0),0)/stratDraft.entries_plan.reduce((s,en)=>s+(parseFloat(en.shares)||0),0)):0;
+  if(field==='profit_pct'&&avgEntryPrice>0){
+    const pct=parseFloat(val);
+    if(!isNaN(pct)){
+      e.price=(avgEntryPrice*(1+pct/100)).toFixed(2);
+      const row=document.querySelectorAll('#strat-exits-list .strat-level-row')[i];
+      if(row){const inp=row.querySelectorAll('input')[0];if(inp)inp.value=e.price;}
+    }
+  }
+  if(field==='price'&&avgEntryPrice>0){
+    const pr=parseFloat(val);
+    if(!isNaN(pr)&&pr>0){
+      e.profit_pct=((pr-avgEntryPrice)/avgEntryPrice*100).toFixed(2);
+      const row=document.querySelectorAll('#strat-exits-list .strat-level-row')[i];
+      if(row){const inp=row.querySelectorAll('input')[1];if(inp)inp.value=e.profit_pct;}
+    }
+  }
+  if(field==='amount'){
+    const am=parseFloat(val),pr=parseFloat(e.price);
+    if(!isNaN(am)&&!isNaN(pr)&&pr>0){
+      e.shares=(am/pr).toFixed(6);
+      const row=document.querySelectorAll('#strat-exits-list .strat-level-row')[i];
+      if(row){const inp=row.querySelectorAll('input')[3];if(inp)inp.value=e.shares;}
+    }
+  }
+  if(field==='shares'){
+    const sh=parseFloat(val),pr=parseFloat(e.price);
+    if(!isNaN(sh)&&!isNaN(pr)&&pr>0){
+      e.amount=(sh*pr).toFixed(2);
+      const row=document.querySelectorAll('#strat-exits-list .strat-level-row')[i];
+      if(row){const inp=row.querySelectorAll('input')[2];if(inp)inp.value=e.amount;}
+    }
+  }
+  updateExitsTotal();
+}
+
+function collectExitLevels(){
+  // déjà mis à jour à chaque oninput
+}
+
+function updateExitsTotal(){
+  const totalEntry=stratDraft.entries_plan.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const totalExit=stratDraft.exits_plan.reduce((s,e)=>s+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
+  const profit=totalExit-totalEntry;
+  const el=document.getElementById('strat-profit-total');
+  if(el){el.textContent=`${profit>=0?'+':''}${fmtC(profit,stratDraft.currency||'USD')}`;el.style.color=profit>=0?'var(--green)':'var(--red)';}
+}
+
+function renderStratSummary(){
+  stratDraft.notes=document.getElementById('strat-notes').value;
+  stratDraft.status=document.getElementById('strat-status').value;
+  const totalE=stratDraft.entries_plan.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const totalX=stratDraft.exits_plan.reduce((s,e)=>s+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
+  const profit=totalX-totalE;
+  const cur=stratDraft.currency||'USD';
+  document.getElementById('strat-summary').innerHTML=`
+    <div><span style="color:var(--text3);">Type :</span> <strong>${stratDraft.type}</strong></div>
+    <div><span style="color:var(--text3);">Symbole :</span> <strong>${stratDraft.symbol}</strong> ${stratDraft.account?`<span style="color:var(--text3);">/ ${stratDraft.account}</span>`:''}</div>
+    <div><span style="color:var(--text3);">ATH :</span> ${stratDraft.ath?fmtC(stratDraft.ath,cur):'—'} <span style="color:var(--text3);">(${stratDraft.ath_source})</span></div>
+    <div><span style="color:var(--text3);">Paliers entrée :</span> ${stratDraft.entries_plan.length} → <strong>${fmtC(totalE,cur)}</strong></div>
+    <div><span style="color:var(--text3);">Paliers sortie :</span> ${stratDraft.exits_plan.length} → <strong>${fmtC(totalX,cur)}</strong></div>
+    <div><span style="color:var(--text3);">Profit potentiel :</span> <strong style="color:${profit>=0?'var(--green)':'var(--red)'};">${profit>=0?'+':''}${fmtC(profit,cur)}</strong></div>
+  `;
+}
+
+async function saveStratFromModal(){
+  stratDraft.notes=document.getElementById('strat-notes').value;
+  stratDraft.status=document.getElementById('strat-status').value;
+  // Nettoyer les valeurs
+  stratDraft.entries_plan=stratDraft.entries_plan.filter(e=>parseFloat(e.price)>0).map(e=>({
+    price:parseFloat(e.price)||0,
+    amount:parseFloat(e.amount)||0,
+    shares:parseFloat(e.shares)||0,
+    retracement_pct:parseFloat(e.retracement_pct)||0,
+    executed:!!e.executed,
+    executed_at:e.executed_at||null
+  }));
+  stratDraft.exits_plan=stratDraft.exits_plan.filter(e=>parseFloat(e.price)>0).map(e=>({
+    price:parseFloat(e.price)||0,
+    amount:parseFloat(e.amount)||0,
+    shares:parseFloat(e.shares)||0,
+    profit_pct:parseFloat(e.profit_pct)||0,
+    executed:!!e.executed,
+    executed_at:e.executed_at||null
+  }));
+  // Préparer payload pour Supabase
+  const payload={
+    name:`${stratDraft.type} ${stratDraft.symbol}`,
+    type:stratDraft.type,
+    symbol:stratDraft.symbol,
+    currency:stratDraft.currency,
+    account:stratDraft.account||null,
+    status:stratDraft.status,
+    ath:stratDraft.ath,
+    ath_source:stratDraft.ath_source,
+    entries_plan:stratDraft.entries_plan,
+    exits_plan:stratDraft.exits_plan,
+    notes:stratDraft.notes||null
+  };
+  if(stratDraft.id)payload.id=stratDraft.id;
+  const saved=await saveStrategy(payload);
+  if(saved){
+    if(stratDraft.id){
+      const idx=strategies.findIndex(s=>s.id===stratDraft.id);
+      if(idx>=0)strategies[idx]=saved;
+    }else{
+      strategies.unshift(saved);
+    }
+    closeStratModal();
+    renderStrategies();
+  }else{
+    alert('Erreur lors de la sauvegarde. Vérifie la console.');
+  }
+}
+
 function openStratDetails(id){alert('Modal détails pour '+id+' — étape suivante');}
 
 
