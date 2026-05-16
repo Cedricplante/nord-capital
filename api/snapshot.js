@@ -192,8 +192,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // Cash : si currency = 'CAD' → déjà en CAD, sinon convertir
-    const cashCAD = currency === 'CAD' ? cash : cash * usdcad;
+    // Cash toujours stocké en USD dans user_data (currency = devise d'affichage, pas du cash)
+    const cashCAD = cash * usdcad;
     const totalCAD = totalPositionsCAD + cashCAD;
 
     const today = new Date().toISOString().split('T')[0];
