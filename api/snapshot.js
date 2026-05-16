@@ -14,11 +14,16 @@
 
 // Mapping symboles internes → tickers Yahoo Finance / CoinGecko
 const SYMBOL_MAP = {
-  'BTC/USD': 'BTC-USD',  'ETH/USD': 'ETH-USD',  'SOL/USD': 'SOL-USD',
-  'BNB/USD': 'BNB-USD',  'XRP/USD': 'XRP-USD',  'ADA/USD': 'ADA-USD',
-  'AVAX/USD':'AVAX-USD', 'DOGE/USD':'DOGE-USD',  'MATIC/USD':'MATIC-USD',
-  'TAO/USD': 'TAO-USD',  'RNDR/USD':'RNDR-USD',  'AKT/USD': 'AKT-USD',
-  'PYTH/USD':'PYTH-USD', 'RSR/USD': 'RSR-USD',
+  'BTC/USD': 'BTC-USD',    'ETH/USD': 'ETH-USD',    'SOL/USD': 'SOL-USD',
+  'BNB/USD': 'BNB-USD',    'XRP/USD': 'XRP-USD',    'ADA/USD': 'ADA-USD',
+  'AVAX/USD':'AVAX-USD',   'DOGE/USD':'DOGE-USD',   'MATIC/USD':'MATIC-USD',
+  'TAO/USD': 'TAO-USD',    'RNDR/USD':'RNDR-USD',   'AKT/USD': 'AKT-USD',
+  'PYTH/USD':'PYTH-USD',   'RSR/USD': 'RSR-USD',
+  // Akash Network — rebrand AKT→AKASH, CoinGecko utilise encore AKT-USD
+  'AKASH/USD': 'AKT-USD',
+  // Autres cryptos portefeuille
+  'FET/USD':  'FET-USD',   'ONDO/USD': 'ONDO-USD',  'INJ/USD':  'INJ-USD',
+  'RENDER/USD':'RNDR-USD', 'LINK/USD': 'LINK-USD',  'DOT/USD':  'DOT-USD',
   // Forex
   'EUR/USD': 'EURUSD=X', 'GBP/USD': 'GBPUSD=X', 'USD/JPY': 'USDJPY=X',
   'USD/CAD': 'USDCAD=X', 'AUD/USD': 'AUDUSD=X',
@@ -96,20 +101,24 @@ function parsePositions(raw) {
   }
 }
 
-// Calculer la valeur marché d'une position à partir des prix fetchés
-function positionValue(pos, prices) {
-  const symbol  = pos.symbol || pos.ticker || '';
-  const ticker  = getYahooTicker(symbol);
-  const price   = prices[ticker];
-  const avgEntry = parseFloat(pos.avgEntry || pos.avg_cost || 0);
+// Calculer la valeur marché d'une position directement en CAD
+// .TO = prix Yahoo déjà en CAD → pas de conversion
+// Autres = prix en USD → multiplier par usdcad
+function positionValueCAD(pos, prices, usdcad) {
+  const symbol    = pos.symbol || pos.ticker || '';
+  const ticker    = getYahooTicker(symbol);
+  const price     = prices[ticker];
+  const avgEntry  = parseFloat(pos.avgEntry || pos.avg_cost || 0);
   const totalSize = parseFloat(pos.totalSize || pos.total_size || 0);
 
   if (!price || !avgEntry || avgEntry === 0) return 0;
 
-  const shares  = totalSize / avgEntry;   // nb d'unités (actions/coins)
-  const mktVal  = shares * price;         // valeur marché USD
+  const shares = totalSize / avgEntry;
+  const mktVal = shares * price;
 
-  return mktVal;
+  // Stocks canadiens (.TO) = prix déjà en CAD
+  const isCad = symbol.toUpperCase().endsWith('.TO');
+  return isCad ? mktVal : mktVal * usdcad;
 }
 
 // ── Handler principal ────────────────────────────────────────
@@ -146,9 +155,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: 'No positions to snapshot' });
     }
 
-    // 3. Construire la liste de tickers uniques
+    // 3. Construire la liste de tickers uniques + USDCAD pour la conversion
     const tickers = [...new Set(positions.map(p => getYahooTicker(p.symbol || p.ticker || '')))];
-    const symbolsParam = tickers.join(',');
+    const tickersWithFx = [...new Set([...tickers, 'USDCAD=X'])];
+    const symbolsParam = tickersWithFx.join(',');
 
     // 4. Appeler /api/prices (même source que NC frontend)
     const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -164,28 +174,31 @@ export default async function handler(req, res) {
 
     const fetched = Object.keys(prices).length;
     const missing = tickers.filter(t => !prices[t]);
-    console.log(`[snapshot] Prix reçus: ${fetched}/${tickers.length}${missing.length ? ' | manquants: ' + missing.join(', ') : ''}`);
+    console.log(`[snapshot] Prix reçus: ${fetched}/${tickersWithFx.length}${missing.length ? ' | manquants: ' + missing.join(', ') : ''}`);
 
-    // 5. Calculer valeur totale portfolio (USD pour les positions + cash)
-    let totalPositionsUSD = 0;
+    // 5. Taux USDCAD (pour conversion USD → CAD des positions non-.TO)
+    const usdcad = parseFloat(prices['USDCAD=X'] || 0) || 1.3650;
+
+    // 6. Calculer valeur totale en CAD (conversion per-position selon devise)
+    let totalPositionsCAD = 0;
     const details = [];
 
     for (const pos of positions) {
-      const mktValUSD = positionValue(pos, prices);
-      totalPositionsUSD += mktValUSD;
+      const mktValCAD = positionValueCAD(pos, prices, usdcad);
+      totalPositionsCAD += mktValCAD;
       details.push({
         symbol: pos.symbol || pos.ticker,
-        mktVal: Math.round(mktValUSD * 100) / 100,
+        mktVal: Math.round(mktValCAD * 100) / 100,
       });
     }
 
-    // 6. Convertir en CAD (USDCAD depuis prices si disponible, sinon ~1.36)
-    const usdcad = prices['USDCAD=X'] || prices['CAD=X'] || 1.36;
-    const totalCAD = (totalPositionsUSD + cash) * (currency === 'CAD' ? usdcad : 1);
+    // Cash : si currency = 'CAD' → déjà en CAD, sinon convertir
+    const cashCAD = currency === 'CAD' ? cash : cash * usdcad;
+    const totalCAD = totalPositionsCAD + cashCAD;
 
     const today = new Date().toISOString().split('T')[0];
 
-    console.log(`[snapshot] Total positions USD=${totalPositionsUSD.toFixed(2)} | cash=${cash} | USDCAD=${usdcad} | Total CAD=${totalCAD.toFixed(2)}`);
+    console.log(`[snapshot] Positions CAD=${totalPositionsCAD.toFixed(2)} | cash=${cash} ${currency} (${cashCAD.toFixed(2)} CAD) | USDCAD=${usdcad} | Total=${totalCAD.toFixed(2)} CAD`);
 
     // 7. Upsert dans portfolio_history
     await upsertPortfolioHistory(today, totalCAD, 'CAD');
