@@ -1932,14 +1932,13 @@ function updateKPIs(){
 
   {const _e=document.getElementById('kpi-total');if(_e)_e.textContent=fmtAmtRound(totalCAD);}
   const todayStr=new Date().toISOString().split('T')[0];
-  const todayPt=portfolioHistory.filter(h=>h.date===todayStr);
+  // V1: utiliser totalCAD live comme valeur du jour (pas le snapshot stale)
   const yesterdayPt=portfolioHistory.filter(h=>h.date<todayStr);
   const dayEl=document.getElementById('kpi-day-change');
-  if(todayPt.length&&yesterdayPt.length){
-    const todayVal=todayPt[todayPt.length-1].value,yesterdayVal=yesterdayPt[yesterdayPt.length-1].value;
-    const dayDiff=todayVal-yesterdayVal,dayPct=yesterdayVal>0?(dayDiff/yesterdayVal)*100:0;
+  if(yesterdayPt.length){
+    const yesterdayVal=yesterdayPt[yesterdayPt.length-1].value;
+    const dayDiff=totalCAD-yesterdayVal,dayPct=yesterdayVal>0?(dayDiff/yesterdayVal)*100:0;
     const sign=dayDiff>=0?'+':'-';
-    // portfolioHistory déjà en devise du compte → pas de conversion supplémentaire
     if(dayEl){dayEl.textContent=sign+fmtAmt(Math.abs(dayDiff))+' ('+fmtPct(Math.abs(dayPct))+') auj.';dayEl.className='kpi-sub '+(dayDiff>=0?'pos':'neg');}
   }else{if(dayEl){dayEl.textContent='— aujourd\'hui';dayEl.className='kpi-sub neu';}}
 
