@@ -643,12 +643,21 @@
 
       <!-- Performance par classe -->
       <div class="alloc-section-title">Performance</div>
-      <div class="alloc-panel">
-        <div class="alloc-panel-header">
-          <div class="alloc-panel-title">P&amp;L par classe d'actif</div>
-          <div class="alloc-panel-sub">Positions ouvertes</div>
+      <div class="alloc-grid-2">
+        <div class="alloc-panel">
+          <div class="alloc-panel-header">
+            <div class="alloc-panel-title">P&amp;L par classe d'actif</div>
+            <div class="alloc-panel-sub">Positions ouvertes · $</div>
+          </div>
+          <div class="chart-wrap" style="height:180px;margin-top:1rem;"><canvas id="assetPerfChart"></canvas></div>
         </div>
-        <div class="chart-wrap" style="height:180px;margin-top:1rem;"><canvas id="assetPerfChart"></canvas></div>
+        <div class="alloc-panel">
+          <div class="alloc-panel-header">
+            <div class="alloc-panel-title">Variation relative par secteur</div>
+            <div class="alloc-panel-sub">Depuis coût moyen · %</div>
+          </div>
+          <div class="chart-wrap" style="height:180px;margin-top:1rem;"><canvas id="sectorVarChart"></canvas></div>
+        </div>
       </div>
     </div>
   </div>
@@ -958,7 +967,7 @@ function getTicker(s){if(TICKER_MAP[s])return TICKER_MAP[s];if(s.endsWith('/USD'
 // ─── STATE ───────────────────────────────────────────────────────
 let currentUser=null,accessToken=null;
 let cash=0,closeTarget=null,positions=[],trades=[],strategies=[];
-let perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart;
+let perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart,sectorVarChart;
 let chartsInitialized=false;
 let accountCurrency='USD',fxRate=1;
 let activePeriod='1M';
@@ -1037,8 +1046,8 @@ async function handleLogout(){
   localStorage.removeItem('nc_token');localStorage.removeItem('nc_user');
   accessToken=null;currentUser=null;positions=[];trades=[];cash=0;portfolioHistory=[];strategies=[];
   // Détruire toutes les instances Chart.js pour éviter les conflits à la reconnexion
-  [perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart].forEach(c=>{try{if(c)c.destroy();}catch(e){}});
-  perfChart=allocChart=allocSymChart=allocCatChart=allocCatDashChart=assetPerfChart=assetPerfDashChart=pnlBarChart=cashAllocChart=celiChart=celiappChart=cryptoAllocChart=null;
+  [perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart,sectorVarChart].forEach(c=>{try{if(c)c.destroy();}catch(e){}});
+  perfChart=allocChart=allocSymChart=allocCatChart=allocCatDashChart=assetPerfChart=assetPerfDashChart=pnlBarChart=cashAllocChart=celiChart=celiappChart=cryptoAllocChart=sectorVarChart=null;
   chartsInitialized=false;
   // Reset devise
   accountCurrency='USD';fxRate=1;Object.keys(liveFxRates).forEach(k=>delete liveFxRates[k]);
@@ -2449,4 +2458,79 @@ function renderAllocCharts(){
   const celiappTotalEl=document.getElementById('celiapp-total');
   if(celiappTotalEl)celiappTotalEl.textContent=fmtAmtRound(celiappTotal*fxRate);
   if(celiappTotal>0){const d=mkDonutData(celiappPos.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'})),celiappTotal);updateDonut(celiappChart,d.labels,d.values,COLORS.slice(0,d.labels.length));buildLegend('celiapp-legend',d.labels,d.values,COLORS.slice(0,d.labels.length));}
-  else{updateDonut(celiappChart,[],[],[]);document.getElementById('celiapp-legend').innerHTML='<div class="alloc-empty-state">Aucune posit
+  else{updateDonut(celiappChart,[],[],[]);document.getElementById('celiapp-legend').innerHTML='<div class="alloc-empty-state">Aucune position CELIAPP</div>';}
+
+  // Crypto
+  const cryptoPos=positions.filter(p=>getCat(p.symbol)==='Crypto');
+  const cryptoTotal=cryptoPos.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
+  const cryptoTotalEl=document.getElementById('crypto-total');
+  if(cryptoTotalEl)cryptoTotalEl.textContent=fmtAmtRound(cryptoTotal*fxRate);
+  if(cryptoTotal>0){const d=mkDonutData(cryptoPos.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'})),cryptoTotal);updateDonut(cryptoAllocChart,d.labels,d.values,COLORS.slice(0,d.labels.length));buildLegend('crypto-legend',d.labels,d.values,COLORS.slice(0,d.labels.length));}
+  else{updateDonut(cryptoAllocChart,[],[],[]);document.getElementById('crypto-legend').innerHTML='<div class="alloc-empty-state">Aucune crypto</div>';}
+
+  // P&L par classe
+  const catPnl={};positions.forEach(p=>{const c=getCat(p.symbol);catPnl[c]=(catPnl[c]||0)+calcPnlUSD(p)*fxRate;});
+  if(assetPerfChart){assetPerfChart.data.labels=Object.keys(catPnl);const pnlVals=Object.values(catPnl).map(v=>parseFloat(v.toFixed(2)));assetPerfChart.data.datasets[0].data=pnlVals;assetPerfChart.data.datasets[0].backgroundColor=pnlVals.map(v=>v>=0?'#00ff88':'#ff4d6d');assetPerfChart.update();}
+
+  // F5: Variation relative par secteur (PnL% depuis coût moyen)
+  if(sectorVarChart){
+    const sectorPnl={},sectorCost={};
+    positions.forEach(p=>{
+      const c=getCat(p.symbol);
+      sectorPnl[c]=(sectorPnl[c]||0)+calcPnlUSD(p);
+      sectorCost[c]=(sectorCost[c]||0)+toUSD((p.shares||0)*p.avgEntry,p.currency||'USD');
+    });
+    const sectorEntries=Object.entries(sectorPnl)
+      .filter(([c])=>sectorCost[c]>0)
+      .map(([c,pnl])=>({cat:c,pct:parseFloat((pnl/sectorCost[c]*100).toFixed(2)}))
+      .sort((a,b)=>b.pct-a.pct);
+    sectorVarChart.data.labels=sectorEntries.map(s=>s.cat);
+    const pcts=sectorEntries.map(s=>s.pct);
+    sectorVarChart.data.datasets[0].data=pcts;
+    sectorVarChart.data.datasets[0].backgroundColor=pcts.map(v=>v>=0?'rgba(0,255,136,0.75)':'rgba(255,77,109,0.75)');
+    sectorVarChart.update();
+  }
+}
+
+function exportCSV(){
+  const rows=[['Date','Symbole','Direction','Type','Compte','Prix','Prix moy. entrée','Montant initial','Montant final','Profit','ROI (%)']];
+  trades.forEach(t=>{if(t.type==='Vente'){const roi=t.size>0?((t.profit||0)/t.size*100).toFixed(2):'0';rows.push([t.date,t.symbol,t.dir,'Vente',t.account||'',t.price,t.avgEntry||'',t.size,(t.montantFinal||(t.size+(t.profit||0))).toFixed(2),(t.profit||0).toFixed(2),roi]);}else rows.push([t.date,t.symbol,t.dir,'Achat',t.account||'',t.price,'',t.size,'','','']);});
+  const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='nord_capital_transactions.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+async function clearHistory(){if(!confirm('Effacer tout l\'historique ? Irréversible.'))return;trades=[];await saveData();renderAll();}
+function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();}
+
+function initCharts(){
+  if(chartsInitialized)return;chartsInitialized=true;
+  const cd={color:'#606075',font:{size:10,family:'DM Mono'}},gc='rgba(255,255,255,0.03)',bc='rgba(255,255,255,0.04)';
+  const chartDefaults={responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{display:false}}};
+
+  const safeNew=(id,cfg)=>{const el=document.getElementById(id);return el?new Chart(el,cfg):null;};
+  perfChart=safeNew('perfChart',{type:'line',data:{labels:[],datasets:[{data:[],borderColor:'#00ff88',backgroundColor:'rgba(0,255,136,0.08)',borderWidth:2,pointRadius:2,pointHoverRadius:5,pointBackgroundColor:'#00ff88',fill:true,tension:0.4}]},options:{...chartDefaults,interaction:{mode:'index',intersect:false},scales:{x:{ticks:{...cd},grid:{color:gc},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
+
+  pnlBarChart=safeNew('pnlBarChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
+
+  assetPerfDashChart=safeNew('assetPerfDashChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
+
+  assetPerfChart=safeNew('assetPerfChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
+
+  sectorVarChart=safeNew('sectorVarChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,indexAxis:'y',scales:{x:{ticks:{...cd,callback:v=>v.toFixed(1)+'%'},grid:{color:gc},border:{color:bc}},y:{ticks:{...cd},grid:{display:false},border:{color:bc}}}}});
+
+  allocChart=mkDonut('allocChart',[],[],[]);
+  allocCatDashChart=mkDonut('allocCatDashChart',[],[],[]);
+  cashAllocChart=mkDonut('cashAllocChart',[],[],[]);
+  allocSymChart=mkDonut('allocSymChart',[],[],[]);
+  allocCatChart=mkDonut('allocCatChart',[],[],[]);
+  celiChart=mkDonut('celiChart',[],[],[]);
+  celiappChart=mkDonut('celiappChart',[],[],[]);
+  cryptoAllocChart=mkDonut('cryptoAllocChart',[],[],[]);
+}
+
+document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelClose();});
+document.getElementById('cash-modal-overlay').addEventListener('click',function(e){if(e.target===this)closeCashPopup();});
+document.getElementById('edit-modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelEdit();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){cancelClose();cancelEdit();}});
+</script>
+</body>
+</html>
