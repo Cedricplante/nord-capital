@@ -192,13 +192,13 @@ export default async function handler(req, res) {
       });
     }
 
-    // Cash toujours stocké en USD dans user_data (currency = devise d'affichage, pas du cash)
-    const cashCAD = cash * usdcad;
+    // Cash stocké en devise du compte (CAD) depuis la migration nc_cash_migrated_v2
+    const cashCAD = cash; // déjà en CAD, pas de conversion nécessaire
     const totalCAD = totalPositionsCAD + cashCAD;
 
     const today = new Date().toISOString().split('T')[0];
 
-    console.log(`[snapshot] Positions CAD=${totalPositionsCAD.toFixed(2)} | cash=${cash} ${currency} (${cashCAD.toFixed(2)} CAD) | USDCAD=${usdcad} | Total=${totalCAD.toFixed(2)} CAD`);
+    console.log(`[snapshot] Positions CAD=${totalPositionsCAD.toFixed(2)} | cash=${cashCAD.toFixed(2)} CAD | USDCAD=${usdcad} | Total=${totalCAD.toFixed(2)} CAD`);
 
     // 7. Upsert dans portfolio_history
     await upsertPortfolioHistory(today, totalCAD, 'CAD');
@@ -218,5 +218,3 @@ export default async function handler(req, res) {
   } catch (e) {
     console.error('[snapshot] Erreur fatale:', e.message);
     return res.status(500).json({ error: e.message });
-  }
-}

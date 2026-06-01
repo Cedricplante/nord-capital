@@ -1601,27 +1601,25 @@ async function loadPortfolioHistory(){
     });
   }catch(e){portfolioHistory=[];}
 }
-async function saveSnapshot(valueUSD){
+async function saveSnapshot(valueCAD){
   if(!currentUser||!accessToken)return;
-  const effectiveFx=(fxRate&&fxRate>0&&fxRate!==1)?fxRate:(FX_FALLBACK[accountCurrency]||1);
-  const valueInCurrency=parseFloat((valueUSD*effectiveFx).toFixed(2));
+  const valueInCurrency=parseFloat(valueCAD.toFixed(2)); // déjà en devise du compte
   const today=new Date().toISOString().split('T')[0];
   try{
     // Vérifier si une entrée existe déjà pour aujourd'hui
     const checkRes=await fetch(`${SB_URL}/rest/v1/portfolio_history?user_id=eq.${currentUser.id}&date=eq.${today}&select=date`,{headers:sbHeaders()});
     const existing=await checkRes.json();
     if(existing&&existing.length>0){
-      // Ligne existante → PATCH
-      await fetch(`${SB_URL}/rest/v1/portfolio_history?user_id=eq.${currentUser.id}&date=eq.${today}`,{method:'PATCH',headers:{...sbHeaders(),'Prefer':'return=minimal'},body:JSON.stringify({value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
+      // Ligne existante → ne pas écraser (préserver le snapshot cron 22h)
+      console.log(`[snapshot] Snapshot du jour déjà présent (${today}), ignoré.`);
     }else{
       // Pas de ligne → INSERT
       await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:today,value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
     }
-    // Mettre à jour le cache local
-    const idx=portfolioHistory.findIndex(h=>h.date===today);
-    if(idx>=0){portfolioHistory[idx].value=valueInCurrency;portfolioHistory[idx].currency=accountCurrency;}
-    else{portfolioHistory.push({date:today,value:valueInCurrency,currency:accountCurrency});portfolioHistory.sort((a,b)=>a.date.localeCompare(b.date));}
-    console.log(`[snapshot] Sauvegardé: ${valueInCurrency} ${accountCurrency} pour ${today}`);
+    // Mettre à jour le cache local seulement si pas déjà présent
+    const idxLocal=portfolioHistory.findIndex(h=>h.date===today);
+    if(idxLocal<0){portfolioHistory.push({date:today,value:valueInCurrency,currency:accountCurrency});portfolioHistory.sort((a,b)=>a.date.localeCompare(b.date));console.log(`[snapshot] Nouveau snapshot: ${valueInCurrency} ${accountCurrency} pour ${today}`);}
+    else{console.log(`[snapshot] Cache local déjà à jour pour ${today}.`);}
   }catch(e){console.error('[snapshot] Erreur:',e);}
 }
 // Ne plus écrire l'interpolation dans Supabase — ça écrasait les vraies valeurs.
@@ -1750,9 +1748,9 @@ async function fetchLivePrices(){
       if(!fxRate||fxRate===0)fxRate=await fetchFxRate(accountCurrency);
       await saveData();
       // Snapshot en USD, converti dans la devise du compte par saveSnapshot()
-      const totalValueUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0)+cash;
-      console.log(`[snapshot] Valeur USD: ${totalValueUSD.toFixed(2)}, devise: ${accountCurrency}, fxRate: ${fxRate}`);
-      await saveSnapshot(totalValueUSD);
+      const totalValueCAD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0)*fxRate+cash;
+      console.log(`[snapshot] Valeur ${accountCurrency}: ${totalValueCAD.toFixed(2)}`);
+      await saveSnapshot(totalValueCAD);
       renderAll();setLiveStatus('live');
     }else{
       console.warn('[prices] Aucun prix reçu — snapshot non sauvegardé');
@@ -1812,6 +1810,15 @@ async function startApp(){
   // Charger fxRate en premier — critique pour la migration des snapshots USD
   fxRate=await fetchFxRate(accountCurrency);
   updateFxDisplay();
+  // Migration one-time : cash était stocké en USD, maintenant en devise du compte
+  if(!localStorage.getItem('nc_cash_migrated_v2')&&accountCurrency!=='USD'&&fxRate>1){
+    cash=parseFloat((cash*fxRate).toFixed(2));
+    await saveData();
+    localStorage.setItem('nc_cash_migrated_v2','1');
+    console.log(`[migration] Cash converti en ${accountCurrency}: ${cash}`);
+  }else if(!localStorage.getItem('nc_cash_migrated_v2')){
+    localStorage.setItem('nc_cash_migrated_v2','1'); // USD natif, rien à convertir
+  }
   // Maintenant charger l'historique (migration USD→accountCurrency si besoin)
   await loadPortfolioHistory();
   await cleanInterpolatedSnapshots();
@@ -1822,10 +1829,10 @@ async function startApp(){
   if(portfolioHistory.length===0&&positions.length>0){
     const firstTradeDate=trades.length>0?[...trades].sort((a,b)=>a.date.localeCompare(b.date))[0].date:new Date().toISOString().split('T')[0];
     const today=new Date().toISOString().split('T')[0];
-    const initialValue=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0)+cash;
-    await saveSnapshot(initialValue);
+    const initialValueCAD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0)*fxRate+cash;
+    await saveSnapshot(initialValueCAD);
     if(firstTradeDate<today){
-      await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:firstTradeDate,value:parseFloat(initialValue.toFixed(2)),updated_at:new Date().toISOString()})});
+      await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:firstTradeDate,value:parseFloat(initialValueCAD.toFixed(2)),currency:accountCurrency,updated_at:new Date().toISOString()})});
       await loadPortfolioHistory();await backfillMissingDays();
     }
   }
@@ -1863,10 +1870,11 @@ function updateKPIs(){
   const wins=closedTrades.filter(t=>(t.profit||0)>0).length,losses=closedTrades.filter(t=>(t.profit||0)<=0).length;
   const winRate=closedTrades.length>0?Math.round(wins/closedTrades.length*100):0;
   const pnlPct=totalInvestedUSD>0?(totalPnlOpenUSD/totalInvestedUSD)*100:0;
-  const totalUSD=totalSizeUSD+cash;
-  const cashPct=totalUSD>0?(cash/totalUSD*100):0;
+  // Cash en devise native (CAD) + positions converties → total en CAD
+  const totalCAD=totalSizeUSD*fxRate+cash;
+  const cashPct=totalCAD>0?(cash/totalCAD*100):0;
 
-  {const _e=document.getElementById('kpi-total');if(_e)_e.textContent=fmtAmtRound(totalUSD*fxRate);}
+  {const _e=document.getElementById('kpi-total');if(_e)_e.textContent=fmtAmtRound(totalCAD);}
   const todayStr=new Date().toISOString().split('T')[0];
   const todayPt=portfolioHistory.filter(h=>h.date===todayStr);
   const yesterdayPt=portfolioHistory.filter(h=>h.date<todayStr);
@@ -1875,7 +1883,8 @@ function updateKPIs(){
     const todayVal=todayPt[todayPt.length-1].value,yesterdayVal=yesterdayPt[yesterdayPt.length-1].value;
     const dayDiff=todayVal-yesterdayVal,dayPct=yesterdayVal>0?(dayDiff/yesterdayVal)*100:0;
     const sign=dayDiff>=0?'+':'-';
-    if(dayEl){dayEl.textContent=sign+fmtAmt(Math.abs(dayDiff*fxRate))+' ('+fmtPct(Math.abs(dayPct))+') auj.';dayEl.className='kpi-sub '+(dayDiff>=0?'pos':'neg');}
+    // portfolioHistory déjà en devise du compte → pas de conversion supplémentaire
+    if(dayEl){dayEl.textContent=sign+fmtAmt(Math.abs(dayDiff))+' ('+fmtPct(Math.abs(dayPct))+') auj.';dayEl.className='kpi-sub '+(dayDiff>=0?'pos':'neg');}
   }else{if(dayEl){dayEl.textContent='— aujourd\'hui';dayEl.className='kpi-sub neu';}}
 
   {const _e=document.getElementById('kpi-invested');if(_e)_e.textContent=fmtAmtRound(totalInvestedUSD*fxRate);}
@@ -1883,7 +1892,7 @@ function updateKPIs(){
   const op=document.getElementById('kpi-pnl-open-pct');op.textContent=fmtPct(pnlPct);op.className='kpi-sub '+(totalPnlOpenUSD>=0?'pos':'neg');
   const re=document.getElementById('kpi-pnl-real');re.textContent=fmtPnl$(totalPnlRealUSD);re.className='kpi-val '+(totalPnlRealUSD>=0?'pos':'neg');
   {const _e=document.getElementById('kpi-trades-count');if(_e)_e.textContent=closedTrades.length+' trades fermés';}
-  {const _e=document.getElementById('kpi-cash');if(_e)_e.textContent=fmtAmtRound(cash*fxRate);}
+  {const _e=document.getElementById('kpi-cash');if(_e)_e.textContent=fmtAmtRound(cash);} // cash déjà en CAD
   {const _e=document.getElementById('kpi-cash-pct');if(_e)_e.textContent=cashPct.toFixed(1)+'% du portefeuille';}
   const we=document.getElementById('kpi-winrate');we.textContent=winRate+'%';we.className='kpi-val '+(winRate>=50?'pos':'neg');
   {const _e=document.getElementById('kpi-winrate-sub');if(_e)_e.textContent=wins+'W · '+losses+'L';}
@@ -2075,10 +2084,11 @@ async function confirmClose(){
   const totalShares=p.shares||sharesToSell,pctToSell=sharesToSell/totalShares,sizeToClose=p.totalSize*pctToSell;
   const pnlPct=p.dir==='Long'?(exitPrice-p.avgEntry)/p.avgEntry:(p.avgEntry-exitPrice)/p.avgEntry;
   const profit=parseFloat((sizeToClose*pnlPct).toFixed(2)),montantFinal=parseFloat((sizeToClose+profit).toFixed(2));
-  // Libérer cash en USD
+  // Libérer cash en devise du compte (CAD)
   const profitUSD=toUSD(profit,p.currency||'USD'),montantUSD=toUSD(montantFinal,p.currency||'USD');
+  const montantCAD=parseFloat((montantUSD*fxRate).toFixed(2));
   trades.unshift({date,symbol:p.symbol,dir:p.dir,type:'Vente',price:exitPrice,avgEntry:p.avgEntry,size:sizeToClose,profit,profitUSD,montantFinal,montantUSD,shares:sharesToSell,dcaCount:p.entries?p.entries.length:1,currency:p.currency||'USD',account:p.account||''});
-  cash+=montantUSD;
+  cash+=montantCAD;
   if(pctToSell>=0.9999){
     positions.splice(closeTarget,1);
   }else{
@@ -2193,26 +2203,22 @@ function setCashType(type){
 async function updateCashPreview(){
   const amt=parseFloat(document.getElementById('cash-input')?.value),inputCur=document.getElementById('cash-currency-input')?.value||'USD';
   const hint=document.getElementById('cash-convert-hint'),preview=document.getElementById('cash-preview-current');
-  if(preview)preview.textContent=fmtAmtRound(cash*fxRate);
+  if(preview)preview.textContent=fmtAmtRound(cash); // cash déjà en CAD
   if(!isNaN(amt)&&amt>0&&hint){
-    // Convertir vers USD d'abord, puis vers devise du compte via fxRate
-    const amtUSD=toUSD(amt,inputCur);
-    const display=amtUSD*fxRate;
-    if(inputCur!==accountCurrency)hint.textContent=`${amt} ${inputCur} → ${fmtAmt(display)}`;
+    const amtInCAD=toUSD(amt,inputCur)*fxRate;
+    if(inputCur!==accountCurrency)hint.textContent=`${amt} ${inputCur} → ${fmtAmt(amtInCAD)}`;
     else hint.textContent='';
   }else if(hint)hint.textContent='';
 }
-function toggleCashPopup(e){e.stopPropagation();document.getElementById('cash-modal-overlay').classList.add('open');const p=document.getElementById('cash-preview-current');if(p)p.textContent=fmtAmtRound(cash*fxRate);setTimeout(()=>document.getElementById('cash-input').focus(),100);}
+function toggleCashPopup(e){e.stopPropagation();document.getElementById('cash-modal-overlay').classList.add('open');const p=document.getElementById('cash-preview-current');if(p)p.textContent=fmtAmtRound(cash);setTimeout(()=>document.getElementById('cash-input').focus(),100);}
 function closeCashPopup(){document.getElementById('cash-modal-overlay').classList.remove('open');document.getElementById('cash-input').value='';}
 async function updateCash(){
   const inputAmt=parseFloat(document.getElementById('cash-input').value);if(isNaN(inputAmt)||inputAmt<=0){alert('Entre un montant valide.');return;}
   const inputCur=document.getElementById('cash-currency-input')?.value||'USD',date=new Date().toISOString().split('T')[0],type=cashType==='depot'?'Dépôt':'Retrait';
-  let amtUSD=inputAmt;
-  if(inputCur==='USD')amtUSD=inputAmt;
-  // Utiliser toUSD pour bénéficier des taux live
-  else amtUSD=toUSD(inputAmt,inputCur);
-  const newCash=cashType==='depot'?cash+amtUSD:Math.max(0,cash-amtUSD);
-  trades.unshift({date,symbol:'CASH',dir:'—',type,price:0,size:amtUSD,profit:0,montantFinal:newCash,cashBalance:newCash,currency:inputCur,originalAmt:inputAmt});
+  // Convertir le montant en devise du compte (CAD)
+  const amtCAD=parseFloat((toUSD(inputAmt,inputCur)*fxRate).toFixed(2));
+  const newCash=cashType==='depot'?cash+amtCAD:Math.max(0,cash-amtCAD);
+  trades.unshift({date,symbol:'CASH',dir:'—',type,price:0,size:amtCAD,profit:0,montantFinal:newCash,cashBalance:newCash,currency:accountCurrency,originalAmt:inputAmt,originalCurrency:inputCur});
   cash=newCash;closeCashPopup();await saveData();renderAll();
 }
 
@@ -2277,7 +2283,6 @@ function updateDonut(chart,labels,values,colors){
 function renderAllocDashboard(){
   if(!cashAllocChart)return;
   const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
-  const totalUSD=totalSizeUSD+cash;
 
   // Par symbole
   if(totalSizeUSD>0){
@@ -2296,9 +2301,10 @@ function renderAllocDashboard(){
   }
 
   // Cash vs Positions
-  if(totalUSD>0){
+  const totalCADDash=totalSizeUSD*fxRate+cash;
+  if(totalCADDash>0){
     const labels=['Positions','Cash'];
-    const values=[parseFloat((totalSizeUSD/totalUSD*100).toFixed(1)),parseFloat((cash/totalUSD*100).toFixed(1))];
+    const values=[parseFloat((totalSizeUSD*fxRate/totalCADDash*100).toFixed(1)),parseFloat((cash/totalCADDash*100).toFixed(1))];
     updateDonut(cashAllocChart,labels,values,['#00ff88','#00d9ff']);
     buildLegend('cash-alloc-legend',labels,values,['#00ff88','#00d9ff']);
   }
@@ -2316,15 +2322,15 @@ function renderAllocDashboard(){
 
 function renderAllocCharts(){
   const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
-  const totalUSD=totalSizeUSD+cash;
+  const totalCAD=totalSizeUSD*fxRate+cash; // cash déjà en CAD
 
   // Hero header
   const heroTotal=document.getElementById('alloc-hero-total');
-  if(heroTotal)heroTotal.textContent=fmtAmtRound(totalUSD*fxRate);
+  if(heroTotal)heroTotal.textContent=fmtAmtRound(totalCAD);
   const heroPos=document.getElementById('alloc-hero-pos');
   if(heroPos)heroPos.textContent=fmtAmtRound(totalSizeUSD*fxRate);
   const heroCash=document.getElementById('alloc-hero-cash');
-  if(heroCash)heroCash.textContent=fmtAmtRound(cash*fxRate);
+  if(heroCash)heroCash.textContent=fmtAmtRound(cash); // cash déjà en CAD
   const heroNb=document.getElementById('alloc-hero-nbpos');
   if(heroNb)heroNb.textContent=positions.length+' positions actives';
 
@@ -2420,14 +2426,4 @@ function initCharts(){
   allocSymChart=mkDonut('allocSymChart',[],[],[]);
   allocCatChart=mkDonut('allocCatChart',[],[],[]);
   celiChart=mkDonut('celiChart',[],[],[]);
-  celiappChart=mkDonut('celiappChart',[],[],[]);
-  cryptoAllocChart=mkDonut('cryptoAllocChart',[],[],[]);
-}
-
-document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelClose();});
-document.getElementById('cash-modal-overlay').addEventListener('click',function(e){if(e.target===this)closeCashPopup();});
-document.getElementById('edit-modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelEdit();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){cancelClose();cancelEdit();}});
-</script>
-</body>
-</html>
+  celiappChart=mkDonut('ce
