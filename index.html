@@ -972,8 +972,8 @@ function fmt$(n){return fmtAmt(Math.abs(n)*fxRate);}
 function fmtPnl$(n){return(n>=0?'+':'-')+fmtAmt(Math.abs(n*fxRate));}
 function fmtPct(n){return(n>=0?'+':'')+n.toFixed(2)+'%';}
 function fmtPrice(p){return p>100?p.toFixed(2):p.toFixed(4);}
-function fmtC(n,posCur){const pc=posCur||'USD';let usd=pc==='USD'?n:n/(FX_FALLBACK[pc]||1);return fmtAmt(usd*fxRate);}
-function fmtCpnl(n,posCur){const pc=posCur||'USD';let usd=pc==='USD'?n:n/(FX_FALLBACK[pc]||1);const v=usd*fxRate;return(v>=0?'+':'-')+fmtAmt(Math.abs(v));}
+function fmtC(n,posCur){return fmtAmt(toUSD(n,posCur||'USD')*fxRate);}
+function fmtCpnl(n,posCur){const v=toUSD(n,posCur||'USD')*fxRate;return(v>=0?'+':'-')+fmtAmt(Math.abs(v));}
 
 // ─── AUTH ────────────────────────────────────────────────────────
 function switchAuthTab(tab,el){document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');document.getElementById('auth-login').style.display=tab==='login'?'block':'none';document.getElementById('auth-signup').style.display=tab==='signup'?'block':'none';}
@@ -1632,7 +1632,7 @@ function editStrategy(id){
   openStratModal(s);
 }
 
-function openStratDetails(id){alert('Modal détails pour '+id+' — étape suivante');}
+function openStratDetails(id){const s=strategies.find(s=>s.id===id);if(s)openStratModal(s);}
 
 
 async function loadPortfolioHistory(){
@@ -1658,20 +1658,15 @@ async function saveSnapshot(valueCAD){
   const valueInCurrency=parseFloat(valueCAD.toFixed(2)); // déjà en devise du compte
   const today=new Date().toISOString().split('T')[0];
   try{
-    // Vérifier si une entrée existe déjà pour aujourd'hui
-    const checkRes=await fetch(`${SB_URL}/rest/v1/portfolio_history?user_id=eq.${currentUser.id}&date=eq.${today}&select=date`,{headers:sbHeaders()});
-    const existing=await checkRes.json();
-    if(existing&&existing.length>0){
-      // Ligne existante → ne pas écraser (préserver le snapshot cron 22h)
-      console.log(`[snapshot] Snapshot du jour déjà présent (${today}), ignoré.`);
-    }else{
-      // Pas de ligne → INSERT
-      await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:today,value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
-    }
-    // Mettre à jour le cache local seulement si pas déjà présent
-    const idxLocal=portfolioHistory.findIndex(h=>h.date===today);
-    if(idxLocal<0){portfolioHistory.push({date:today,value:valueInCurrency,currency:accountCurrency});portfolioHistory.sort((a,b)=>a.date.localeCompare(b.date));console.log(`[snapshot] Nouveau snapshot: ${valueInCurrency} ${accountCurrency} pour ${today}`);}
-    else{console.log(`[snapshot] Cache local déjà à jour pour ${today}.`);}
+    // INSERT uniquement si pas de ligne existante (ignore-duplicates préserve le cron 22h)
+    // → 1 seul appel Supabase au lieu de SELECT+PATCH
+    const r=await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:today,value:valueInCurrency,currency:accountCurrency,updated_at:new Date().toISOString()})});
+    if(r.status===201){
+      // Mettre à jour le cache local
+      const idxLocal=portfolioHistory.findIndex(h=>h.date===today);
+      if(idxLocal<0){portfolioHistory.push({date:today,value:valueInCurrency,currency:accountCurrency});portfolioHistory.sort((a,b)=>a.date.localeCompare(b.date));}
+      console.log(`[snapshot] Nouveau snapshot: ${valueInCurrency} ${accountCurrency} pour ${today}`);
+    }else{console.log(`[snapshot] Snapshot ${today} déjà présent, ignoré.`);}
   }catch(e){console.error('[snapshot] Erreur:',e);}
 }
 // Ne plus écrire l'interpolation dans Supabase — ça écrasait les vraies valeurs.
@@ -1873,7 +1868,7 @@ async function startApp(){
   }
   // Maintenant charger l'historique (migration USD→accountCurrency si besoin)
   await loadPortfolioHistory();
-  await cleanInterpolatedSnapshots();
+  // cleanInterpolatedSnapshots désactivé — heuristique trop agressive (supprime de vrais snapshots en tendance linéaire)
   // Pré-cacher les taux des devises de positions non-USD et non-accountCurrency
   const posCurrencies=[...new Set(positions.map(p=>p.currency||'USD').filter(c=>c!=='USD'&&c!==accountCurrency))];
   await fetchAndCacheFxRates(posCurrencies);
@@ -2453,4 +2448,5 @@ function renderAllocCharts(){
   const celiappTotal=celiappPos.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
   const celiappTotalEl=document.getElementById('celiapp-total');
   if(celiappTotalEl)celiappTotalEl.textContent=fmtAmtRound(celiappTotal*fxRate);
-  if(celiappTotal>0){const d=mkDonutData(celiappPos.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'})),celiappTotal);updateDonut(celiappChart,d.labels,d.values,COLORS.slice(0,d.labels.length));buildLe
+  if(celiappTotal>0){const d=mkDonutData(celiappPos.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'})),celiappTotal);updateDonut(celiappChart,d.labels,d.values,COLORS.slice(0,d.labels.length));buildLegend('celiapp-legend',d.labels,d.values,COLORS.slice(0,d.labels.length));}
+  else{updateDonut(celiappChart,[],[],[]);document.getElementById('celiapp-legend').innerHTML='<div class="alloc-empty-state">Aucune posit
