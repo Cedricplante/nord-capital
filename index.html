@@ -643,6 +643,39 @@
         </div>
       </div>
 
+      <!-- Analytics avancés -->
+      <div class="card" style="margin-bottom:1.25rem;" id="analytics-card">
+        <div class="card-title" style="margin-bottom:1rem;">
+          <span>Analytics avancés</span>
+          <span style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;" id="analytics-period-label"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="analytics-grid">
+          <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:14px 16px;">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:6px;">CAGR</div>
+            <div style="font-size:22px;font-weight:700;font-family:var(--mono);" id="analytics-cagr" data-sensitive>—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px;">rendement annualisé</div>
+          </div>
+          <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:14px 16px;">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Volatilité</div>
+            <div style="font-size:22px;font-weight:700;font-family:var(--mono);" id="analytics-vol" data-sensitive>—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px;">annualisée (σ)</div>
+          </div>
+          <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:14px 16px;">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Sharpe ratio</div>
+            <div style="font-size:22px;font-weight:700;font-family:var(--mono);" id="analytics-sharpe" data-sensitive>—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px;">taux sans risque 4%</div>
+          </div>
+          <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:14px 16px;">
+            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Max Drawdown</div>
+            <div style="font-size:22px;font-weight:700;font-family:var(--mono);" id="analytics-mdd" data-sensitive>—</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:4px;" id="analytics-mdd-sub">depuis ATH</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--bg3);border-radius:6px;font-size:10px;color:var(--text3);line-height:1.6;" id="analytics-note">
+          Calculé depuis les snapshots quotidiens du portfolio. Min. 30 jours de données requis.
+        </div>
+      </div>
+
       <!-- Section principale : 2 grands donuts -->
       <div class="alloc-section-title">Répartition globale</div>
       <div class="alloc-grid-2">
@@ -2983,6 +3016,7 @@ function switchTab(name,el){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');el.classList.add('active');
   if(name==='watchlist'){renderWatchlist();refreshWatchlist();}
+  if(name==='allocation'){renderAnalytics();}
   if(name==='allocation')renderAllocCharts();
 }
 function setPeriod(p,el){document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');activePeriod=p;updatePerfChart();}
@@ -3293,7 +3327,98 @@ function renderMilestones(){
   }).join('');
   body.innerHTML=rows;
 }
-function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderMilestones();}
+function computeAnalytics(history){
+  // Besoin d'au moins 30 points
+  if(!history||history.length<10)return null;
+  const vals=history.map(h=>h.value).filter(v=>v>0);
+  if(vals.length<10)return null;
+
+  // Rendements journaliers
+  const returns=[];
+  for(let i=1;i<vals.length;i++){
+    if(vals[i-1]>0)returns.push((vals[i]-vals[i-1])/vals[i-1]);
+  }
+  if(!returns.length)return null;
+
+  // Volatilité annualisée (std dev journalière × √252)
+  const mean=returns.reduce((s,r)=>s+r,0)/returns.length;
+  const variance=returns.reduce((s,r)=>s+Math.pow(r-mean,2),0)/(returns.length-1);
+  const stdDaily=Math.sqrt(variance);
+  const volAnnual=stdDaily*Math.sqrt(252)*100; // %
+
+  // CAGR
+  const first=vals[0],last=vals[vals.length-1];
+  const d0=new Date(history[0].date),d1=new Date(history[history.length-1].date);
+  const years=(d1-d0)/(1000*60*60*24*365.25);
+  const cagr=years>=0.1?( Math.pow(last/first,1/years)-1)*100:null;
+
+  // Sharpe (taux sans risque 4%/an → journalier)
+  const rfDaily=0.04/252;
+  const excessMean=mean-rfDaily;
+  const sharpe=stdDaily>0?(excessMean/stdDaily)*Math.sqrt(252):null;
+
+  // Max Drawdown
+  let peak=vals[0],maxDD=0,peakDate=history[0].date,troughDate=history[0].date,ddPeakDate=history[0].date;
+  for(let i=1;i<vals.length;i++){
+    if(vals[i]>peak){peak=vals[i];ddPeakDate=history[i].date;}
+    const dd=(peak-vals[i])/peak*100;
+    if(dd>maxDD){maxDD=dd;peakDate=ddPeakDate;troughDate=history[i].date;}
+  }
+
+  // ATH actuel vs valeur courante
+  const ath=Math.max(...vals);
+  const athDrawdown=last<ath?(ath-last)/ath*100:0;
+
+  const nbDays=Math.round((d1-d0)/(1000*60*60*24));
+  return{volAnnual,cagr,sharpe,maxDD,peakDate,troughDate,athDrawdown,ath,nbDays,nbPoints:vals.length};
+}
+
+function renderAnalytics(){
+  const analytics=computeAnalytics(portfolioHistory);
+  const cagrEl=document.getElementById('analytics-cagr');
+  const volEl=document.getElementById('analytics-vol');
+  const sharpeEl=document.getElementById('analytics-sharpe');
+  const mddEl=document.getElementById('analytics-mdd');
+  const mddSub=document.getElementById('analytics-mdd-sub');
+  const periodLabel=document.getElementById('analytics-period-label');
+  const noteEl=document.getElementById('analytics-note');
+
+  if(!analytics){
+    [cagrEl,volEl,sharpeEl,mddEl].forEach(el=>{if(el)el.textContent='—';});
+    if(noteEl)noteEl.textContent="Pas assez de données (min. 10 snapshots). L'historique se construit automatiquement chaque soir.";
+    return;
+  }
+
+  const{volAnnual,cagr,sharpe,maxDD,peakDate,troughDate,athDrawdown,nbDays,nbPoints}=analytics;
+
+  if(periodLabel)periodLabel.textContent=`${nbPoints} snapshots · ${nbDays} jours d'historique`;
+  if(noteEl)noteEl.textContent=`Calculé sur ${nbPoints} snapshots quotidiens (${nbDays} jours). Sharpe avec taux sans risque 4%/an.`;
+
+  // CAGR
+  if(cagrEl&&cagr!==null){
+    cagrEl.textContent=(cagr>=0?'+':'')+cagr.toFixed(1)+'%';
+    cagrEl.style.color=cagr>=0?'var(--green)':'var(--red)';
+  }
+  // Volatilité
+  if(volEl){
+    volEl.textContent=volAnnual.toFixed(1)+'%';
+    volEl.style.color=volAnnual<20?'var(--green)':volAnnual<40?'var(--amber)':'var(--red)';
+  }
+  // Sharpe
+  if(sharpeEl&&sharpe!==null){
+    sharpeEl.textContent=sharpe.toFixed(2);
+    sharpeEl.style.color=sharpe>=1?'var(--green)':sharpe>=0?'var(--amber)':'var(--red)';
+  }
+  // Max Drawdown
+  if(mddEl){
+    mddEl.textContent='-'+maxDD.toFixed(1)+'%';
+    mddEl.style.color=maxDD<10?'var(--green)':maxDD<25?'var(--amber)':'var(--red)';
+  }
+  if(mddSub&&peakDate&&troughDate){
+    mddSub.textContent=`pic ${peakDate} → creux ${troughDate}`;
+  }
+}
+function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderMilestones();renderAnalytics();}
 
 function initCharts(){
   if(chartsInitialized)return;chartsInitialized=true;
