@@ -90,7 +90,7 @@
 
   /* CARDS */
   .grid-2-1 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; align-items: stretch; }
-  .grid-2-1 .card { height: 290px; margin-bottom: 0; }
+  .grid-2-1 .card { height: 340px; margin-bottom: 0; }
   .grid-2-1 .card .chart-wrap { flex: 1; }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
@@ -1227,7 +1227,72 @@ const SYMBOLS=[
   {s:'CONL',n:'GraniteShares 2x Long COIN',inst:'NASDAQ',cat:'ETF Levier',cur:'USD'},
   {s:'HQU.TO',n:'Horizons BetaPro NASDAQ-100 2x Bull',inst:'TSX',cat:'ETF Levier',cur:'CAD'},
   {s:'HXU.TO',n:'Horizons BetaPro S&P/TSX 60 2x Bull',inst:'TSX',cat:'ETF Levier',cur:'CAD'},
-    {s:'EUR/USD',n:'Euro / Dollar US',inst:'Forex',cat:'Forex',cur:'USD'},{s:'GBP/USD',n:'Livre Sterling / Dollar',inst:'Forex',cat:'Forex',cur:'USD'},
+  // Actions US — supplémentaires
+  {s:'ORCL',n:'Oracle Corporation',inst:'NYSE',cat:'Action',cur:'USD'},{s:'ADBE',n:'Adobe Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'QCOM',n:'Qualcomm Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'TXN',n:'Texas Instruments',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'AVGO',n:'Broadcom Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'MU',n:'Micron Technology',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'LRCX',n:'Lam Research Corp.',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'KLAC',n:'KLA Corporation',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'AMAT',n:'Applied Materials',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'ANET',n:'Arista Networks',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'ZS',n:'Zscaler Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'OKTA',n:'Okta Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'HUBS',n:'HubSpot Inc.',inst:'NYSE',cat:'Action',cur:'USD'},{s:'TEAM',n:'Atlassian Corporation',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'WDAY',n:'Workday Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'APP',n:'Applovin Corporation',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'CELH',n:'Celsius Holdings',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'DUOL',n:'Duolingo Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'AXON',n:'Axon Enterprise',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'FTNT',n:'Fortinet Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'TTD',n:'The Trade Desk',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'ROKU',n:'Roku Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'PYPL',n:'PayPal Holdings',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'SQ',n:'Block Inc.',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'ABNB',n:'Airbnb Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'LYFT',n:'Lyft Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'SNAP',n:'Snap Inc.',inst:'NYSE',cat:'Action',cur:'USD'},{s:'PINS',n:'Pinterest Inc.',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'SPOT',n:'Spotify Technology',inst:'NYSE',cat:'Action',cur:'USD'},{s:'DASH',n:'DoorDash Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'IONQ',n:'IonQ Inc.',inst:'NYSE',cat:'Action',cur:'USD'},{s:'QUBT',n:'Quantum Computing Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'RGTI',n:'Rigetti Computing',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'AI',n:'C3.ai Inc.',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'BBAI',n:'BigBear.ai Holdings',inst:'NYSE',cat:'Action',cur:'USD'},{s:'SOUN',n:'SoundHound AI',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'ACHR',n:'Archer Aviation',inst:'NYSE',cat:'Action',cur:'USD'},{s:'JOBY',n:'Joby Aviation',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'LUNR',n:'Intuitive Machines',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'RDW',n:'Redwire Corporation',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'LMT',n:'Lockheed Martin',inst:'NYSE',cat:'Action',cur:'USD'},{s:'RTX',n:'RTX Corporation',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'BA',n:'Boeing Company',inst:'NYSE',cat:'Action',cur:'USD'},{s:'GE',n:'GE Aerospace',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'DIS',n:'Walt Disney Company',inst:'NYSE',cat:'Action',cur:'USD'},{s:'CMCSA',n:'Comcast Corporation',inst:'NASDAQ',cat:'Action',cur:'USD'},
+  {s:'T',n:'AT&T Inc.',inst:'NYSE',cat:'Action',cur:'USD'},{s:'VZ',n:'Verizon Communications',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'PFE',n:'Pfizer Inc.',inst:'NYSE',cat:'Action',cur:'USD'},{s:'JNJ',n:'Johnson & Johnson',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'MRK',n:'Merck & Co.',inst:'NYSE',cat:'Action',cur:'USD'},{s:'LLY',n:'Eli Lilly and Company',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'NVO',n:'Novo Nordisk A/S (ADR)',inst:'NYSE',cat:'Action',cur:'USD'},{s:'ABBV',n:'AbbVie Inc.',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'XOM',n:'Exxon Mobil Corporation',inst:'NYSE',cat:'Action',cur:'USD'},{s:'CVX',n:'Chevron Corporation',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'BRK-B',n:'Berkshire Hathaway B',inst:'NYSE',cat:'Action',cur:'USD'},{s:'KO',n:'Coca-Cola Company',inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'PEP',n:'PepsiCo Inc.',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'MCD',n:"McDonald's Corporation",inst:'NYSE',cat:'Action',cur:'USD'},
+  {s:'SBUX',n:'Starbucks Corporation',inst:'NASDAQ',cat:'Action',cur:'USD'},{s:'NKE',n:'Nike Inc.',inst:'NYSE',cat:'Action',cur:'USD'},
+  // Actions canadiennes — supplémentaires
+  {s:'CNQ.TO',n:'Canadian Natural Resources',inst:'TSX',cat:'Action',cur:'CAD'},{s:'TRP.TO',n:'TC Energy Corp.',inst:'TSX',cat:'Action',cur:'CAD'},
+  {s:'MFC.TO',n:'Manulife Financial',inst:'TSX',cat:'Action',cur:'CAD'},{s:'SLF.TO',n:'Sun Life Financial',inst:'TSX',cat:'Action',cur:'CAD'},
+  {s:'POW.TO',n:'Power Corporation',inst:'TSX',cat:'Action',cur:'CAD'},{s:'IGM.TO',n:'IGM Financial',inst:'TSX',cat:'Action',cur:'CAD'},
+  {s:'ATD.TO',n:'Alimentation Couche-Tard',inst:'TSX',cat:'Action',cur:'CAD'},{s:'L.TO',n:'Loblaw Companies',inst:'TSX',cat:'Action',cur:'CAD'},
+  {s:'MRU.TO',n:'Metro Inc.',inst:'TSX',cat:'Action',cur:'CAD'},{s:'EMP-A.TO',n:'Empire Company',inst:'TSX',cat:'Action',cur:'CAD'},
+  {s:'TFII.TO',n:'TFI International',inst:'TSX',cat:'Action',cur:'CAD'},{s:'WSP.TO',n:'WSP Global',inst:'TSX',cat:'Action',cur:'CAD'},
+  {s:'CAE.TO',n:'CAE Inc.',inst:'TSX',cat:'Action',cur:'CAD'},{s:'TIXT.TO',n:'TELUS International',inst:'TSX',cat:'Action',cur:'CAD'},
+  {s:'OVV.TO',n:'Ovintiv Inc.',inst:'TSX',cat:'Action',cur:'CAD'},{s:'IMO.TO',n:'Imperial Oil',inst:'TSX',cat:'Action',cur:'CAD'},
+  // Crypto — supplémentaires
+  {s:'LDO/USD',n:'Lido DAO',inst:'Crypto',cat:'Crypto',cur:'USD'},{s:'RUNE/USD',n:'THORChain',inst:'Crypto',cat:'Crypto',cur:'USD'},
+  {s:'FTM/USD',n:'Fantom (FTM)',inst:'Crypto',cat:'Crypto',cur:'USD'},{s:'KAVA/USD',n:'Kava',inst:'Crypto',cat:'Crypto',cur:'USD'},
+  {s:'ONE/USD',n:'Harmony (ONE)',inst:'Crypto',cat:'Crypto',cur:'USD'},{s:'ROSE/USD',n:'Oasis Network',inst:'Crypto',cat:'Crypto',cur:'USD'},
+  {s:'SAND/USD',n:'The Sandbox',inst:'Crypto',cat:'Crypto',cur:'USD'},{s:'MANA/USD',n:'Decentraland',inst:'Crypto',cat:'Crypto',cur:'USD'},
+  {s:'AXS/USD',n:'Axie Infinity',inst:'Crypto',cat:'Crypto',cur:'USD'},{s:'CHZ/USD',n:'Chiliz',inst:'Crypto',cat:'Crypto',cur:'USD'},
+  {s:'FLUX/USD',n:'Flux',inst:'Crypto',cat:'Crypto',cur:'USD'},{s:'JASMY/USD',n:'JasmyCoin',inst:'Crypto',cat:'Crypto',cur:'USD'},
+  {s:'WLD/USD',n:'Worldcoin',inst:'Crypto',cat:'Crypto',cur:'USD'},{s:'STRK/USD',n:'Starknet',inst:'Crypto',cat:'Crypto',cur:'USD'},
+  {s:'ZRO/USD',n:'LayerZero',inst:'Crypto',cat:'Crypto',cur:'USD'},{s:'W/USD',n:'Wormhole',inst:'Crypto',cat:'Crypto',cur:'USD'},
+  {s:'BRETT/USD',n:'Brett (Base)',inst:'Crypto',cat:'Crypto',cur:'USD'},{s:'POPCAT/USD',n:'Popcat',inst:'Crypto',cat:'Crypto',cur:'USD'},
+  {s:'MOG/USD',n:'Mog Coin',inst:'Crypto',cat:'Crypto',cur:'USD'},{s:'TURBO/USD',n:'Turbo',inst:'Crypto',cat:'Crypto',cur:'USD'},
+  // ETF US — supplémentaires
+  {s:'IAU',n:'iShares Gold Trust',inst:'CBOE',cat:'ETF',cur:'USD'},{s:'GDX',n:'VanEck Gold Miners ETF',inst:'NYSE',cat:'ETF',cur:'USD'},
+  {s:'GDXJ',n:'VanEck Junior Gold Miners ETF',inst:'NYSE',cat:'ETF',cur:'USD'},{s:'PPLT',n:'Aberdeen Platinum ETF',inst:'NYSE',cat:'ETF',cur:'USD'},
+  {s:'DIA',n:'SPDR Dow Jones Industrial ETF',inst:'NYSE',cat:'ETF',cur:'USD'},{s:'MDY',n:'SPDR S&P MidCap 400 ETF',inst:'NYSE',cat:'ETF',cur:'USD'},
+  {s:'VIG',n:'Vanguard Dividend Appreciation ETF',inst:'NYSE',cat:'ETF',cur:'USD'},{s:'JEPI',n:'JPMorgan Equity Premium Income ETF',inst:'NYSE',cat:'ETF',cur:'USD'},
+  {s:'JEPQ',n:'JPMorgan Nasdaq Equity Premium ETF',inst:'NASDAQ',cat:'ETF',cur:'USD'},{s:'XYLD',n:'Global X S&P 500 Covered Call ETF',inst:'NYSE',cat:'ETF',cur:'USD'},
+  {s:'QYLD',n:'Global X NASDAQ 100 Covered Call ETF',inst:'NASDAQ',cat:'ETF',cur:'USD'},{s:'NUSI',n:'Nationwide Nasdaq-100 Risk-Managed ETF',inst:'NASDAQ',cat:'ETF',cur:'USD'},
+  {s:'HYG',n:'iShares iBoxx High Yield Corp Bond ETF',inst:'NYSE',cat:'ETF',cur:'USD'},{s:'LQD',n:'iShares iBoxx Investment Grade ETF',inst:'NYSE',cat:'ETF',cur:'USD'},
+  {s:'EMB',n:'iShares JP Morgan USD Emerging Markets Bond',inst:'NASDAQ',cat:'ETF',cur:'USD'},
+  // ETF Levier — supplémentaires
+  {s:'MSTU',n:'T-Rex 2x Long MSTR',inst:'NASDAQ',cat:'ETF Levier',cur:'USD'},{s:'MSTZ',n:'T-Rex 2x Inverse MSTR',inst:'NASDAQ',cat:'ETF Levier',cur:'USD'},
+  {s:'NVDU',n:'T-Rex 2x Long NVDA',inst:'NASDAQ',cat:'ETF Levier',cur:'USD'},{s:'TSLT',n:'T-Rex 2x Long TSLA',inst:'NASDAQ',cat:'ETF Levier',cur:'USD'},
+  {s:'AAPU',n:'Leverage Shares 2x Apple ETP',inst:'NASDAQ',cat:'ETF Levier',cur:'USD'},{s:'MSFU',n:'Leverage Shares 2x Microsoft ETP',inst:'NASDAQ',cat:'ETF Levier',cur:'USD'},
+  {s:'USD',n:'USD / Dollar américain',inst:'Devise',cat:'Forex',cur:'USD'},{s:'EUR/USD',n:'Euro / Dollar US',inst:'Forex',cat:'Forex',cur:'USD'},{s:'GBP/USD',n:'Livre Sterling / Dollar',inst:'Forex',cat:'Forex',cur:'USD'},
   {s:'USD/JPY',n:'Dollar / Yen japonais',inst:'Forex',cat:'Forex',cur:'JPY'},{s:'USD/CAD',n:'Dollar / Dollar canadien',inst:'Forex',cat:'Forex',cur:'CAD'},
   {s:'AUD/USD',n:'Dollar australien / Dollar',inst:'Forex',cat:'Forex',cur:'USD'},{s:'USD/CHF',n:'Dollar / Franc suisse',inst:'Forex',cat:'Forex',cur:'CHF'},
   {s:'EUR/GBP',n:'Euro / Livre Sterling',inst:'Forex',cat:'Forex',cur:'GBP'},{s:'EUR/JPY',n:'Euro / Yen japonais',inst:'Forex',cat:'Forex',cur:'JPY'},
@@ -3088,28 +3153,32 @@ function updatePerfChart(){
   fetchSpyHistory(range).then(spyRaw=>{
     // Construire map date→prix SPY
     const spyMap=new Map(spyRaw.map(p=>[p.date,p.close]));
-    const portStart=sampled[0].value;
-    const spyPriceStart=findSpyPrice(spyMap,sampled[0].date);
+    // Trouver le premier point du portfolio qui a un prix SPY disponible
+    let portStart=sampled[0].value;
+    let spyPriceStart=null;
+    let alignIdx=0;
+    for(let i=0;i<sampled.length;i++){
+      const sp=findSpyPrice(spyMap,sampled[i].date);
+      if(sp){spyPriceStart=sp;portStart=sampled[i].value;alignIdx=i;break;}
+    }
 
     perfChart.data.labels=sampled.map(h=>h.date.slice(5));
 
     if(benchmarkMode==='absolute'){
-      // Mode $ : portfolio en valeur absolue, SPY simulé calé sur la valeur de départ
       perfChart.data.datasets[0].data=sampled.map(h=>parseFloat(h.value.toFixed(2)));
-      perfChart.data.datasets[1].data=spyPriceStart?sampled.map(h=>{
+      perfChart.data.datasets[1].data=spyPriceStart?sampled.map((h,i)=>{
+        if(i<alignIdx)return null;
         const sp=findSpyPrice(spyMap,h.date);
         return sp?parseFloat((portStart*(sp/spyPriceStart)).toFixed(2)):null;
       }):[];
-      // Y-axis en $
       perfChart.options.scales.y.ticks.callback=v=>fmtAmtRound(v);
     }else{
-      // Mode % : variation relative depuis le début de la période
       perfChart.data.datasets[0].data=sampled.map(h=>parseFloat(((h.value/portStart-1)*100).toFixed(2)));
-      perfChart.data.datasets[1].data=spyPriceStart?sampled.map(h=>{
+      perfChart.data.datasets[1].data=spyPriceStart?sampled.map((h,i)=>{
+        if(i<alignIdx)return null;
         const sp=findSpyPrice(spyMap,h.date);
         return sp?parseFloat(((sp/spyPriceStart-1)*100).toFixed(2)):null;
       }):[];
-      // Y-axis en %
       perfChart.options.scales.y.ticks.callback=v=>v.toFixed(1)+'%';
     }
     perfChart.update();
