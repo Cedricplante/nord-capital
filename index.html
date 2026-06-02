@@ -239,6 +239,13 @@
   .milestone-done { opacity:0.45; }
   .milestone-done .milestone-label { color:var(--green); }
   .milestone-check { font-size:11px; color:var(--green); min-width:14px; }
+  .wl-table { width:100%; border-collapse:collapse; }
+  .wl-table th { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.8px; font-family:var(--sans); font-weight:600; padding:6px 10px; text-align:left; border-bottom:0.5px solid var(--border2); }
+  .wl-table td { padding:9px 10px; font-size:12px; border-bottom:0.5px solid var(--border); vertical-align:middle; }
+  .wl-table tr:last-child td { border-bottom:none; }
+  .wl-table tr:hover td { background:var(--bg3); }
+  .wl-sym { font-family:var(--mono); font-weight:700; color:var(--text); }
+  .wl-name { color:var(--text3); font-size:10px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .saving-indicator { font-family: var(--sans); font-size: 10px; color: var(--green); position: fixed; bottom: 14px; right: 18px; opacity: 0; transition: opacity 0.3s; background: var(--bg2); padding: 5px 12px; border-radius: 6px; border: 0.5px solid rgba(0,255,136,0.3); font-weight: 600; }
   .saving-indicator.visible { opacity: 1; }
   .live-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
@@ -371,6 +378,7 @@
       <button class="nav-tab" onclick="switchTab('strategie',this)" style="position:relative;">Stratégie<span id="strat-badge" style="display:none;position:absolute;top:2px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);"></span></button>
       <button class="nav-tab" onclick="switchTab('historique',this)">Historique</button>
       <button class="nav-tab" onclick="switchTab('allocation',this)">Allocation</button>
+      <button class="nav-tab" onclick="switchTab('watchlist',this)">Watchlist</button>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
       <button class="btn-eye" id="btn-eye" onclick="toggleHideAmounts()" title="Cacher/afficher les montants">👁</button>
@@ -799,6 +807,30 @@
       <button class="btn" style="flex:1;padding:10px;" onclick="confirmClose()">Confirmer &amp; libérer le cash</button>
       <button class="btn-ghost" style="padding:10px 16px;" onclick="cancelClose()">Annuler</button>
     </div>
+  </div>
+</div>
+
+    <!-- WATCHLIST -->
+    <div id="tab-watchlist" class="section">
+      <div class="card" style="max-width:700px;">
+        <div class="card-title">Ajouter un ticker</div>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr auto;gap:10px;align-items:flex-end;">
+          <div class="field"><label>Symbole</label>
+            <div class="autocomplete-wrap"><input type="text" id="wl-symbol" placeholder="NVDA, BTC/USD…" autocomplete="off" oninput="onSymbolInput(this.value,'wl-symbol','wl-dropdown')" onkeydown="onWlKey(event)" /><div class="autocomplete-list" id="wl-dropdown"></div></div>
+          </div>
+          <div class="field"><label>Note <span style="color:var(--text3);font-weight:400;">(optionnel)</span></label><input type="text" id="wl-note" placeholder="Ex: attendre recul…" /></div>
+          <div class="field"><label>&nbsp;</label><button class="btn" onclick="addToWatchlist()">+ Ajouter</button></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:8px;">
+        <div class="card-title">
+          <span>Tickers suivis</span>
+          <button class="btn-ghost" onclick="refreshWatchlist()" style="padding:5px 12px;font-size:11px;" id="wl-refresh-btn">↻ Actualiser</button>
+        </div>
+        <div id="wl-body"><div style="color:var(--text3);font-size:12px;text-align:center;padding:2rem;">Aucun ticker en watchlist. Ajoute-en un ci-dessus.</div></div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -2051,15 +2083,17 @@ async function fetchLivePrices(){
 // ─── AUTOCOMPLETE ─────────────────────────────────────────────────
 let acIndex=-1;
 function calcMontant(){const e=parseFloat(document.getElementById('f-entry').value),s=parseFloat(document.getElementById('f-shares').value);if(!isNaN(e)&&!isNaN(s)&&e>0&&s>0)document.getElementById('f-size').value=(e*s).toFixed(2);else document.getElementById('f-size').value='';}
-function onSymbolInput(val){
-  const list=document.getElementById('symbol-dropdown');if(!val||val.length<1){list.classList.remove('open');return;}
+function onSymbolInput(val, inputId='f-symbol', dropdownId='symbol-dropdown'){
+  const list=document.getElementById(dropdownId);if(!val||val.length<1){list.classList.remove('open');return;}
   const q=val.toUpperCase();
   const matches=SYMBOLS.filter(s=>s.s.toUpperCase().includes(q)||s.n.toUpperCase().includes(q)||(s.inst&&s.inst.toUpperCase().includes(q))).slice(0,12);
   if(!matches.length){list.classList.remove('open');return;}acIndex=-1;
+  const isWl=dropdownId==='wl-dropdown';
   list.innerHTML=matches.map(s=>{
     const secondLine=s.cat==='ETF'||s.cat==='ETF Levier'?`${s.inst} · ${s.n}`:s.n;
     const tickerHL=s.s.toUpperCase().includes(q)?s.s.replace(new RegExp(q,'i'),m=>`<span style="color:var(--blue);font-weight:700;">${m}</span>`):s.s;
-    return`<div class="autocomplete-item" data-symbol="${s.s}" data-cur="${s.cur}" onclick="selectSymbol('${s.s}','${s.cur}')"><div style="display:flex;flex-direction:column;gap:2px;min-width:0;"><div style="display:flex;align-items:center;gap:8px;"><span class="sym-label">${tickerHL}</span><span style="font-size:9px;padding:1px 5px;background:var(--bg4);border:1px solid var(--border);border-radius:3px;color:var(--text3);white-space:nowrap;">${s.cat}</span><span style="font-size:9px;color:var(--amber);">${s.cur}</span></div><div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${secondLine}</div></div></div>`;
+    const onclick=isWl?`pickWlSymbol('${s.s}')`:`selectSymbol('${s.s}','${s.cur}')`;
+    return`<div class="autocomplete-item" data-symbol="${s.s}" data-cur="${s.cur}" onclick="${onclick}"><div style="display:flex;flex-direction:column;gap:2px;min-width:0;"><div style="display:flex;align-items:center;gap:8px;"><span class="sym-label">${tickerHL}</span><span style="font-size:9px;padding:1px 5px;background:var(--bg4);border:1px solid var(--border);border-radius:3px;color:var(--text3);white-space:nowrap;">${s.cat}</span><span style="font-size:9px;color:var(--amber);">${s.cur}</span></div><div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${secondLine}</div></div></div>`;
   }).join('');
   list.classList.add('open');
 }
@@ -2077,7 +2111,100 @@ function selectSymbol(sym,cur){
   const ticker=getTicker(sym);
   fetch(`/api/prices?symbols=${encodeURIComponent(ticker)}`).then(r=>r.json()).then(data=>{const p=data[ticker];if(p&&p>0)document.getElementById('f-current').value=p;}).catch(()=>{});
 }
-document.addEventListener('click',e=>{if(!e.target.closest('.autocomplete-wrap'))document.getElementById('symbol-dropdown').classList.remove('open');});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.autocomplete-wrap')){
+    document.getElementById('symbol-dropdown').classList.remove('open');
+    const wld=document.getElementById('wl-dropdown');if(wld)wld.classList.remove('open');
+  }
+});
+
+// ─── WATCHLIST ───────────────────────────────────────────────────
+let watchlist = [];
+function loadWatchlist(){ try{ watchlist=JSON.parse(localStorage.getItem('nc_watchlist')||'[]'); }catch(e){ watchlist=[]; } }
+function saveWatchlist(){ localStorage.setItem('nc_watchlist', JSON.stringify(watchlist)); }
+
+function pickWlSymbol(sym){
+  document.getElementById('wl-symbol').value=sym;
+  const d=document.getElementById('wl-dropdown');if(d)d.classList.remove('open');
+}
+function onWlKey(e){
+  const list=document.getElementById('wl-dropdown'),items=list?list.querySelectorAll('.autocomplete-item'):[];
+  if(e.key==='ArrowDown'){acIndex=Math.min(acIndex+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('selected',i===acIndex));e.preventDefault();}
+  else if(e.key==='ArrowUp'){acIndex=Math.max(acIndex-1,0);items.forEach((el,i)=>el.classList.toggle('selected',i===acIndex));e.preventDefault();}
+  else if(e.key==='Enter'){if(acIndex>=0){const sel=items[acIndex];if(sel)pickWlSymbol(sel.dataset.symbol);}else addToWatchlist();}
+  else if(e.key==='Escape'&&list)list.classList.remove('open');
+}
+function addToWatchlist(){
+  const sym=document.getElementById('wl-symbol').value.trim().toUpperCase();
+  const note=document.getElementById('wl-note').value.trim();
+  if(!sym){ alert('Entre un symbole.'); return; }
+  if(watchlist.find(w=>w.symbol===sym)){ alert(sym+' est déjà dans ta watchlist.'); return; }
+  watchlist.push({symbol:sym, note, addedAt:new Date().toISOString()});
+  saveWatchlist();
+  document.getElementById('wl-symbol').value='';
+  document.getElementById('wl-note').value='';
+  renderWatchlist();
+  refreshWatchlist();
+}
+function removeFromWatchlist(sym){
+  watchlist=watchlist.filter(w=>w.symbol!==sym);
+  saveWatchlist();
+  renderWatchlist();
+}
+function updateWlNote(sym, note){
+  const w=watchlist.find(w=>w.symbol===sym);
+  if(w){ w.note=note; saveWatchlist(); }
+}
+function renderWatchlist(){
+  const body=document.getElementById('wl-body');
+  if(!body)return;
+  if(!watchlist.length){
+    body.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:2rem;">Aucun ticker en watchlist. Ajoute-en un ci-dessus.</div>';
+    return;
+  }
+  body.innerHTML=`<table class="wl-table">
+    <thead><tr>
+      <th>Symbole</th><th>Prix</th><th>24h</th><th>Note</th><th>Ajouté</th><th></th>
+    </tr></thead>
+    <tbody>
+      ${watchlist.map(w=>{
+        const priceData=w._price;
+        const priceStr=priceData?`$${priceData.price.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:4})}`:'<span style="color:var(--text3);">—</span>';
+        const chg=priceData?.changePct;
+        const chgStr=chg!=null?`<span class="${chg>=0?'pos':'neg'}">${chg>=0?'+':''}${chg.toFixed(2)}%</span>`:'<span style="color:var(--text3);">—</span>';
+        const date=w.addedAt?new Date(w.addedAt).toLocaleDateString('fr-CA',{month:'short',day:'numeric'}):'—';
+        const alsoInPortfolio=positions.find(p=>p.symbol===w.symbol);
+        const portBadge=alsoInPortfolio?'<span style="font-size:9px;color:var(--blue);margin-left:4px;">• portfolio</span>':'';
+        return`<tr>
+          <td><span class="wl-sym">${w.symbol}</span>${portBadge}</td>
+          <td style="font-family:var(--mono);">${priceStr}</td>
+          <td>${chgStr}</td>
+          <td><input type="text" value="${(w.note||'').replace(/"/g,'&quot;')}" placeholder="Note…" onchange="updateWlNote('${w.symbol}',this.value)" style="background:transparent;border:none;border-bottom:0.5px solid var(--border);color:var(--text2);font-size:11px;font-family:var(--sans);width:100%;padding:2px 0;outline:none;" /></td>
+          <td style="color:var(--text3);font-size:10px;">${date}</td>
+          <td><button class="btn-danger" onclick="removeFromWatchlist('${w.symbol}')" style="padding:3px 8px;font-size:10px;">✕</button></td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+}
+async function refreshWatchlist(){
+  if(!watchlist.length)return;
+  const btn=document.getElementById('wl-refresh-btn');
+  if(btn){btn.textContent='⟳ Chargement…';btn.disabled=true;}
+  const symbols=watchlist.map(w=>getTicker(w.symbol)).join(',');
+  try{
+    const res=await fetch(`/api/prices?symbols=${encodeURIComponent(symbols)}&detail=1`);
+    const data=await res.json();
+    watchlist.forEach(w=>{
+      const t=getTicker(w.symbol);
+      const d=data[t];
+      if(d&&typeof d==='object'){ w._price={price:d.price,changePct:d.changePct,name:d.name}; }
+      else if(d&&typeof d==='number'){ w._price={price:d,changePct:null}; }
+    });
+    renderWatchlist();
+  }catch(e){ console.error('[watchlist] fetch error',e); }
+  if(btn){btn.textContent='↻ Actualiser';btn.disabled=false;}
+}
 
 // ─── INIT ─────────────────────────────────────────────────────────
 async function startApp(){
@@ -2089,6 +2216,7 @@ async function startApp(){
   initCharts();
   await loadData();
   await loadStrategies();
+  loadWatchlist();
   // Résoudre la devise AVANT de charger l'historique (pour la migration USD→devise)
   const effectiveCur=accountCurrency!=='USD'?accountCurrency:(localStorage.getItem('nc_currency')||'USD');
   accountCurrency=effectiveCur;
@@ -2584,6 +2712,7 @@ async function updateCash(){
 function switchTab(name,el){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');el.classList.add('active');
+  if(name==='watchlist'){renderWatchlist();refreshWatchlist();}
   if(name==='allocation')renderAllocCharts();
 }
 function setPeriod(p,el){document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');activePeriod=p;updatePerfChart();}

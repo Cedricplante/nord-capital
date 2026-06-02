@@ -33,7 +33,7 @@ async function fetchCoinGecko(symbols) {
   return prices;
 }
 
-async function fetchYahooSingle(symbol) {
+async function fetchYahooSingle(symbol, detail = false) {
   const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     'Accept': 'application/json',
@@ -44,16 +44,24 @@ async function fetchYahooSingle(symbol) {
     const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
     const r = await fetch(url, { headers });
     const data = await r.json();
-    const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-    if (price && price > 0) return price;
+    const meta = data?.chart?.result?.[0]?.meta;
+    const price = meta?.regularMarketPrice;
+    if (price && price > 0) {
+      if (detail) return { price, changePct: meta?.regularMarketChangePercent ?? null, name: meta?.shortName ?? symbol };
+      return price;
+    }
   } catch(e) {}
 
   try {
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}&fields=regularMarketPrice`;
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}&fields=regularMarketPrice,regularMarketChangePercent,shortName`;
     const r = await fetch(url, { headers });
     const data = await r.json();
-    const price = data?.quoteResponse?.result?.[0]?.regularMarketPrice;
-    if (price && price > 0) return price;
+    const q = data?.quoteResponse?.result?.[0];
+    const price = q?.regularMarketPrice;
+    if (price && price > 0) {
+      if (detail) return { price, changePct: q?.regularMarketChangePercent ?? null, name: q?.shortName ?? symbol };
+      return price;
+    }
   } catch(e) {}
 
   return null;
@@ -62,20 +70,13 @@ async function fetchYahooSingle(symbol) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  const { symbols } = req.query;
+  const { symbols, detail } = req.query;
+  const isDetail = detail === '1';
   
-  // Pas de symbols → retourner objet vide (pas 400 pour éviter les erreurs côté client)
-  if (!symbols) {
-    res.status(200).json({});
-    return;
-  }
+  if (!symbols) { res.status(200).json({}); return; }
 
   const symbolList = symbols.split(',').map(s => s.trim()).filter(Boolean);
-  
-  if (!symbolList.length) {
-    res.status(200).json({});
-    return;
-  }
+  if (!symbolList.length) { res.status(200).json({}); return; }
 
   const cgSymbols = symbolList.filter(s => COINGECKO_MAP[s]);
   const yahooSymbols = symbolList.filter(s => !COINGECKO_MAP[s]);
@@ -86,11 +87,14 @@ export default async function handler(req, res) {
     const [cgPrices] = await Promise.all([
       cgSymbols.length ? fetchCoinGecko(cgSymbols) : {},
     ]);
-    Object.assign(prices, cgPrices);
+    // CoinGecko: wrap en detail si besoin
+    for (const [sym, price] of Object.entries(cgPrices)) {
+      prices[sym] = isDetail ? { price, changePct: null, name: sym } : price;
+    }
 
     await Promise.all(yahooSymbols.map(async (symbol) => {
-      const price = await fetchYahooSingle(symbol);
-      if (price !== null) prices[symbol] = price;
+      const result = await fetchYahooSingle(symbol, isDetail);
+      if (result !== null) prices[symbol] = result;
     }));
 
     const fetched = Object.keys(prices).length;
