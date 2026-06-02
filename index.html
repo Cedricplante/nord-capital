@@ -227,6 +227,8 @@
   .auth-field label { display: block; font-size: 10px; color: var(--text3); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--sans); font-weight: 600; }
   .auth-error { font-size: 11px; color: var(--red); font-family: var(--sans); margin-top: 0.5rem; min-height: 16px; }
   .auth-btn { width: 100%; margin-top: 0.5rem; padding: 10px; font-size: 13px; }
+  .auth-link { display: block; text-align: center; font-size: 11px; color: var(--text3); font-family: var(--sans); margin-top: 0.85rem; cursor: pointer; text-decoration: none; transition: color 0.15s; }
+  .auth-link:hover { color: var(--green); }
   .saving-indicator { font-family: var(--sans); font-size: 10px; color: var(--green); position: fixed; bottom: 14px; right: 18px; opacity: 0; transition: opacity 0.3s; background: var(--bg2); padding: 5px 12px; border-radius: 6px; border: 0.5px solid rgba(0,255,136,0.3); font-weight: 600; }
   .saving-indicator.visible { opacity: 1; }
   .live-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
@@ -304,6 +306,21 @@
       <div class="auth-field"><label>Mot de passe</label><input type="password" id="login-password" placeholder="••••••••" /></div>
       <div class="auth-error" id="login-error"></div>
       <button class="btn auth-btn" onclick="handleLogin()">Se connecter</button>
+      <a class="auth-link" onclick="showForgot()">Mot de passe oublié ?</a>
+    </div>
+    <div id="auth-forgot" style="display:none;">
+      <div style="font-size:12px;color:var(--text2);font-family:var(--sans);margin-bottom:1rem;">Entre ton email et on t'envoie un lien de réinitialisation.</div>
+      <div class="auth-field"><label>Email</label><input type="email" id="forgot-email" placeholder="toi@exemple.com" /></div>
+      <div class="auth-error" id="forgot-error"></div>
+      <button class="btn auth-btn" onclick="handleForgotPassword()">Envoyer le lien</button>
+      <a class="auth-link" onclick="showLogin()">← Retour à la connexion</a>
+    </div>
+    <div id="auth-reset" style="display:none;">
+      <div style="font-size:12px;color:var(--text2);font-family:var(--sans);margin-bottom:1rem;">Choisis un nouveau mot de passe pour ton compte.</div>
+      <div class="auth-field"><label>Nouveau mot de passe</label><input type="password" id="reset-password" placeholder="Min. 6 caractères" /></div>
+      <div class="auth-field"><label>Confirmer</label><input type="password" id="reset-password-confirm" placeholder="••••••••" /></div>
+      <div class="auth-error" id="reset-error"></div>
+      <button class="btn auth-btn" onclick="handleResetPassword()">Enregistrer le mot de passe</button>
     </div>
     <div id="auth-signup" style="display:none;">
       <div class="auth-field"><label>Email</label><input type="email" id="signup-email" placeholder="toi@exemple.com" /></div>
@@ -1119,12 +1136,71 @@ function switchAuthTab(tab,el){document.querySelectorAll('.auth-tab').forEach(t=
 async function authFetch(endpoint,body){const res=await fetch(`${SB_URL}/auth/v1/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify(body)});return res.json();}
 async function handleLogin(){
   const email=document.getElementById('login-email').value.trim(),password=document.getElementById('login-password').value;
-  document.getElementById('login-error').textContent='';
-  const data=await authFetch('token?grant_type=password',{email,password});
-  if(!data.access_token){document.getElementById('login-error').textContent='Email ou mot de passe incorrect.';return;}
-  accessToken=data.access_token;currentUser=data.user;
-  localStorage.setItem('nc_token',accessToken);localStorage.setItem('nc_user',JSON.stringify(currentUser));
-  await startApp();
+  const errEl=document.getElementById('login-error');
+  errEl.textContent='';
+  if(!email||!password){errEl.textContent='Remplis tous les champs.';return;}
+  const btn=document.querySelector('#auth-login .auth-btn');btn.disabled=true;btn.textContent='Connexion...';
+  try{
+    const data=await authFetch('token?grant_type=password',{email,password});
+    if(!data.access_token){
+      const msg=data.error_description||data.msg||'Email ou mot de passe incorrect.';
+      errEl.textContent=msg;
+      btn.disabled=false;btn.textContent='Se connecter';
+      return;
+    }
+    accessToken=data.access_token;currentUser=data.user;
+    localStorage.setItem('nc_token',accessToken);localStorage.setItem('nc_user',JSON.stringify(currentUser));
+    await startApp();
+  }catch(e){
+    errEl.textContent='Erreur réseau. Vérifie ta connexion.';
+    btn.disabled=false;btn.textContent='Se connecter';
+  }
+}
+function showForgot(){
+  ['auth-login','auth-signup','auth-reset'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  document.getElementById('auth-forgot').style.display='block';
+  document.querySelector('.auth-tabs').style.display='none';
+}
+function showLogin(){
+  ['auth-forgot','auth-signup','auth-reset'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  document.getElementById('auth-login').style.display='block';
+  document.querySelector('.auth-tabs').style.display='flex';
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>{t.classList.toggle('active',i===0);});
+}
+async function handleForgotPassword(){
+  const email=document.getElementById('forgot-email').value.trim();
+  const errEl=document.getElementById('forgot-error');
+  errEl.style.color='var(--red)';errEl.textContent='';
+  if(!email){errEl.textContent='Entre ton adresse email.';return;}
+  const btn=document.querySelector('#auth-forgot .auth-btn');btn.disabled=true;btn.textContent='Envoi...';
+  try{
+    await fetch(`${SB_URL}/auth/v1/recover`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({email})});
+    errEl.style.color='var(--green)';errEl.textContent='Email envoyé ! Vérifie ta boîte de réception.';
+    btn.disabled=false;btn.textContent='Renvoyer';
+  }catch(e){
+    errEl.textContent='Erreur réseau. Réessaie.';
+    btn.disabled=false;btn.textContent='Envoyer le lien';
+  }
+}
+async function handleResetPassword(){
+  const pw=document.getElementById('reset-password').value;
+  const pw2=document.getElementById('reset-password-confirm').value;
+  const errEl=document.getElementById('reset-error');
+  errEl.style.color='var(--red)';errEl.textContent='';
+  if(pw.length<6){errEl.textContent='Min. 6 caractères.';return;}
+  if(pw!==pw2){errEl.textContent='Les mots de passe ne correspondent pas.';return;}
+  const btn=document.querySelector('#auth-reset .auth-btn');btn.disabled=true;btn.textContent='Enregistrement...';
+  try{
+    const token=window._resetToken;
+    const res=await fetch(`${SB_URL}/auth/v1/user`,{method:'PUT',headers:{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':`Bearer ${token}`},body:JSON.stringify({password:pw})});
+    const data=await res.json();
+    if(data.error){errEl.textContent=data.error.message||'Erreur.';btn.disabled=false;btn.textContent='Enregistrer le mot de passe';return;}
+    errEl.style.color='var(--green)';errEl.textContent='Mot de passe mis à jour ! Connecte-toi.';
+    setTimeout(()=>{window.location.hash='';showLogin();},2000);
+  }catch(e){
+    errEl.textContent='Erreur réseau. Réessaie.';
+    btn.disabled=false;btn.textContent='Enregistrer le mot de passe';
+  }
 }
 let signupThemeChoice='dark';
 function setSignupTheme(theme){
@@ -2027,6 +2103,19 @@ async function startApp(){
 }
 window.addEventListener('DOMContentLoaded',async()=>{
   const savedTheme=localStorage.getItem('nc_theme')||'dark';setTheme(savedTheme);
+  // Détection lien de reset mot de passe (#access_token=xxx&type=recovery)
+  const hash=window.location.hash.substring(1);
+  if(hash){
+    const params=Object.fromEntries(hash.split('&').map(p=>p.split('=')));
+    if(params.type==='recovery'&&params.access_token){
+      window._resetToken=params.access_token;
+      document.getElementById('auth-screen').style.display='flex';
+      ['auth-login','auth-signup','auth-forgot'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+      document.getElementById('auth-reset').style.display='block';
+      document.querySelector('.auth-tabs').style.display='none';
+      return;
+    }
+  }
   const token=localStorage.getItem('nc_token'),user=localStorage.getItem('nc_user');
   if(token&&user){try{const res=await fetch(`${SB_URL}/auth/v1/user`,{headers:{'apikey':SB_KEY,'Authorization':`Bearer ${token}`}});if(res.ok){accessToken=token;currentUser=JSON.parse(user);await startApp();return;}}catch(e){}}
   localStorage.removeItem('nc_token');localStorage.removeItem('nc_user');document.getElementById('auth-screen').style.display='flex';
