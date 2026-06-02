@@ -229,6 +229,16 @@
   .auth-btn { width: 100%; margin-top: 0.5rem; padding: 10px; font-size: 13px; }
   .auth-link { display: block; text-align: center; font-size: 11px; color: var(--text3); font-family: var(--sans); margin-top: 0.85rem; cursor: pointer; text-decoration: none; transition: color 0.15s; }
   .auth-link:hover { color: var(--green); }
+  .milestone-row { display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:0.5px solid var(--border); }
+  .milestone-row:last-child { border-bottom:none; }
+  .milestone-label { font-family:var(--mono); font-size:11px; color:var(--text2); min-width:72px; font-weight:600; }
+  .milestone-bar-wrap { flex:1; height:6px; background:var(--bg3); border-radius:3px; overflow:hidden; }
+  .milestone-bar { height:100%; border-radius:3px; transition:width 0.6s ease; }
+  .milestone-pct { font-family:var(--mono); font-size:10px; color:var(--text3); min-width:38px; text-align:right; }
+  .milestone-eta { font-family:var(--sans); font-size:10px; color:var(--text3); min-width:80px; text-align:right; white-space:nowrap; }
+  .milestone-done { opacity:0.45; }
+  .milestone-done .milestone-label { color:var(--green); }
+  .milestone-check { font-size:11px; color:var(--green); min-width:14px; }
   .saving-indicator { font-family: var(--sans); font-size: 10px; color: var(--green); position: fixed; bottom: 14px; right: 18px; opacity: 0; transition: opacity 0.3s; background: var(--bg2); padding: 5px 12px; border-radius: 6px; border: 0.5px solid rgba(0,255,136,0.3); font-weight: 600; }
   .saving-indicator.visible { opacity: 1; }
   .live-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
@@ -417,6 +427,13 @@
         </div>
         <div class="kpi"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div><div class="kpi-sub neu">actives</div></div>
         <div class="kpi"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
+      </div>
+      <div class="card" style="margin-bottom:10px;" id="milestones-card">
+        <div class="card-title" style="margin-bottom:0.6rem;">
+          <span>🏁 Milestones</span>
+          <span id="milestone-cagr-badge" style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;"></span>
+        </div>
+        <div id="milestones-body"></div>
       </div>
       <div class="grid-2-1">
         <div class="card" style="grid-column:span 2;">
@@ -2828,7 +2845,56 @@ function exportCSV(){
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='nord_capital_transactions.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 async function clearHistory(){if(!confirm('Effacer tout l\'historique ? Irréversible.'))return;trades=[];await saveData();renderAll();}
-function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();}
+function renderMilestones(){
+  const body=document.getElementById('milestones-body');
+  if(!body)return;
+  const MILESTONES=[10000,25000,50000,75000,100000,150000,250000,500000,1000000];
+  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
+  const totalCAD=totalSizeUSD*fxRate+cash;
+
+  // Calcul CAGR depuis le premier snapshot
+  let cagrPct=null,cagrLabel='';
+  if(portfolioHistory.length>=2){
+    const first=portfolioHistory[0],last=portfolioHistory[portfolioHistory.length-1];
+    const v0=first.value,v1=last.value||totalCAD;
+    const d0=new Date(first.date),d1=new Date();
+    const years=(d1-d0)/(1000*60*60*24*365.25);
+    if(years>=0.05&&v0>0&&v1>0){
+      cagrPct=Math.pow(v1/v0,1/years)-1;
+      cagrLabel=`CAGR ${(cagrPct*100).toFixed(1)}%/an`;
+    }
+  }
+  const badge=document.getElementById('milestone-cagr-badge');
+  if(badge)badge.textContent=cagrLabel;
+
+  const fmtM=v=>v>=1000000?`${(v/1000000).toFixed(v%1000000===0?0:1)}M`:`${(v/1000).toFixed(0)}k`;
+  const rows=MILESTONES.map(target=>{
+    const pct=totalCAD>=target?100:Math.max(0,(totalCAD/target)*100);
+    const done=totalCAD>=target;
+    const remaining=target-totalCAD;
+    // ETA
+    let etaStr='';
+    if(!done&&cagrPct&&cagrPct>0){
+      const yearsLeft=Math.log(target/totalCAD)/Math.log(1+cagrPct);
+      if(yearsLeft<100){
+        const months=Math.round(yearsLeft*12);
+        etaStr=months<24?`~${months} mois`:`~${(yearsLeft).toFixed(1)} ans`;
+      }
+    } else if(!done){
+      etaStr='';
+    }
+    const barColor=done?'var(--green)':pct>75?'var(--blue)':pct>40?'var(--purple)':'var(--text3)';
+    return `<div class="milestone-row${done?' milestone-done':''}">
+      <span class="milestone-check">${done?'✓':''}</span>
+      <span class="milestone-label">${fmtM(target)} CAD</span>
+      <div class="milestone-bar-wrap"><div class="milestone-bar" style="width:${pct.toFixed(1)}%;background:${barColor};"></div></div>
+      <span class="milestone-pct">${pct<100?pct.toFixed(1)+'%':'100%'}</span>
+      <span class="milestone-eta">${done?'<span style="color:var(--green);">Atteint ✓</span>':etaStr}</span>
+    </div>`;
+  }).join('');
+  body.innerHTML=rows;
+}
+function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderMilestones();}
 
 function initCharts(){
   if(chartsInitialized)return;chartsInitialized=true;
