@@ -477,7 +477,11 @@
               </div>
               <div class="field"><label>&nbsp;</label><button class="btn" onclick="addPosition()">+ Ajouter</button></div>
             </div>
-            <div class="dca-hint">Si le symbole existe déjà, le prix moyen sera recalculé automatiquement (DCA). Montant = shares × prix achat.</div>
+            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:6px;">
+              <div class="field"><label>Target price ($) <span style="color:var(--text3);font-weight:400;">(optionnel)</span></label><input type="number" id="f-target" step="any" placeholder="ex: 250.00" /></div>
+              <div class="field"><label>Stop loss ($) <span style="color:var(--text3);font-weight:400;">(optionnel)</span></label><input type="number" id="f-stop" step="any" placeholder="ex: 180.00" /></div>
+              <div class="field" style="display:flex;align-items:flex-end;"><div class="dca-hint" style="margin:0;">Si le symbole existe déjà, le prix moyen sera recalculé (DCA). Montant = shares × prix achat.</div></div>
+            </div>
           </div>
         </div>
         <div class="pos-table-scroll">
@@ -504,6 +508,7 @@
               <th class="sortable" onclick="sortBy('value')">Valeur<span class="sort-arrow" id="sort-value">⇅</span></th>
               <th class="sortable" onclick="sortBy('pnl')">P&amp;L $<span class="sort-arrow" id="sort-pnl">⇅</span></th>
               <th class="sortable" onclick="sortBy('pnlPct')">P&amp;L %<span class="sort-arrow" id="sort-pnlPct">⇅</span></th>
+              <th>Target / Stop</th>
               <th>Actions</th>
             </tr></thead><tbody id="pos-body"></tbody></table></div>
           </div>
@@ -805,6 +810,8 @@
           <optgroup label="Crypto — Autres"><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></optgroup>
         </select>
       </div>
+      <div class="field"><label>Target price ($) <span style="color:var(--text3);font-weight:400;">(optionnel)</span></label><input type="number" id="edit-target" step="any" placeholder="ex: 250.00" /></div>
+      <div class="field"><label>Stop loss ($) <span style="color:var(--text3);font-weight:400;">(optionnel)</span></label><input type="number" id="edit-stop" step="any" placeholder="ex: 180.00" /></div>
     </div>
     <div style="display:flex;gap:10px;">
       <button class="btn" style="flex:1;padding:10px;" onclick="confirmEdit()">Sauvegarder</button>
@@ -2179,6 +2186,38 @@ let selectedPosIdx=null;
 let expandedDcaIdx=new Set();
 let editTarget=null;
 
+function renderTargetStop(p){
+  const cur=p.current,target=p.target,stop=p.stop;
+  if(!target&&!stop)return'<span style="color:var(--text3);font-size:10px;">—</span>';
+  let html='<div style="font-size:10px;line-height:1.6;">';
+  if(target){
+    const distT=((target-cur)/cur*100);
+    const clsT=distT>=0?'var(--green)':'var(--red)';
+    const arrow=distT>=0?'↑':'↓';
+    html+=`<div style="color:${clsT};">T: ${fmtPrice(target)} <span style="opacity:0.8;">${distT>=0?'+':''}${distT.toFixed(1)}% ${arrow}</span></div>`;
+  }
+  if(stop){
+    const distS=((stop-cur)/cur*100);
+    // Stop rouge si proche (< 5% de distance), amber si modéré
+    const danger=Math.abs(distS)<5;
+    const clsS=danger?'var(--red)':'var(--amber)';
+    html+=`<div style="color:${clsS};">S: ${fmtPrice(stop)} <span style="opacity:0.8;">${distS>=0?'+':''}${distS.toFixed(1)}%</span></div>`;
+  }
+  // Mini barre si les deux sont définis
+  if(target&&stop&&cur){
+    const lo=Math.min(stop,target),hi=Math.max(stop,target),range=hi-lo;
+    if(range>0){
+      const pct=Math.max(0,Math.min(100,((cur-lo)/range)*100));
+      const isLongSetup=target>stop;
+      html+=`<div style="margin-top:3px;height:4px;background:var(--bg3);border-radius:2px;position:relative;">
+        <div style="position:absolute;left:0;width:${isLongSetup?pct:100-pct}%;height:100%;background:${pct>50?'var(--green)':'var(--red)'};border-radius:2px;transition:width 0.3s;"></div>
+        <div style="position:absolute;left:calc(${pct}% - 2px);top:-1px;width:4px;height:6px;background:var(--text);border-radius:1px;"></div>
+      </div>`;
+    }
+  }
+  html+='</div>';
+  return html;
+}
 function posRow(p,idx,displayIdx){
   const shares=p.shares||0,valeurMarche=shares*p.current;
   // P&L calculé en devise de la position (prix courant × shares vs avgEntry × shares)
@@ -2210,6 +2249,7 @@ function posRow(p,idx,displayIdx){
     <td>${fmtC(valeurMarche,p.currency||'USD')}</td>
     <td class="${cls}">${fmtCpnl(pnl,p.currency||'USD')}</td>
     <td class="${cls}">${fmtPct(pct)}</td>
+    <td style="min-width:110px;">${renderTargetStop(p)}</td>
     <td style="display:flex;gap:4px;white-space:nowrap;">
       <button class="btn" onclick="openEditModal(${idx});event.stopPropagation();" style="padding:3px 8px;font-size:9px;">Modifier</button>
       <button class="btn-danger" onclick="openCloseModal(${idx});event.stopPropagation();">Fermer</button>
@@ -2315,6 +2355,8 @@ function openEditModal(idx){
   document.getElementById('edit-current').value=p.current||'';
   document.getElementById('edit-currency').value=p.currency||'USD';
   document.getElementById('edit-account').value=p.account||'';
+  document.getElementById('edit-target').value=p.target||'';
+  document.getElementById('edit-stop').value=p.stop||'';
   document.getElementById('edit-modal-overlay').classList.add('open');
 }
 function cancelEdit(){editTarget=null;document.getElementById('edit-modal-overlay').classList.remove('open');}
@@ -2328,6 +2370,10 @@ async function confirmEdit(){
   p.current=parseFloat(document.getElementById('edit-current').value)||p.current;
   p.currency=document.getElementById('edit-currency').value||p.currency;
   p.account=document.getElementById('edit-account').value;
+  const tVal=parseFloat(document.getElementById('edit-target').value);
+  const sVal=parseFloat(document.getElementById('edit-stop').value);
+  p.target=isNaN(tVal)?null:tVal;
+  p.stop=isNaN(sVal)?null:sVal;
   const newDate=document.getElementById('edit-date').value;
   if(p.entries&&p.entries[0]&&newDate)p.entries[0].date=newDate;
   cancelEdit();await saveData();renderAll();
@@ -2446,24 +2492,27 @@ async function addPosition(){
   const e=parseFloat(document.getElementById('f-entry').value),shares=parseFloat(document.getElementById('f-shares').value);
   const posCurrency=document.getElementById('f-currency').value||'USD',cur=parseFloat(document.getElementById('f-current').value),sz=parseFloat(document.getElementById('f-size').value);
   const account=document.getElementById('f-account').value||'';
+  const targetVal=parseFloat(document.getElementById('f-target').value)||null;
+  const stopVal=parseFloat(document.getElementById('f-stop').value)||null;
   if(!s||isNaN(e)||isNaN(shares)||isNaN(cur)||isNaN(sz)){alert('Remplis tous les champs (symbole, prix, shares, prix actuel).');return;}
   trades.unshift({date:dateVal,symbol:s,dir:d,type:'Achat',price:e,shares,size:sz,currency:posCurrency,account});
   const existing=positions.find(p=>p.symbol===s&&p.dir===d);
   if(existing){
     const newTotal=existing.totalSize+sz;
     const existingShares=existing.shares||0;
-    // Calcul du prix moyen pondéré par le nombre de shares (pas par le montant $)
     existing.avgEntry=(existingShares>0&&shares>0)?(existing.avgEntry*existingShares+e*shares)/(existingShares+shares):e;
     existing.totalSize=newTotal;
     existing.current=cur;
     existing.shares=existingShares+shares;
     existing.currency=posCurrency;
     if(account)existing.account=account;
+    if(targetVal)existing.target=targetVal;
+    if(stopVal)existing.stop=stopVal;
     existing.entries=existing.entries||[];
     existing.entries.push({price:e,shares,size:sz,date:dateVal});
   }
-  else positions.push({symbol:s,dir:d,avgEntry:e,current:cur,totalSize:sz,shares,currency:posCurrency,account,entries:[{price:e,shares,size:sz,date:dateVal}]});
-  ['f-symbol','f-entry','f-shares','f-current','f-size'].forEach(id=>document.getElementById(id).value='');
+  else positions.push({symbol:s,dir:d,avgEntry:e,current:cur,totalSize:sz,shares,currency:posCurrency,account,target:targetVal,stop:stopVal,entries:[{price:e,shares,size:sz,date:dateVal}]});
+  ['f-symbol','f-entry','f-shares','f-current','f-size','f-target','f-stop'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-currency').value='USD';document.getElementById('f-account').value='';document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('symbol-dropdown').classList.remove('open');
   await saveData();renderAll();
