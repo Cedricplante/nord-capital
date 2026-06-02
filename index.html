@@ -246,6 +246,13 @@
   .wl-table tr:hover td { background:var(--bg3); }
   .wl-sym { font-family:var(--mono); font-weight:700; color:var(--text); }
   .wl-name { color:var(--text3); font-size:10px; max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .csv-drop-zone { border:2px dashed var(--border2); border-radius:10px; padding:2.5rem; text-align:center; cursor:pointer; transition:all 0.2s; }
+  .csv-drop-zone:hover, .csv-drop-zone.dragover { border-color:var(--green); background:rgba(0,255,136,0.04); }
+  .csv-preview-table { width:100%; border-collapse:collapse; font-size:11px; max-height:260px; overflow-y:auto; display:block; }
+  .csv-preview-table th { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:0.6px; font-family:var(--sans); font-weight:600; padding:5px 8px; border-bottom:0.5px solid var(--border2); position:sticky; top:0; background:var(--bg2); }
+  .csv-preview-table td { padding:6px 8px; border-bottom:0.5px solid var(--border); font-family:var(--mono); }
+  .csv-preview-table tr:hover td { background:var(--bg3); }
+  .csv-row-skip { opacity:0.4; }
   .saving-indicator { font-family: var(--sans); font-size: 10px; color: var(--green); position: fixed; bottom: 14px; right: 18px; opacity: 0; transition: opacity 0.3s; background: var(--bg2); padding: 5px 12px; border-radius: 6px; border: 0.5px solid rgba(0,255,136,0.3); font-weight: 600; }
   .saving-indicator.visible { opacity: 1; }
   .live-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
@@ -546,6 +553,7 @@
       <div class="toolbar">
         <div id="hist-summary-inline" style="font-size:13px;font-weight:600;font-family:var(--mono);">—</div>
         <div style="display:flex;gap:8px;">
+          <button class="btn-export" onclick="openImportModal()">Importer CSV</button>
           <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
           <button class="btn-export" style="color:var(--red);border-color:rgba(245,101,101,0.3);" onclick="clearHistory()">Effacer</button>
         </div>
@@ -831,6 +839,38 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- MODAL : IMPORT CSV -->
+<div class="modal-overlay" id="csv-modal-overlay">
+  <div class="modal" style="width:680px;max-width:95vw;max-height:92vh;overflow-y:auto;">
+    <div class="modal-title">Importer un fichier CSV</div>
+    <div id="csv-step-upload">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:1rem;">Formats supportés : <strong style="color:var(--text);">Questrade</strong>, <strong style="color:var(--text);">Coinbase</strong>, <strong style="color:var(--text);">Binance</strong>. Seules les transactions d'achat sont importées comme positions.</div>
+      <div class="csv-drop-zone" id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()">
+        <div style="font-size:28px;margin-bottom:8px;">📂</div>
+        <div style="font-size:13px;color:var(--text2);font-weight:600;">Glisse ton fichier CSV ici</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">ou clique pour parcourir</div>
+        <input type="file" id="csv-file-input" accept=".csv" style="display:none;" onchange="onCsvFile(this.files[0])"/>
+      </div>
+      <div id="csv-error" style="font-size:11px;color:var(--red);margin-top:0.75rem;min-height:16px;"></div>
+    </div>
+    <div id="csv-step-preview" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.75rem;">
+        <div id="csv-format-badge" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:4px;background:rgba(0,255,136,0.12);color:var(--green);border:0.5px solid rgba(0,255,136,0.3);"></div>
+        <div id="csv-summary-text" style="font-size:11px;color:var(--text3);"></div>
+      </div>
+      <table class="csv-preview-table" id="csv-preview-table">
+        <thead><tr id="csv-preview-head"></tr></thead>
+        <tbody id="csv-preview-body"></tbody>
+      </table>
+      <div id="csv-import-warn" style="font-size:11px;color:var(--amber);margin-top:0.75rem;"></div>
+      <div style="display:flex;gap:10px;margin-top:1rem;">
+        <button class="btn" style="flex:1;padding:10px;" id="csv-confirm-btn" onclick="confirmImportCsv()">Importer</button>
+        <button class="btn-ghost" style="padding:10px 16px;" onclick="closeImportModal()">Annuler</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2117,6 +2157,236 @@ document.addEventListener('click',e=>{
     const wld=document.getElementById('wl-dropdown');if(wld)wld.classList.remove('open');
   }
 });
+
+// ─── IMPORT CSV ──────────────────────────────────────────────────
+let csvParsedRows = [];
+let csvDetectedFormat = '';
+
+function openImportModal(){
+  csvParsedRows=[];csvDetectedFormat='';
+  document.getElementById('csv-step-upload').style.display='block';
+  document.getElementById('csv-step-preview').style.display='none';
+  document.getElementById('csv-error').textContent='';
+  document.getElementById('csv-file-input').value='';
+  document.getElementById('csv-modal-overlay').classList.add('open');
+}
+function closeImportModal(){ document.getElementById('csv-modal-overlay').classList.remove('open'); }
+
+// Drag & drop
+document.addEventListener('DOMContentLoaded',()=>{
+  const zone=document.getElementById('csv-drop-zone');
+  if(!zone)return;
+  zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');});
+  zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+  zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f)onCsvFile(f);});
+});
+
+function onCsvFile(file){
+  if(!file||!file.name.endsWith('.csv')){document.getElementById('csv-error').textContent='Fichier invalide. Utilise un .csv.';return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const rows=parseCsv(e.target.result);
+      if(!rows.length){document.getElementById('csv-error').textContent='Fichier vide ou non reconnu.';return;}
+      csvParsedRows=rows;
+      showCsvPreview(rows);
+    }catch(err){
+      document.getElementById('csv-error').textContent='Erreur de lecture : '+err.message;
+    }
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+function parseCsv(text){
+  const lines=text.replace(/\r/g,'').split('\n').filter(l=>l.trim());
+  if(lines.length<2)return[];
+  const headers=lines[0].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+
+  // Détection du format
+  if(headers.some(h=>h==='Transaction Date')&&headers.some(h=>h==='Action')){
+    csvDetectedFormat='Questrade';
+    return parseQuestrade(headers,lines.slice(1));
+  }
+  if(headers.some(h=>h==='Timestamp')&&headers.some(h=>h==='Transaction Type')&&headers.some(h=>h==='Asset')){
+    csvDetectedFormat='Coinbase';
+    return parseCoinbase(headers,lines.slice(1));
+  }
+  if(headers.some(h=>h.includes('Pair')||h.includes('pair'))&&headers.some(h=>h==='Side'||h==='side')){
+    csvDetectedFormat='Binance';
+    return parseBinance(headers,lines.slice(1));
+  }
+  // Essai générique
+  csvDetectedFormat='Générique';
+  return parseGeneric(headers,lines.slice(1));
+}
+
+function splitCsvLine(line){
+  const result=[];let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    if(line[i]==='"'){inQ=!inQ;}
+    else if(line[i]===','&&!inQ){result.push(cur.trim());cur='';}
+    else cur+=line[i];
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function parseQuestrade(headers,lines){
+  const rows=[];
+  for(const line of lines){
+    const cols=splitCsvLine(line);
+    const row=Object.fromEntries(headers.map((h,i)=>[h,cols[i]||'']));
+    const action=(row['Action']||'').toUpperCase();
+    if(!['BUY','SELL'].includes(action))continue;
+    const sym=(row['Symbol']||'').toUpperCase().replace('.TO','.TO');
+    const qty=parseFloat(row['Quantity']);
+    const price=parseFloat(row['Price']);
+    const date=(row['Transaction Date']||'').split(' ')[0];
+    const cur=(row['Currency']||'USD').toUpperCase();
+    const size=Math.abs(qty*price);
+    if(!sym||isNaN(qty)||isNaN(price))continue;
+    rows.push({date,symbol:sym,action,qty:Math.abs(qty),price,size:parseFloat(size.toFixed(2)),currency:cur,account:row['Account Type']||'',_skip:false});
+  }
+  return rows;
+}
+
+function parseCoinbase(headers,lines){
+  const rows=[];
+  for(const line of lines){
+    const cols=splitCsvLine(line);
+    const row=Object.fromEntries(headers.map((h,i)=>[h,cols[i]||'']));
+    const type=(row['Transaction Type']||'').toLowerCase();
+    if(!['buy','sell','advanced trade buy','advanced trade sell'].includes(type))continue;
+    const action=type.includes('buy')?'BUY':'SELL';
+    const sym=((row['Asset']||'')+'USD').replace('USDUSD','USD').toUpperCase();
+    // Coinbase: Asset = "BTC" → "BTC-USD"
+    const symFinal=(row['Asset']||'').toUpperCase()+'-USD';
+    const qty=parseFloat(row['Quantity Transacted']);
+    const price=parseFloat(row['Price at Transaction']||row['Spot Price at Transaction']||0);
+    const date=(row['Timestamp']||'').split('T')[0];
+    const total=parseFloat(row['Total (inclusive of fees and/or spread)']||row['Subtotal']||0);
+    if(!symFinal||isNaN(qty)||isNaN(price))continue;
+    rows.push({date,symbol:symFinal,action,qty:Math.abs(qty),price,size:parseFloat(Math.abs(total||qty*price).toFixed(2)),currency:'USD',account:'Coinbase',_skip:false});
+  }
+  return rows;
+}
+
+function parseBinance(headers,lines){
+  const rows=[];
+  for(const line of lines){
+    const cols=splitCsvLine(line);
+    const row=Object.fromEntries(headers.map((h,i)=>[h,cols[i]||'']));
+    const side=((row['Side']||row['side']||'')).toUpperCase();
+    if(!['BUY','SELL'].includes(side))continue;
+    const pair=(row['Pair']||row['pair']||'').toUpperCase();
+    // BTC/USDT → BTC-USD approximation
+    const sym=pair.replace('/USDT','-USD').replace('USDT','USD').replace('/BTC','-BTC');
+    const qty=parseFloat(row['Executed']||row['Filled']||0);
+    const price=parseFloat(row['Price']||0);
+    const date=(row['Date(UTC)']||row['Date']||'').split(' ')[0];
+    const size=parseFloat(row['Amount']||row['Total']||qty*price);
+    if(!sym||isNaN(qty)||isNaN(price))continue;
+    rows.push({date,symbol:sym,action:side,qty:Math.abs(qty),price,size:parseFloat(Math.abs(size).toFixed(2)),currency:'USD',account:'Binance',_skip:false});
+  }
+  return rows;
+}
+
+function parseGeneric(headers,lines){
+  // Tentative avec des headers communs
+  const rows=[];
+  const hUpper=headers.map(h=>h.toUpperCase());
+  const iDate=hUpper.findIndex(h=>h.includes('DATE'));
+  const iSym=hUpper.findIndex(h=>h.includes('SYMBOL')||h.includes('TICKER')||h.includes('ASSET'));
+  const iQty=hUpper.findIndex(h=>h.includes('QTY')||h.includes('QUANTITY')||h.includes('SHARES'));
+  const iPrice=hUpper.findIndex(h=>h.includes('PRICE'));
+  const iSide=hUpper.findIndex(h=>h.includes('SIDE')||h.includes('ACTION')||h.includes('TYPE'));
+  if(iSym<0||iQty<0||iPrice<0)return[];
+  for(const line of lines){
+    const cols=splitCsvLine(line);
+    const sym=(cols[iSym]||'').toUpperCase();
+    const qty=parseFloat(cols[iQty]);
+    const price=parseFloat(cols[iPrice]);
+    const date=iDate>=0?cols[iDate].split(' ')[0]:new Date().toISOString().split('T')[0];
+    const side=iSide>=0?cols[iSide].toUpperCase():'BUY';
+    const action=side.includes('BUY')||side.includes('ACHAT')?'BUY':'SELL';
+    if(!sym||isNaN(qty)||isNaN(price))continue;
+    rows.push({date,symbol:sym,action,qty:Math.abs(qty),price,size:parseFloat((qty*price).toFixed(2)),currency:'USD',account:'',_skip:false});
+  }
+  return rows;
+}
+
+function showCsvPreview(rows){
+  document.getElementById('csv-step-upload').style.display='none';
+  document.getElementById('csv-step-preview').style.display='block';
+  document.getElementById('csv-format-badge').textContent='Format : '+csvDetectedFormat;
+  const buys=rows.filter(r=>r.action==='BUY').length;
+  const sells=rows.filter(r=>r.action==='SELL').length;
+  document.getElementById('csv-summary-text').textContent=`${rows.length} transactions trouvées · ${buys} achats · ${sells} ventes`;
+
+  const alreadyExists=rows.filter(r=>{
+    const exists=positions.find(p=>p.symbol===r.symbol&&p.dir==='Long');
+    return r.action==='BUY'&&exists;
+  });
+  if(alreadyExists.length){
+    document.getElementById('csv-import-warn').textContent=`⚠ ${alreadyExists.length} symbole(s) déjà en portfolio — seront DCA'd (prix moyen recalculé).`;
+  } else {
+    document.getElementById('csv-import-warn').textContent='';
+  }
+
+  const head=document.getElementById('csv-preview-head');
+  head.innerHTML='<th>Date</th><th>Symbole</th><th>Action</th><th>Quantité</th><th>Prix</th><th>Total</th><th>Devise</th><th>Compte</th>';
+  const body=document.getElementById('csv-preview-body');
+  body.innerHTML=rows.slice(0,50).map(r=>`
+    <tr class="${r._skip?'csv-row-skip':''}">
+      <td>${r.date}</td>
+      <td style="font-weight:700;color:var(--text);">${r.symbol}</td>
+      <td><span style="color:${r.action==='BUY'?'var(--green)':'var(--red)'};">${r.action==='BUY'?'Achat':'Vente'}</span></td>
+      <td>${r.qty.toLocaleString('fr-FR',{maximumFractionDigits:8})}</td>
+      <td>$${r.price.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:6})}</td>
+      <td>$${r.size.toFixed(2)}</td>
+      <td>${r.currency}</td>
+      <td style="color:var(--text3);">${r.account||'—'}</td>
+    </tr>`).join('');
+  if(rows.length>50){
+    const extra=document.createElement('tr');
+    extra.innerHTML=`<td colspan="8" style="text-align:center;color:var(--text3);font-size:10px;">… et ${rows.length-50} autres transactions</td>`;
+    body.appendChild(extra);
+  }
+}
+
+async function confirmImportCsv(){
+  const btn=document.getElementById('csv-confirm-btn');
+  btn.disabled=true;btn.textContent='Import en cours…';
+  const toImport=csvParsedRows.filter(r=>!r._skip);
+  let newPos=0,dcaPos=0;
+
+  for(const r of toImport){
+    const tradeEntry={date:r.date,symbol:r.symbol,dir:'Long',type:r.action==='BUY'?'Achat':'Vente',price:r.price,shares:r.qty,size:r.size,currency:r.currency,account:r.account};
+    trades.unshift(tradeEntry);
+
+    if(r.action==='BUY'){
+      const existing=positions.find(p=>p.symbol===r.symbol&&p.dir==='Long');
+      if(existing){
+        const prevShares=existing.shares||0;
+        existing.avgEntry=prevShares>0?(existing.avgEntry*prevShares+r.price*r.qty)/(prevShares+r.qty):r.price;
+        existing.shares=(prevShares+r.qty);
+        existing.totalSize=(existing.totalSize||0)+r.size;
+        existing.entries=existing.entries||[];
+        existing.entries.push({price:r.price,shares:r.qty,size:r.size,date:r.date});
+        dcaPos++;
+      } else {
+        positions.push({symbol:r.symbol,dir:'Long',avgEntry:r.price,current:r.price,totalSize:r.size,shares:r.qty,currency:r.currency,account:r.account,entries:[{price:r.price,shares:r.qty,size:r.size,date:r.date}]});
+        newPos++;
+      }
+    }
+  }
+
+  await saveData();
+  renderAll();
+  closeImportModal();
+  alert(`Import terminé !\n${newPos} nouvelle(s) position(s) créée(s)\n${dcaPos} position(s) mise(s) à jour (DCA)\n${toImport.filter(r=>r.action==='SELL').length} vente(s) ajoutée(s) à l'historique`);
+  btn.disabled=false;btn.textContent='Importer';
+}
 
 // ─── WATCHLIST ───────────────────────────────────────────────────
 let watchlist = [];
