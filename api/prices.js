@@ -47,19 +47,33 @@ async function fetchYahooSingle(symbol, detail = false) {
     const meta = data?.chart?.result?.[0]?.meta;
     const price = meta?.regularMarketPrice;
     if (price && price > 0) {
-      if (detail) return { price, changePct: meta?.regularMarketChangePercent ?? null, name: meta?.shortName ?? symbol };
+      if (detail) return {
+        price,
+        changePct: meta?.regularMarketChangePercent ?? null,
+        name: meta?.shortName ?? symbol,
+        high52: meta?.fiftyTwoWeekHigh ?? null,
+        low52: meta?.fiftyTwoWeekLow ?? null,
+        volume: meta?.regularMarketVolume ?? null,
+      };
       return price;
     }
   } catch(e) {}
 
   try {
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}&fields=regularMarketPrice,regularMarketChangePercent,shortName`;
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}&fields=regularMarketPrice,regularMarketChangePercent,shortName,fiftyTwoWeekHigh,fiftyTwoWeekLow,regularMarketVolume`;
     const r = await fetch(url, { headers });
     const data = await r.json();
     const q = data?.quoteResponse?.result?.[0];
     const price = q?.regularMarketPrice;
     if (price && price > 0) {
-      if (detail) return { price, changePct: q?.regularMarketChangePercent ?? null, name: q?.shortName ?? symbol };
+      if (detail) return {
+        price,
+        changePct: q?.regularMarketChangePercent ?? null,
+        name: q?.shortName ?? symbol,
+        high52: q?.fiftyTwoWeekHigh ?? null,
+        low52: q?.fiftyTwoWeekLow ?? null,
+        volume: q?.regularMarketVolume ?? null,
+      };
       return price;
     }
   } catch(e) {}

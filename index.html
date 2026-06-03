@@ -271,7 +271,19 @@
   .filter-select:hover { border-color: var(--green); color: var(--text); }
   .filter-label { font-size: 11px; color: var(--text3); font-family: var(--sans); font-weight: 500; }
 
-  /* ALLOCATION TAB - Ledger Style */
+  /* WATCHLIST CARDS */
+  .wl-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:10px; padding:14px 16px; transition:all 0.2s; }
+  .wl-card:hover { border-color:rgba(0,255,136,0.3); box-shadow:0 0 16px rgba(0,255,136,0.06); }
+  .wl-cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; }
+  .wl-sym-big { font-family:var(--mono); font-size:16px; font-weight:700; }
+  .wl-name { font-size:10px; color:var(--text3); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
+  .wl-sparkline { height:40px; margin:8px 0; }
+  .wl-alert-row { display:flex; gap:6px; margin-top:8px; }
+  .wl-alert-input { flex:1; background:var(--bg3); border:0.5px solid var(--border2); border-radius:5px; color:var(--text2); font-size:11px; font-family:var(--mono); padding:4px 8px; outline:none; width:100%; }
+  .wl-alert-input:focus { border-color:rgba(0,255,136,0.5); }
+  .wl-alert-label { font-size:9px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:2px; }
+
+/* ALLOCATION TAB - Ledger Style */
   .alloc-hero { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.75rem 2rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 2rem; transition: all 0.25s ease; }
   #tab-allocation .alloc-hero:hover { border-color: rgba(0,255,136,0.6) !important; background: linear-gradient(180deg, rgba(0,255,136,0.08), var(--bg2)) !important; box-shadow: 0 0 28px rgba(0,255,136,0.15); }
   [data-theme="light"] #tab-allocation .alloc-hero:hover { border-color: rgba(0,184,124,0.6) !important; background: linear-gradient(180deg, rgba(0,184,124,0.08), var(--bg2)) !important; box-shadow: 0 0 28px rgba(0,184,124,0.15); }
@@ -443,13 +455,7 @@
         <div class="kpi"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div><div class="kpi-sub neu">actives</div></div>
         <div class="kpi"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
       </div>
-      <div class="card" style="margin-bottom:10px;" id="milestones-card">
-        <div class="card-title" style="margin-bottom:0.6rem;">
-          <span>🏁 Milestones</span>
-          <span id="milestone-cagr-badge" style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;"></span>
-        </div>
-        <div id="milestones-body"></div>
-      </div>
+
       <div class="grid-2-1">
         <div class="card" style="grid-column:span 2;">
           <div class="card-title">
@@ -550,34 +556,77 @@
 
     <!-- HISTORIQUE -->
     <div id="tab-historique" class="section">
-      <div class="toolbar">
-        <div id="hist-summary-inline" style="font-size:13px;font-weight:600;font-family:var(--mono);">—</div>
+      <!-- KPI Summary bar -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;" id="hist-kpi-bar">
+        <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:12px 16px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px;">Transactions</div>
+          <div style="font-family:var(--mono);font-size:20px;font-weight:700;" id="hist-kpi-count">—</div>
+        </div>
+        <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:12px 16px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px;">P&L réalisé</div>
+          <div style="font-family:var(--mono);font-size:20px;font-weight:700;" id="hist-kpi-pnl" data-sensitive>—</div>
+        </div>
+        <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:12px 16px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px;">Win rate</div>
+          <div style="font-family:var(--mono);font-size:20px;font-weight:700;" id="hist-kpi-winrate">—</div>
+        </div>
+        <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:12px 16px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px;">Best trade</div>
+          <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--green);" id="hist-kpi-best" data-sensitive>—</div>
+        </div>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="toolbar" style="margin-bottom:10px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <select id="filter-month" onchange="renderHistory()" class="filter-select"><option value="">Tous les mois</option></select>
+          <select id="filter-asset" onchange="renderHistory()" class="filter-select"><option value="">Tous les actifs</option></select>
+          <button class="btn-ghost" onclick="resetFilters()" style="padding:5px 12px;font-size:11px;">✕ Reset</button>
+        </div>
         <div style="display:flex;gap:8px;">
-          <button class="btn-export" onclick="openImportModal()">Importer CSV</button>
-          <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
+          <button class="btn-export" onclick="openImportModal()">📥 Importer CSV</button>
+          <button class="btn-export" onclick="exportCSV()">📤 Exporter CSV</button>
           <button class="btn-export" style="color:var(--red);border-color:rgba(245,101,101,0.3);" onclick="clearHistory()">Effacer</button>
         </div>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:0.75rem;flex-wrap:wrap;">
-        <select id="filter-month" onchange="renderHistory()" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:5px 10px;color:var(--text2);font-size:11px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;min-width:130px;"><option value="">Tous les mois</option></select>
-        <select id="filter-asset" onchange="renderHistory()" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:5px 10px;color:var(--text2);font-size:11px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;min-width:130px;"><option value="">Tous les actifs</option></select>
-        <button class="btn-export" onclick="resetFilters()">Réinitialiser</button>
+
+      <!-- P&L mensuel chart -->
+      <div class="card" style="margin-bottom:12px;">
+        <div class="card-title">
+          <span>P&amp;L réalisé par trade</span>
+          <span id="hist-summary-inline" style="font-size:11px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;"></span>
+        </div>
+        <div class="chart-wrap" style="height:140px;"><canvas id="pnlBarChart"></canvas></div>
       </div>
-      <div class="card" style="margin-bottom:1rem;">
-        <div class="card-title">P&amp;L par vente</div>
-        <div class="chart-wrap" style="height:120px;"><canvas id="pnlBarChart"></canvas></div>
-      </div>
+
+      <!-- Transaction table -->
       <div class="card">
         <div class="card-title">Registre des transactions</div>
-        <table><thead><tr><th>Date</th><th>Symbole</th><th>Type</th><th>Prix</th><th>Montant initial</th><th>Montant final</th><th>Profit $</th><th>ROI %</th></tr></thead><tbody id="hist-body"></tbody></table>
+        <div style="overflow-x:auto;">
+          <table style="min-width:700px;">
+            <thead><tr>
+              <th>Date</th><th>Symbole</th><th>Type</th>
+              <th>Prix</th><th>Montant initial</th><th>Montant final</th>
+              <th>Profit $</th><th>ROI %</th>
+            </tr></thead>
+            <tbody id="hist-body"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
     <!-- STRATÉGIE -->
     <div id="tab-strategie" class="section">
-      <div class="card" style="margin-bottom:12px;">
+
+      <!-- KPIs rapides par catégorie de stratégie -->
+      <div id="strat-perf-section" style="margin-bottom:14px;">
+        <div id="strat-perf-body"></div>
+      </div>
+
+      <!-- Table des stratégies -->
+      <div class="card">
         <div class="card-title">
-          <span>Stratégies — <span id="strat-count-label" style="color:var(--text3);font-weight:500;font-size:11px;">0 stratégies</span></span>
+          <span>Plans de trading — <span id="strat-count-label" style="color:var(--text3);font-weight:500;font-size:11px;">0 stratégies</span></span>
           <div style="display:flex;gap:8px;align-items:center;margin-left:auto;">
             <select class="filter-select" id="strat-filter-status" onchange="renderStrategies()">
               <option value="">Statut : Tous</option>
@@ -641,6 +690,15 @@
             <div class="alloc-mini-val" id="alloc-mini-pnlreal">—</div>
           </div>
         </div>
+      </div>
+
+      <!-- Milestones / Objectifs financiers -->
+      <div class="card" style="margin-bottom:1.25rem;" id="milestones-card">
+        <div class="card-title" style="margin-bottom:1rem;">
+          <span>🏁 Objectifs financiers</span>
+          <span id="milestone-cagr-badge" style="font-size:11px;color:var(--green);font-weight:600;letter-spacing:0;text-transform:none;background:rgba(0,255,136,0.08);padding:2px 8px;border-radius:4px;"></span>
+        </div>
+        <div id="milestones-body" style="display:flex;flex-direction:column;gap:10px;"></div>
       </div>
 
       <!-- Analytics avancés -->
@@ -866,7 +924,10 @@
       <div class="card" style="margin-top:8px;">
         <div class="card-title">
           <span>Tickers suivis</span>
-          <button class="btn-ghost" onclick="refreshWatchlist()" style="padding:5px 12px;font-size:11px;" id="wl-refresh-btn">↻ Actualiser</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="wl-last-update" style="font-size:10px;color:var(--text3);"></span>
+            <button class="btn-ghost" onclick="refreshWatchlist()" style="padding:5px 12px;font-size:11px;" id="wl-refresh-btn">↻ Actualiser</button>
+          </div>
         </div>
         <div id="wl-body"><div style="color:var(--text3);font-size:12px;text-align:center;padding:2rem;">Aucun ticker en watchlist. Ajoute-en un ci-dessus.</div></div>
       </div>
@@ -1512,6 +1573,72 @@ async function deleteStrategy(id){
     strategies=strategies.filter(s=>s.id!==id);
     return true;
   }catch(e){return false;}
+}
+
+function renderStratPerf(){
+  const body=document.getElementById('strat-perf-body');
+  if(!body)return;
+  // Grouper les positions par stratégie (matching par symbole)
+  const stratSymbols=new Map(); // stratId → [symbols]
+  strategies.forEach(s=>{if(s.symbol)stratSymbols.set(s.id,s.symbol);});
+
+  // Stats par type de stratégie
+  const typeGroups={DCA:[],Swing:[],Libre:[],Sans:[]};
+  positions.forEach(p=>{
+    const linkedStrat=strategies.find(s=>s.symbol===p.symbol&&(s.status==='Active'||s.status==='Brouillon'));
+    const type=linkedStrat?.type||'Sans';
+    const key=typeGroups[type]!==undefined?type:'Libre';
+    const pnlUSD=toUSD((p.shares||0)*p.current,p.currency||'USD')-toUSD(p.totalSize||0,p.currency||'USD');
+    typeGroups[key].push({symbol:p.symbol,pnlUSD,valueUSD:toUSD((p.shares||0)*p.current,p.currency||'USD'),stratType:type});
+  });
+
+  // P&L réalisé par type
+  const realizedByType={DCA:0,Swing:0,Libre:0,Sans:0};
+  trades.filter(t=>t.type==='Vente').forEach(t=>{
+    const linkedStrat=strategies.find(s=>s.symbol===t.symbol);
+    const type=linkedStrat?.type||'Sans';
+    const key=realizedByType[type]!==undefined?type:'Libre';
+    realizedByType[key]+=(t.profitUSD||0)*fxRate;
+  });
+
+  const TYPES=[
+    {key:'DCA',label:'DCA',icon:'📈',desc:'Accumulation progressive'},
+    {key:'Swing',label:'Swing',icon:'🔄',desc:'Trading tactique'},
+    {key:'Libre',label:'Libre',icon:'⚡',desc:'Conviction / momentum'},
+    {key:'Sans',label:'Non classé',icon:'📋',desc:'Sans stratégie liée'},
+  ];
+
+  const cards=TYPES.map(({key,label,icon,desc})=>{
+    const grp=typeGroups[key]||[];
+    if(!grp.length&&!realizedByType[key])return'';
+    const openPnlCAD=grp.reduce((s,p)=>s+p.pnlUSD*fxRate,0);
+    const realPnlCAD=realizedByType[key]||0;
+    const totalVal=grp.reduce((s,p)=>s+p.valueUSD*fxRate,0);
+    const nbPos=grp.length;
+    return`<div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="font-size:18px;">${icon}</span>
+        <div>
+          <div style="font-weight:700;font-size:13px;">${label}</div>
+          <div style="font-size:10px;color:var(--text3);">${desc}</div>
+        </div>
+        <span style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text3);">${nbPos} pos · ${fmtAmtRound(totalVal)}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <div style="background:var(--bg3);border-radius:6px;padding:8px 10px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px;">P&L ouvert</div>
+          <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:${openPnlCAD>=0?'var(--green)':'var(--red)'};">${openPnlCAD>=0?'+':''}${fmtAmtRound(openPnlCAD)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:6px;padding:8px 10px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px;">P&L réalisé</div>
+          <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:${realPnlCAD>=0?'var(--green)':'var(--red)'};">${realPnlCAD>=0?'+':''}${fmtAmtRound(realPnlCAD)}</div>
+        </div>
+      </div>
+      ${grp.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;">${grp.map(p=>{const pct=p.pnlUSD*fxRate/(p.valueUSD*fxRate-p.pnlUSD*fxRate||1)*100;return`<span style="background:${p.pnlUSD>=0?'rgba(0,255,136,0.1)':'rgba(255,77,109,0.1)'};border:0.5px solid ${p.pnlUSD>=0?'rgba(0,255,136,0.25)':'rgba(255,77,109,0.25)'};border-radius:4px;padding:2px 7px;font-size:10px;font-family:var(--mono);">${p.symbol} <span style="color:${p.pnlUSD>=0?'var(--green)':'var(--red)'};">${p.pnlUSD>=0?'+':''}${pct.toFixed(1)}%</span></span>`;}).join('')}</div>`:''}
+    </div>`;
+  }).filter(Boolean).join('');
+
+  body.innerHTML=cards?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:4px;">${cards}</div>`:'';
 }
 
 function renderStrategies(){
@@ -2523,6 +2650,7 @@ function updateWlNote(sym, note){
   const w=watchlist.find(w=>w.symbol===sym);
   if(w){ w.note=note; saveWatchlist(); }
 }
+const wlSparklineCharts={};
 function renderWatchlist(){
   const body=document.getElementById('wl-body');
   if(!body)return;
@@ -2530,47 +2658,121 @@ function renderWatchlist(){
     body.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:2rem;">Aucun ticker en watchlist. Ajoute-en un ci-dessus.</div>';
     return;
   }
-  body.innerHTML=`<table class="wl-table">
-    <thead><tr>
-      <th>Symbole</th><th>Prix</th><th>24h</th><th>Note</th><th>Ajouté</th><th></th>
-    </tr></thead>
-    <tbody>
-      ${watchlist.map(w=>{
-        const priceData=w._price;
-        const priceStr=priceData?`$${priceData.price.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:4})}`:'<span style="color:var(--text3);">—</span>';
-        const chg=priceData?.changePct;
-        const chgStr=chg!=null?`<span class="${chg>=0?'pos':'neg'}">${chg>=0?'+':''}${chg.toFixed(2)}%</span>`:'<span style="color:var(--text3);">—</span>';
-        const date=w.addedAt?new Date(w.addedAt).toLocaleDateString('fr-CA',{month:'short',day:'numeric'}):'—';
-        const alsoInPortfolio=positions.find(p=>p.symbol===w.symbol);
-        const portBadge=alsoInPortfolio?'<span style="font-size:9px;color:var(--blue);margin-left:4px;">• portfolio</span>':'';
-        return`<tr>
-          <td><span class="wl-sym">${w.symbol}</span>${portBadge}</td>
-          <td style="font-family:var(--mono);">${priceStr}</td>
-          <td>${chgStr}</td>
-          <td><input type="text" value="${(w.note||'').replace(/"/g,'&quot;')}" placeholder="Note…" onchange="updateWlNote('${w.symbol}',this.value)" style="background:transparent;border:none;border-bottom:0.5px solid var(--border);color:var(--text2);font-size:11px;font-family:var(--sans);width:100%;padding:2px 0;outline:none;" /></td>
-          <td style="color:var(--text3);font-size:10px;">${date}</td>
-          <td><button class="btn-danger" onclick="removeFromWatchlist('${w.symbol}')" style="padding:3px 8px;font-size:10px;">✕</button></td>
-        </tr>`;
-      }).join('')}
-    </tbody>
-  </table>`;
+  // Destroy existing sparkline charts
+  Object.values(wlSparklineCharts).forEach(c=>{try{c.destroy();}catch(e){}});
+  for(const k in wlSparklineCharts)delete wlSparklineCharts[k];
+
+  const cards=watchlist.map(w=>{
+    const pd=w._price;
+    const price=pd?.price;
+    const chg=pd?.changePct;
+    const name=pd?.name||'';
+    const hi52=pd?.high52;const lo52=pd?.low52;
+    const volume=pd?.volume;
+    const priceStr=price!=null?price.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:4})+' $':'—';
+    const chgStr=chg!=null?`<span style="color:${chg>=0?'var(--green)':'var(--red)'};">${chg>=0?'+':''}${chg.toFixed(2)}%</span>`:'<span style="color:var(--text3);">—</span>';
+    const alsoPort=positions.find(p=>p.symbol===w.symbol);
+    const portBadge=alsoPort?'<span style="font-size:9px;background:rgba(96,165,250,0.15);color:var(--blue);padding:1px 5px;border-radius:3px;margin-left:4px;">portfolio</span>':'';
+    const target=w.alertTarget||'';const stop=w.alertStop||'';
+    // Alert indicator
+    let alertDot='';
+    if(price!=null){
+      if(target&&price>=parseFloat(target))alertDot='<span title="🎯 Target atteint!" style="color:var(--green);font-size:12px;margin-left:4px;">🎯</span>';
+      else if(stop&&price<=parseFloat(stop))alertDot='<span title="🛑 Stop atteint!" style="color:var(--red);font-size:12px;margin-left:4px;">🛑</span>';
+    }
+    const vol52Range=hi52&&lo52?`<div style="margin-top:6px;"><div style="font-size:9px;color:var(--text3);margin-bottom:2px;">52W : ${lo52.toLocaleString('fr-FR',{maximumFractionDigits:2})} – ${hi52.toLocaleString('fr-FR',{maximumFractionDigits:2})}</div>${price!=null&&hi52&&lo52?`<div style="height:3px;background:var(--bg4);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.max(0,Math.min(100,((price-lo52)/(hi52-lo52))*100)).toFixed(1)}%;background:${chg>=0?'var(--green)':'var(--red)'};border-radius:2px;"></div></div>`:''}
+</div>`:'';
+    const volStr=volume?`<div style="font-size:9px;color:var(--text3);margin-top:4px;">Vol: ${volume>1e9?(volume/1e9).toFixed(2)+'B':volume>1e6?(volume/1e6).toFixed(1)+'M':volume.toLocaleString()}</div>`:'';
+    return`<div class="wl-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <span class="wl-sym-big">${w.symbol}</span>${portBadge}${alertDot}
+          </div>
+          <div class="wl-name">${name}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-family:var(--mono);font-size:15px;font-weight:700;">${priceStr}</div>
+          <div style="font-size:12px;margin-top:1px;">${chgStr}</div>
+        </div>
+      </div>
+      <div class="wl-sparkline"><canvas id="sparkline-${w.symbol.replace('/','_')}"></canvas></div>
+      ${vol52Range}${volStr}
+      <div class="wl-alert-row">
+        <div style="flex:1;">
+          <div class="wl-alert-label" style="color:var(--green);">🎯 Target</div>
+          <input class="wl-alert-input" type="number" step="any" placeholder="Prix cible" value="${target}" onchange="updateWlAlert('${w.symbol}','target',this.value)" />
+        </div>
+        <div style="flex:1;">
+          <div class="wl-alert-label" style="color:var(--red);">🛑 Stop</div>
+          <input class="wl-alert-input" type="number" step="any" placeholder="Stop loss" value="${stop}" onchange="updateWlAlert('${w.symbol}','stop',this.value)" />
+        </div>
+      </div>
+      <div style="margin-top:8px;">
+        <input type="text" class="wl-alert-input" style="width:100%;" value="${(w.note||'').replace(/"/g,'&quot;')}" placeholder="📝 Note (raison, thesis, attente…)" onchange="updateWlNote('${w.symbol}',this.value)" />
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+        <span style="font-size:9px;color:var(--text3);">Ajouté ${w.addedAt?new Date(w.addedAt).toLocaleDateString('fr-CA',{month:'short',day:'numeric'}):'—'}</span>
+        <button class="btn-danger" onclick="removeFromWatchlist('${w.symbol}')" style="padding:3px 8px;font-size:10px;">✕ Retirer</button>
+      </div>
+    </div>`;
+  }).join('');
+  body.innerHTML=`<div class="wl-cards-grid">${cards}</div>`;
+
+  // Render sparklines after DOM update
+  requestAnimationFrame(()=>{
+    watchlist.forEach(w=>{
+      const canvasId='sparkline-'+w.symbol.replace('/','_');
+      const canvas=document.getElementById(canvasId);
+      if(!canvas)return;
+      const sparkData=w._spark||[];
+      if(sparkData.length<2){canvas.style.opacity='0.3';return;}
+      const isUp=sparkData[sparkData.length-1]>=sparkData[0];
+      const color=isUp?'#00ff88':'#ff4d6d';
+      const ctx=canvas.getContext('2d');
+      const grad=ctx.createLinearGradient(0,0,0,40);
+      grad.addColorStop(0,isUp?'rgba(0,255,136,0.3)':'rgba(255,77,109,0.3)');
+      grad.addColorStop(1,'rgba(0,0,0,0)');
+      const ch=new Chart(canvas,{type:'line',data:{labels:sparkData.map((_,i)=>i),datasets:[{data:sparkData,borderColor:color,borderWidth:1.5,fill:true,backgroundColor:grad,tension:0.3,pointRadius:0}]},options:{animation:false,responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
+      wlSparklineCharts[w.symbol]=ch;
+    });
+  });
+}
+function updateWlAlert(sym,type,val){
+  const w=watchlist.find(w=>w.symbol===sym);
+  if(!w)return;
+  if(type==='target')w.alertTarget=val;
+  else w.alertStop=val;
+  saveWatchlist();
 }
 async function refreshWatchlist(){
   if(!watchlist.length)return;
   const btn=document.getElementById('wl-refresh-btn');
+  const upd=document.getElementById('wl-last-update');
   if(btn){btn.textContent='⟳ Chargement…';btn.disabled=true;}
   const symbols=watchlist.map(w=>getTicker(w.symbol)).join(',');
   try{
+    // Fetch prix + detail
     const res=await fetch(`/api/prices?symbols=${encodeURIComponent(symbols)}&detail=1`);
     const data=await res.json();
     watchlist.forEach(w=>{
       const t=getTicker(w.symbol);
       const d=data[t];
-      if(d&&typeof d==='object'){ w._price={price:d.price,changePct:d.changePct,name:d.name}; }
-      else if(d&&typeof d==='number'){ w._price={price:d,changePct:null}; }
+      if(d&&typeof d==='object'){w._price={price:d.price,changePct:d.changePct,name:d.name,high52:d.high52||null,low52:d.low52||null,volume:d.volume||null};}
+      else if(d&&typeof d==='number'){w._price={price:d,changePct:null};}
     });
+    // Fetch sparklines (5d history) pour chaque ticker en parallèle
+    await Promise.allSettled(watchlist.map(async w=>{
+      try{
+        const res2=await fetch(`/api/history?symbol=${encodeURIComponent(getTicker(w.symbol))}&range=5d`);
+        const hist=await res2.json();
+        if(Array.isArray(hist)&&hist.length>1)w._spark=hist.map(h=>h.close);
+        else w._spark=[];
+      }catch(e){w._spark=[];}
+    }));
     renderWatchlist();
-  }catch(e){ console.error('[watchlist] fetch error',e); }
+    if(upd)upd.textContent='Mis à jour '+new Date().toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){console.error('[watchlist] fetch error',e);}
   if(btn){btn.textContent='↻ Actualiser';btn.disabled=false;}
 }
 
@@ -2905,7 +3107,7 @@ function setPartial(pct){const p=positions[closeTarget];if(!p)return;document.ge
 function updatePartialSize(){
   if(closeTarget===null)return;const p=positions[closeTarget];
   const shares=parseFloat(document.getElementById('modal-shares').value),exitPrice=parseFloat(document.getElementById('modal-exit').value),totalShares=p.shares||0;
-  if(!isNaN(shares)&&!isNaN(exitPrice)&&totalShares>0){const pct=shares/totalShares,sizeToClose=(p.shares||0)*p.avgEntry*pct;const profit=p.dir==='Long'?(exitPrice-p.avgEntry)/p.avgEntry*sizeToClose:(p.avgEntry-exitPrice)/p.avgEntry*sizeToClose;document.getElementById('modal-preview').textContent='Vendre '+shares+' / '+totalShares+' shares ('+Math.round(pct*100)+'%) · P&L estimé : '+(profit>=0?'+':'')+fmtCpnl(profit,p.currency||'USD');}
+  if(!isNaN(shares)&&!isNaN(exitPrice)&&totalShares>0){const pct=shares/totalShares,sizeToClose=(p.shares||0)*p.avgEntry*pct;const profit=p.dir==='Long'?(exitPrice-p.avgEntry)/p.avgEntry*sizeToClose:(p.avgEntry-exitPrice)/p.avgEntry*sizeToClose;document.getElementById('modal-preview').textContent='Vendre '+shares+' / '+totalShares+' shares ('+Math.round(pct*100)+'%) · P&L estimé : '+fmtCpnl(profit,p.currency||'USD')+'  ·  Cash récupéré : '+fmtAmtRound(parseFloat((toUSD(sizeToClose+profit,p.currency||'USD')*fxRate).toFixed(0)))+' CAD';}
   else document.getElementById('modal-preview').textContent='—';
 }
 function cancelClose(){closeTarget=null;document.getElementById('modal-overlay').classList.remove('open');}
@@ -2988,7 +3190,20 @@ function renderHistory(){
   }).join('')||'<tr><td colspan="8" class="empty">Aucune transaction</td></tr>';
   const cls=totalPnl>=0?'pos':'neg';
   const sumEl=document.getElementById('hist-summary-inline');
-  if(sumEl)sumEl.innerHTML=`P&L réalisé : <strong class="${cls}">${fmtPnl$(totalPnl)}</strong> &nbsp;·&nbsp; Gains : <strong class="pos">${wins}</strong> &nbsp;·&nbsp; Pertes : <strong class="neg">${losses}</strong>`;
+  if(sumEl)sumEl.innerHTML=`<span class="${cls}">${wins+losses} trades filtrés</span>`;
+
+  // Update KPI cards
+  const ventes=filtered.filter(t=>t.type==='Vente');
+  const bestTrade=ventes.reduce((best,t)=>{const p=toUSD(t.profit||0,t.currency||'USD')*fxRate;return p>(best||0)?p:best;},null);
+  const winRate=ventes.length>0?Math.round(wins/(wins+losses)*100):null;
+  const kpiCount=document.getElementById('hist-kpi-count');
+  const kpiPnl=document.getElementById('hist-kpi-pnl');
+  const kpiWin=document.getElementById('hist-kpi-winrate');
+  const kpiBest=document.getElementById('hist-kpi-best');
+  if(kpiCount)kpiCount.textContent=filtered.length;
+  if(kpiPnl){kpiPnl.textContent=fmtPnl$(totalPnl);kpiPnl.style.color=totalPnl>=0?'var(--green)':'var(--red)';}
+  if(kpiWin)kpiWin.textContent=winRate!==null?winRate+'%':'—';
+  if(kpiBest)kpiBest.textContent=bestTrade!=null?(bestTrade>=0?'+':'')+fmtAmtRound(bestTrade):'—';
 }
 
 function updatePnlBar(){
@@ -3074,13 +3289,14 @@ async function updateCash(){
   if(accountType)tradeEntry.accountType=accountType;
   if(note)tradeEntry.note=note;
   trades.unshift(tradeEntry);
-  cash=newCash;closeCashPopup();await saveData();renderAll();
+  cash=newCash;closeCashPopup();await saveData();renderAll();updatePerfChart();
 }
 
 function switchTab(name,el){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');el.classList.add('active');
   if(name==='watchlist'){renderWatchlist();refreshWatchlist();}
+  if(name==='strategie'){renderStratPerf();}
   if(name==='allocation'){renderAnalytics();}
   if(name==='allocation')renderAllocCharts();
 }
@@ -3149,32 +3365,39 @@ function updatePerfChart(){
   const sampled=filtered.filter((_,i)=>i%step===0||i===filtered.length-1);
 
   // Fetch SPY en parallèle
-  const range=periodToRange(activePeriod);
-  fetchSpyHistory(range).then(spyRaw=>{
-    // Construire map date→prix SPY
+  // Toujours fetch 5y SPY pour l'alignement depuis le début du portfolio
+  fetchSpyHistory('5y').then(spyRaw=>{
     const spyMap=new Map(spyRaw.map(p=>[p.date,p.close]));
-    // Trouver le premier point du portfolio qui a un prix SPY disponible
-    let portStart=sampled[0].value;
+    // Aligner SPY sur le premier snapshot du portfolio (ALL-TIME)
+    // → peu importe la période sélectionnée, la courbe SPY est toujours calibrée depuis le début
     let spyPriceStart=null;
-    let alignIdx=0;
-    for(let i=0;i<sampled.length;i++){
-      const sp=findSpyPrice(spyMap,sampled[i].date);
-      if(sp){spyPriceStart=sp;portStart=sampled[i].value;alignIdx=i;break;}
+    let portStart=null;
+    const allHistory=portfolioHistory.length>0?portfolioHistory:sampled;
+    for(let i=0;i<allHistory.length;i++){
+      const sp=findSpyPrice(spyMap,allHistory[i].date);
+      if(sp){spyPriceStart=sp;portStart=allHistory[i].value;break;}
     }
+    if(!spyPriceStart){spyPriceStart=null;portStart=sampledWithLive[0].value;}
+    const alignIdx=0; // toujours depuis le début pour le display
 
-    perfChart.data.labels=sampled.map(h=>h.date.slice(5));
+    // Inject live value as last point so chart matches KPI
+    const liveVal=parseFloat((totalSizeUSD*fxRate+cash).toFixed(2));
+    const todayStr2=new Date().toISOString().slice(0,10);
+    const sampledWithLive=sampled.map((h,i)=>i===sampled.length-1?{...h,value:liveVal,date:todayStr2}:h);
+
+    perfChart.data.labels=sampledWithLive.map(h=>h.date.slice(5));
 
     if(benchmarkMode==='absolute'){
-      perfChart.data.datasets[0].data=sampled.map(h=>parseFloat(h.value.toFixed(2)));
-      perfChart.data.datasets[1].data=spyPriceStart?sampled.map((h,i)=>{
+      perfChart.data.datasets[0].data=sampledWithLive.map(h=>parseFloat(h.value.toFixed(2)));
+      perfChart.data.datasets[1].data=spyPriceStart?sampledWithLive.map((h,i)=>{
         if(i<alignIdx)return null;
         const sp=findSpyPrice(spyMap,h.date);
         return sp?parseFloat((portStart*(sp/spyPriceStart)).toFixed(2)):null;
       }):[];
       perfChart.options.scales.y.ticks.callback=v=>fmtAmtRound(v);
     }else{
-      perfChart.data.datasets[0].data=sampled.map(h=>parseFloat(((h.value/portStart-1)*100).toFixed(2)));
-      perfChart.data.datasets[1].data=spyPriceStart?sampled.map((h,i)=>{
+      perfChart.data.datasets[0].data=sampledWithLive.map(h=>parseFloat(((h.value/portStart-1)*100).toFixed(2)));
+      perfChart.data.datasets[1].data=spyPriceStart?sampledWithLive.map((h,i)=>{
         if(i<alignIdx)return null;
         const sp=findSpyPrice(spyMap,h.date);
         return sp?parseFloat(((sp/spyPriceStart-1)*100).toFixed(2)):null;
@@ -3369,29 +3592,37 @@ function renderMilestones(){
   const badge=document.getElementById('milestone-cagr-badge');
   if(badge)badge.textContent=cagrLabel;
 
-  const fmtM=v=>v>=1000000?`${(v/1000000).toFixed(v%1000000===0?0:1)}M`:`${(v/1000).toFixed(0)}k`;
+  const fmtM=v=>v>=1000000?`${(v/1000000).toFixed(v%1000000===0?0:1)}M CAD`:`${(v/1000).toFixed(0)}k CAD`;
+  // Trouver le prochain milestone non-atteint
+  const nextTarget=MILESTONES.find(t=>totalCAD<t);
   const rows=MILESTONES.map(target=>{
     const pct=totalCAD>=target?100:Math.max(0,(totalCAD/target)*100);
     const done=totalCAD>=target;
-    const remaining=target-totalCAD;
-    // ETA
+    const isNext=target===nextTarget;
+    const remaining=Math.max(0,target-totalCAD);
     let etaStr='';
     if(!done&&cagrPct&&cagrPct>0){
       const yearsLeft=Math.log(target/totalCAD)/Math.log(1+cagrPct);
-      if(yearsLeft<100){
-        const months=Math.round(yearsLeft*12);
-        etaStr=months<24?`~${months} mois`:`~${(yearsLeft).toFixed(1)} ans`;
-      }
-    } else if(!done){
-      etaStr='';
+      if(yearsLeft<100){const months=Math.round(yearsLeft*12);etaStr=months<24?`~${months} mois`:`~${(yearsLeft).toFixed(1)} ans`;}
     }
-    const barColor=done?'var(--green)':pct>75?'var(--blue)':pct>40?'var(--purple)':'var(--text3)';
-    return `<div class="milestone-row${done?' milestone-done':''}">
-      <span class="milestone-check">${done?'✓':''}</span>
-      <span class="milestone-label">${fmtM(target)} CAD</span>
-      <div class="milestone-bar-wrap"><div class="milestone-bar" style="width:${pct.toFixed(1)}%;background:${barColor};"></div></div>
-      <span class="milestone-pct">${pct<100?pct.toFixed(1)+'%':'100%'}</span>
-      <span class="milestone-eta">${done?'<span style="color:var(--green);">Atteint ✓</span>':etaStr}</span>
+    const barColor=done?'var(--green)':isNext?'var(--cyan)':pct>50?'var(--blue)':'rgba(255,255,255,0.15)';
+    const glowStyle=isNext?'box-shadow:0 0 0 1px rgba(0,212,255,0.3);border-color:rgba(0,212,255,0.3);':'';
+    return `<div style="background:var(--bg3);border:0.5px solid ${done?'rgba(0,255,136,0.25)':isNext?'rgba(0,212,255,0.25)':'var(--border)'};border-radius:10px;padding:12px 16px;${done?'opacity:0.6;':''}${glowStyle}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:14px;">${done?'✅':isNext?'🎯':'⬜'}</span>
+          <span style="font-family:var(--mono);font-weight:700;font-size:13px;color:${done?'var(--green)':isNext?'var(--cyan)':'var(--text)'};">${fmtM(target)}</span>
+          ${isNext?'<span style="font-size:9px;font-weight:700;background:rgba(0,212,255,0.15);color:var(--cyan);padding:1px 6px;border-radius:3px;letter-spacing:1px;">PROCHAIN</span>':''}
+        </div>
+        <div style="text-align:right;">
+          <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};">${pct<100?pct.toFixed(1)+'%':'✓ Atteint'}</span>
+          ${!done&&etaStr?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${etaStr}</div>`:''}
+        </div>
+      </div>
+      <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${pct.toFixed(1)}%;background:${barColor};border-radius:3px;transition:width 0.6s ease;${isNext?'box-shadow:0 0 8px rgba(0,212,255,0.5);':''}"></div>
+      </div>
+      ${!done&&remaining>0?`<div style="font-size:10px;color:var(--text3);margin-top:6px;">Reste ${Math.round(remaining).toLocaleString('fr-FR')} $ CAD</div>`:''}
     </div>`;
   }).join('');
   body.innerHTML=rows;
@@ -3487,7 +3718,7 @@ function renderAnalytics(){
     mddSub.textContent=`pic ${peakDate} → creux ${troughDate}`;
   }
 }
-function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderMilestones();renderAnalytics();}
+function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderStratPerf();renderMilestones();renderAnalytics();}
 
 function initCharts(){
   if(chartsInitialized)return;chartsInitialized=true;
