@@ -365,14 +365,14 @@
       <div class="auth-field" style="margin-top:0.5rem;">
         <label>Devise principale du compte</label>
         <select id="signup-currency" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:9px 10px;color:var(--text);font-size:12px;font-family:var(--mono);width:100%;margin-top:4px;appearance:none;outline:none;transition:border-color 0.15s;">
-          <option value="CAD">🇨🇦 CAD — Dollar canadien</option>
-          <option value="USD">🇺🇸 USD — Dollar américain</option>
-          <option value="EUR">🇪🇺 EUR — Euro</option>
-          <option value="CHF">🇨🇭 CHF — Franc suisse</option>
-          <option value="GBP">🇬🇧 GBP — Livre sterling</option>
-          <option value="JPY">🇯🇵 JPY — Yen japonais</option>
-          <option value="AUD">🇦🇺 AUD — Dollar australien</option>
-          <option value="NZD">🇳🇿 NZD — Dollar néo-zélandais</option>
+          <option value="CAD">CAD — Dollar canadien</option>
+          <option value="USD">USD — Dollar américain</option>
+          <option value="EUR">EUR — Euro</option>
+          <option value="CHF">CHF — Franc suisse</option>
+          <option value="GBP">GBP — Livre sterling</option>
+          <option value="JPY">JPY — Yen japonais</option>
+          <option value="AUD">AUD — Dollar australien</option>
+          <option value="NZD">NZD — Dollar néo-zélandais</option>
         </select>
         <div style="font-size:10px;color:var(--text3);margin-top:5px;font-family:var(--sans);">Les montants seront affichés dans cette devise. Les positions dans d'autres devises seront converties.</div>
       </div>
@@ -400,22 +400,22 @@
       <button class="nav-tab" onclick="switchTab('watchlist',this)">Watchlist</button>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
-      <button class="btn-eye" id="btn-eye" onclick="toggleHideAmounts()" title="Cacher/afficher les montants">👁</button>
+      <button class="btn-eye" id="btn-eye" onclick="toggleHideAmounts()" title="Cacher/afficher les montants">&#9679;</button>
       <div id="live-indicator" style="font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;align-items:center;">
         <span class="live-dot" id="live-dot" style="background:var(--text3);"></span>
         <span id="live-label">Hors ligne</span>
       </div>
       <div style="position:relative;">
-        <button id="hamburger-btn" onclick="toggleHamburger(event)" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text2);font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border2)'">☰</button>
+        <button id="hamburger-btn" onclick="toggleHamburger(event)" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text2);font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border2)'">Menu</button>
         <div id="hamburger-menu" style="display:none;position:absolute;top:calc(100% + 10px);right:0;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:14px;min-width:230px;box-shadow:0 12px 40px rgba(0,0,0,0.5);z-index:200;">
           <div style="font-family:var(--mono);font-size:11px;color:var(--blue);font-weight:600;margin-bottom:12px;padding-bottom:10px;border-bottom:0.5px solid var(--border);"><span id="nav-username">Cédric</span></div>
           <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Devise du compte</div>
           <select id="currency-select" onchange="setCurrency(this.value)" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:5px 9px;color:var(--text2);font-size:11px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;width:100%;margin-bottom:4px;">
-            <option value="USD">🇺🇸 USD</option><option value="CAD">🇨🇦 CAD</option><option value="EUR">🇪🇺 EUR</option>
-            <option value="CHF">🇨🇭 CHF</option><option value="GBP">🇬🇧 GBP</option><option value="JPY">🇯🇵 JPY</option>
-            <option value="AUD">🇦🇺 AUD</option><option value="NZD">🇳🇿 NZD</option><option value="HKD">🇭🇰 HKD</option>
-            <option value="SGD">🇸🇬 SGD</option><option value="SEK">🇸🇪 SEK</option><option value="NOK">🇳🇴 NOK</option>
-            <option value="DKK">🇩🇰 DKK</option><option value="MXN">🇲🇽 MXN</option><option value="BRL">🇧🇷 BRL</option>
+            <option value="USD">USD</option><option value="CAD">CAD</option><option value="EUR">EUR</option>
+            <option value="CHF">CHF</option><option value="GBP">GBP</option><option value="JPY">JPY</option>
+            <option value="AUD">AUD</option><option value="NZD">NZD</option><option value="HKD">HKD</option>
+            <option value="SGD">SGD</option><option value="SEK">SEK</option><option value="NOK">NOK</option>
+            <option value="DKK">DKK</option><option value="MXN">MXN</option><option value="BRL">BRL</option>
           </select>
           <div id="fx-rate-display" style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:12px;"></div>
           <div style="margin-bottom:12px;">
@@ -448,7 +448,7 @@
           <div class="kpi-label">Cash disponible</div>
           <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex:1;">
             <div class="kpi-val" id="kpi-cash" style="flex:unset;">—</div>
-            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;transform:scaleX(-1);" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">✎</button>
+            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;transform:scaleX(-1);" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">Editer</button>
           </div>
           <div class="kpi-sub neu" id="kpi-cash-pct">—% du portefeuille</div>
         </div>
@@ -581,11 +581,11 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <select id="filter-month" onchange="renderHistory()" class="filter-select"><option value="">Tous les mois</option></select>
           <select id="filter-asset" onchange="renderHistory()" class="filter-select"><option value="">Tous les actifs</option></select>
-          <button class="btn-ghost" onclick="resetFilters()" style="padding:5px 12px;font-size:11px;">✕ Reset</button>
+          <button class="btn-ghost" onclick="resetFilters()" style="padding:5px 12px;font-size:11px;">Reset</button>
         </div>
         <div style="display:flex;gap:8px;">
-          <button class="btn-export" onclick="openImportModal()">📥 Importer CSV</button>
-          <button class="btn-export" onclick="exportCSV()">📤 Exporter CSV</button>
+          <button class="btn-export" onclick="openImportModal()">Importer CSV</button>
+          <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
           <button class="btn-export" style="color:var(--red);border-color:rgba(245,101,101,0.3);" onclick="clearHistory()">Effacer</button>
         </div>
       </div>
@@ -695,7 +695,7 @@
       <!-- Milestones / Objectifs financiers -->
       <div class="card" style="margin-bottom:1.25rem;" id="milestones-card">
         <div class="card-title" style="margin-bottom:1rem;">
-          <span>🏁 Objectifs financiers</span>
+          <span>Objectifs financiers</span>
           <span id="milestone-cagr-badge" style="font-size:11px;color:var(--green);font-weight:600;letter-spacing:0;text-transform:none;background:rgba(0,255,136,0.08);padding:2px 8px;border-radius:4px;"></span>
         </div>
         <div id="milestones-body" style="display:flex;flex-direction:column;gap:10px;"></div>
@@ -926,7 +926,7 @@
           <span>Tickers suivis</span>
           <div style="display:flex;gap:8px;align-items:center;">
             <span id="wl-last-update" style="font-size:10px;color:var(--text3);"></span>
-            <button class="btn-ghost" onclick="refreshWatchlist()" style="padding:5px 12px;font-size:11px;" id="wl-refresh-btn">↻ Actualiser</button>
+            <button class="btn-ghost" onclick="refreshWatchlist()" style="padding:5px 12px;font-size:11px;" id="wl-refresh-btn">Actualiser</button>
           </div>
         </div>
         <div id="wl-body"><div style="color:var(--text3);font-size:12px;text-align:center;padding:2rem;">Aucun ticker en watchlist. Ajoute-en un ci-dessus.</div></div>
@@ -943,7 +943,7 @@
     <div id="csv-step-upload">
       <div style="font-size:11px;color:var(--text3);margin-bottom:1rem;">Formats supportés : <strong style="color:var(--text);">Questrade</strong>, <strong style="color:var(--text);">Coinbase</strong>, <strong style="color:var(--text);">Binance</strong>. Seules les transactions d'achat sont importées comme positions.</div>
       <div class="csv-drop-zone" id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()">
-        <div style="font-size:28px;margin-bottom:8px;">📂</div>
+        <div style="font-size:28px;margin-bottom:8px;">CSV</div>
         <div style="font-size:13px;color:var(--text2);font-weight:600;">Glisse ton fichier CSV ici</div>
         <div style="font-size:11px;color:var(--text3);margin-top:4px;">ou clique pour parcourir</div>
         <input type="file" id="csv-file-input" accept=".csv" style="display:none;" onchange="onCsvFile(this.files[0])"/>
@@ -1602,10 +1602,10 @@ function renderStratPerf(){
   });
 
   const TYPES=[
-    {key:'DCA',label:'DCA',icon:'📈',desc:'Accumulation progressive'},
-    {key:'Swing',label:'Swing',icon:'🔄',desc:'Trading tactique'},
-    {key:'Libre',label:'Libre',icon:'⚡',desc:'Conviction / momentum'},
-    {key:'Sans',label:'Non classé',icon:'📋',desc:'Sans stratégie liée'},
+    {key:'DCA',label:'DCA',icon:'DCA',desc:'Accumulation progressive'},
+    {key:'Swing',label:'Swing',icon:'SW',desc:'Trading tactique'},
+    {key:'Libre',label:'Libre',icon:'LB',desc:'Conviction / momentum'},
+    {key:'Sans',label:'Non classé',icon:'--',desc:'Sans stratégie liée'},
   ];
 
   const cards=TYPES.map(({key,label,icon,desc})=>{
@@ -1617,7 +1617,7 @@ function renderStratPerf(){
     const nbPos=grp.length;
     return`<div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-size:18px;">${icon}</span>
+        <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text3);min-width:24px;text-align:center;">${icon}</span>
         <div>
           <div style="font-weight:700;font-size:13px;">${label}</div>
           <div style="font-size:10px;color:var(--text3);">${desc}</div>
@@ -1680,7 +1680,7 @@ function stratRow(s){
     ep.forEach(e=>{if(!e.executed&&parseFloat(e.price)>=cur)triggers++;});
     xp.forEach(e=>{if(!e.executed&&parseFloat(e.price)<=cur)triggers++;});
   }
-  const triggerBadge=triggers>0?`<span style="display:inline-block;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px;">⚡ ${triggers}</span>`:'';
+  const triggerBadge=triggers>0?`<span style="display:inline-block;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px;">${triggers} alertes</span>`:'';
   return `<tr onclick="openStratDetails('${s.id}')" style="cursor:pointer;">
     <td><strong>${s.symbol}</strong>${triggerBadge}</td>
     <td><span style="font-size:10px;background:var(--bg3);padding:2px 8px;border-radius:10px;">${s.type||'—'}</span></td>
@@ -1691,9 +1691,9 @@ function stratRow(s){
     <td>${fmtC(cashAlloc,amtCur)}</td>
     <td class="${profitCls}" style="${profitPot===null?'color:var(--text3);font-size:11px;':''}">${profitPot===null?'N/A':((profitPot>=0?'+':'')+fmtC(profitPot,s.currency||'USD'))}</td>
     <td onclick="event.stopPropagation();">
-      <button onclick="openStratDetails('${s.id}')" title="Détails" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">👁</button>
-      <button onclick="editStrategy('${s.id}')" title="Modifier" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">✏️</button>
-      <button onclick="confirmDeleteStrategy('${s.id}')" title="Supprimer" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;">🗑</button>
+      <button onclick="openStratDetails('${s.id}')" title="Détails" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">&#9679;</button>
+      <button onclick="editStrategy('${s.id}')" title="Modifier" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">Edit</button>
+      <button onclick="confirmDeleteStrategy('${s.id}')" title="Supprimer" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;">Suppr.</button>
     </td>
   </tr>`;
 }
@@ -1838,7 +1838,7 @@ async function fetchATHForStrat(){
     if(data.ath&&data.ath>0){
       document.getElementById('strat-ath').value=data.ath.toFixed(2);
       stratDraft.ath=data.ath;
-      hintEl.textContent=`✓ ATH récupéré : ${data.ath.toFixed(2)}${data.ath_date?' ('+data.ath_date+')':''}`;
+      hintEl.textContent=`OK ATH récupéré : ${data.ath.toFixed(2)}${data.ath_date?' ('+data.ath_date+')':''}`;
     }else{
       hintEl.textContent='ATH introuvable, entre-le manuellement';
     }
@@ -1868,7 +1868,7 @@ function renderEntryLevels(){
     updateEntriesTotal();return;
   }
   list.innerHTML=stratDraft.entries_plan.map((e,i)=>{
-    const exDot=e.executed?'<span style="color:var(--green);font-size:10px;">✓ Exécuté</span>':'';
+    const exDot=e.executed?'<span style="color:var(--green);font-size:10px;">OK Exécuté</span>':'';
     return `<div class="strat-level-row">
       <div class="strat-level-num">${i+1}</div>
       <div class="field"><label>Prix cible</label><input type="number" step="any" value="${e.price||''}" oninput="updateEntryLevel(${i},'price',this.value)" placeholder="0.00" /></div>
@@ -1992,7 +1992,7 @@ function renderExitLevels(){
     updateExitsTotal();return;
   }
   list.innerHTML=stratDraft.exits_plan.map((e,i)=>{
-    const exDot=e.executed?'<span style="color:var(--green);font-size:10px;">✓ Exécuté</span>':'';
+    const exDot=e.executed?'<span style="color:var(--green);font-size:10px;">OK Exécuté</span>':'';
     return `<div class="strat-level-row">
       <div class="strat-level-num">${i+1}</div>
       <div class="field"><label>Prix sortie</label><input type="number" step="any" value="${e.price||''}" oninput="updateExitLevel(${i},'price',this.value)" placeholder="0.00" /></div>
@@ -2553,7 +2553,7 @@ function showCsvPreview(rows){
     return r.action==='BUY'&&exists;
   });
   if(alreadyExists.length){
-    document.getElementById('csv-import-warn').textContent=`⚠ ${alreadyExists.length} symbole(s) déjà en portfolio — seront DCA'd (prix moyen recalculé).`;
+    document.getElementById('csv-import-warn').textContent=`[ ! ] ${alreadyExists.length} symbole(s) déjà en portfolio — seront DCA'd (prix moyen recalculé).`;
   } else {
     document.getElementById('csv-import-warn').textContent='';
   }
@@ -2654,8 +2654,9 @@ const wlSparklineCharts={};
 function renderWatchlist(){
   const body=document.getElementById('wl-body');
   if(!body)return;
+  console.log('[watchlist] renderWatchlist called, items:', watchlist.length);
   if(!watchlist.length){
-    body.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:2rem;">Aucun ticker en watchlist. Ajoute-en un ci-dessus.</div>';
+    body.innerHTML='<div style="color:var(--text3);font-size:13px;text-align:center;padding:3rem;"><div style="font-weight:600;color:var(--text2);margin-bottom:8px;">Aucun ticker suivi</div><div style="font-size:11px;">Utilise le champ ci-dessus pour ajouter NVDA, BTC-USD, QQQ…</div></div>';
     return;
   }
   // Destroy existing sparkline charts
@@ -2677,8 +2678,8 @@ function renderWatchlist(){
     // Alert indicator
     let alertDot='';
     if(price!=null){
-      if(target&&price>=parseFloat(target))alertDot='<span title="🎯 Target atteint!" style="color:var(--green);font-size:12px;margin-left:4px;">🎯</span>';
-      else if(stop&&price<=parseFloat(stop))alertDot='<span title="🛑 Stop atteint!" style="color:var(--red);font-size:12px;margin-left:4px;">🛑</span>';
+      if(target&&price>=parseFloat(target))alertDot='<span style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--green);background:rgba(0,255,136,0.1);border:0.5px solid rgba(0,255,136,0.3);padding:1px 5px;border-radius:3px;margin-left:4px;">TGT</span>';
+      else if(stop&&price<=parseFloat(stop))alertDot='<span style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--red);background:rgba(255,77,109,0.1);border:0.5px solid rgba(255,77,109,0.3);padding:1px 5px;border-radius:3px;margin-left:4px;">STP</span>';
     }
     const vol52Range=hi52&&lo52?`<div style="margin-top:6px;"><div style="font-size:9px;color:var(--text3);margin-bottom:2px;">52W : ${lo52.toLocaleString('fr-FR',{maximumFractionDigits:2})} – ${hi52.toLocaleString('fr-FR',{maximumFractionDigits:2})}</div>${price!=null&&hi52&&lo52?`<div style="height:3px;background:var(--bg4);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.max(0,Math.min(100,((price-lo52)/(hi52-lo52))*100)).toFixed(1)}%;background:${chg>=0?'var(--green)':'var(--red)'};border-radius:2px;"></div></div>`:''}
 </div>`:'';
@@ -2700,24 +2701,30 @@ function renderWatchlist(){
       ${vol52Range}${volStr}
       <div class="wl-alert-row">
         <div style="flex:1;">
-          <div class="wl-alert-label" style="color:var(--green);">🎯 Target</div>
+          <div class="wl-alert-label" style="color:var(--green);"> Target</div>
           <input class="wl-alert-input" type="number" step="any" placeholder="Prix cible" value="${target}" onchange="updateWlAlert('${w.symbol}','target',this.value)" />
         </div>
         <div style="flex:1;">
-          <div class="wl-alert-label" style="color:var(--red);">🛑 Stop</div>
+          <div class="wl-alert-label" style="color:var(--red);">Stop</div>
           <input class="wl-alert-input" type="number" step="any" placeholder="Stop loss" value="${stop}" onchange="updateWlAlert('${w.symbol}','stop',this.value)" />
         </div>
       </div>
       <div style="margin-top:8px;">
-        <input type="text" class="wl-alert-input" style="width:100%;" value="${(w.note||'').replace(/"/g,'&quot;')}" placeholder="📝 Note (raison, thesis, attente…)" onchange="updateWlNote('${w.symbol}',this.value)" />
+        <input type="text" class="wl-alert-input" style="width:100%;" value="${(w.note||'').replace(/"/g,'&quot;')}" placeholder="Note (raison, thesis, attente…)" onchange="updateWlNote('${w.symbol}',this.value)" />
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
         <span style="font-size:9px;color:var(--text3);">Ajouté ${w.addedAt?new Date(w.addedAt).toLocaleDateString('fr-CA',{month:'short',day:'numeric'}):'—'}</span>
-        <button class="btn-danger" onclick="removeFromWatchlist('${w.symbol}')" style="padding:3px 8px;font-size:10px;">✕ Retirer</button>
+        <button class="btn-danger" onclick="removeFromWatchlist('${w.symbol}')" style="padding:3px 8px;font-size:10px;">Retirer</button>
       </div>
     </div>`;
   }).join('');
-  body.innerHTML=`<div class="wl-cards-grid">${cards}</div>`;
+  try {
+    body.innerHTML=`<div class="wl-cards-grid">${cards}</div>`;
+  } catch(e) {
+    console.error('[watchlist] render error:', e);
+    body.innerHTML='<div style="color:var(--red);padding:1rem;font-size:12px;">Erreur de rendu watchlist — voir console.</div>';
+    return;
+  }
 
   // Render sparklines after DOM update
   requestAnimationFrame(()=>{
@@ -2749,7 +2756,7 @@ async function refreshWatchlist(){
   if(!watchlist.length)return;
   const btn=document.getElementById('wl-refresh-btn');
   const upd=document.getElementById('wl-last-update');
-  if(btn){btn.textContent='⟳ Chargement…';btn.disabled=true;}
+  if(btn){btn.textContent='Chargement…';btn.disabled=true;}
   const symbols=watchlist.map(w=>getTicker(w.symbol)).join(',');
   try{
     // Fetch prix + detail
@@ -2773,7 +2780,7 @@ async function refreshWatchlist(){
     renderWatchlist();
     if(upd)upd.textContent='Mis à jour '+new Date().toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'});
   }catch(e){console.error('[watchlist] fetch error',e);}
-  if(btn){btn.textContent='↻ Actualiser';btn.disabled=false;}
+  if(btn){btn.textContent='Actualiser';btn.disabled=false;}
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────
@@ -3179,7 +3186,7 @@ function renderHistory(){
       const isDeposit=t.type==='Dépôt',color=isDeposit?'var(--green)':'var(--amber)';
       const bs=isDeposit?'background:rgba(45,212,160,0.1);color:var(--green);border:0.5px solid rgba(45,212,160,0.25);':'background:rgba(246,200,67,0.1);color:var(--amber);border:0.5px solid rgba(246,200,67,0.25);';
       const acctBadge=t.accountType?`<span class="badge-compte" style="margin-left:4px;">${t.accountType}</span>`:'';
-      const noteTip=t.note?`<span style="font-size:10px;color:var(--text3);margin-left:4px;" title="${t.note}">📝</span>`:'';
+      const noteTip=t.note?`<span style="font-size:10px;color:var(--text3);margin-left:4px;" title="${t.note}">note</span>`:'';
       // cash déjà en CAD depuis migration v2
       return`<tr style="opacity:0.85;"><td>${t.date}</td><td class="sym" style="color:var(--text3);">—</td><td><span class="badge" style="${bs}">${t.type}</span>${acctBadge}${noteTip}</td><td style="color:var(--text3);">—</td><td style="color:${color};">${isDeposit?'+':'-'}${fmtAmt(t.size)}</td><td style="color:var(--text2);">${fmtAmtRound(t.montantFinal)} cash</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
     }else if(t.type==='Vente'){
@@ -3377,13 +3384,13 @@ function updatePerfChart(){
       const sp=findSpyPrice(spyMap,allHistory[i].date);
       if(sp){spyPriceStart=sp;portStart=allHistory[i].value;break;}
     }
-    if(!spyPriceStart){spyPriceStart=null;portStart=sampledWithLive[0].value;}
-    const alignIdx=0; // toujours depuis le début pour le display
-
-    // Inject live value as last point so chart matches KPI
+    // Inject live value as last point so chart matches KPI (must be before portStart fallback)
     const liveVal=parseFloat((totalSizeUSD*fxRate+cash).toFixed(2));
     const todayStr2=new Date().toISOString().slice(0,10);
     const sampledWithLive=sampled.map((h,i)=>i===sampled.length-1?{...h,value:liveVal,date:todayStr2}:h);
+
+    if(!spyPriceStart){portStart=sampledWithLive[0].value;}
+    const alignIdx=0; // toujours depuis le début pour le display
 
     perfChart.data.labels=sampledWithLive.map(h=>h.date.slice(5));
 
@@ -3610,12 +3617,12 @@ function renderMilestones(){
     return `<div style="background:var(--bg3);border:0.5px solid ${done?'rgba(0,255,136,0.25)':isNext?'rgba(0,212,255,0.25)':'var(--border)'};border-radius:10px;padding:12px 16px;${done?'opacity:0.6;':''}${glowStyle}">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:14px;">${done?'✅':isNext?'🎯':'⬜'}</span>
+          <span style="font-size:14px;">${done?'':isNext?'':''}</span>
           <span style="font-family:var(--mono);font-weight:700;font-size:13px;color:${done?'var(--green)':isNext?'var(--cyan)':'var(--text)'};">${fmtM(target)}</span>
           ${isNext?'<span style="font-size:9px;font-weight:700;background:rgba(0,212,255,0.15);color:var(--cyan);padding:1px 6px;border-radius:3px;letter-spacing:1px;">PROCHAIN</span>':''}
         </div>
         <div style="text-align:right;">
-          <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};">${pct<100?pct.toFixed(1)+'%':'✓ Atteint'}</span>
+          <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};">${pct<100?pct.toFixed(1)+'%':'OK Atteint'}</span>
           ${!done&&etaStr?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${etaStr}</div>`:''}
         </div>
       </div>
