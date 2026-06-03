@@ -1520,7 +1520,7 @@ function sbHeaders(){return{'Content-Type':'application/json','apikey':SB_KEY,'A
 function showSaving(){const el=document.getElementById('saving-indicator');el.classList.add('visible');setTimeout(()=>el.classList.remove('visible'),2000);}
 async function saveData(){
   if(!currentUser||!accessToken)return;
-  const payload={user_id:currentUser.id,positions:JSON.stringify(positions),trades:JSON.stringify(trades),cash,currency:accountCurrency,updated_at:new Date().toISOString()};
+  const payload={user_id:currentUser.id,positions:JSON.stringify(positions),trades:JSON.stringify(trades),cash,currency:accountCurrency,watchlist:JSON.stringify(watchlist),updated_at:new Date().toISOString()};
   const res=await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`,{method:'PATCH',headers:sbHeaders(),body:JSON.stringify(payload)});
   if(res.ok)showSaving();
   else{await fetch(`${SB_URL}/rest/v1/user_data`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});showSaving();}
@@ -1535,9 +1535,38 @@ async function loadData(){
     try{positions=JSON.parse(row.positions)||[];}catch(e){positions=[];}
     try{trades=JSON.parse(row.trades)||[];}catch(e){trades=[];}
     cash=row.cash!==null?parseFloat(row.cash):0;
+    // Watchlist: charger depuis Supabase, sinon migrer depuis localStorage
+    if(row.watchlist){
+      try{
+        const sbWl=JSON.parse(row.watchlist)||[];
+        if(sbWl.length>0){
+          watchlist=sbWl;
+          localStorage.removeItem('nc_watchlist'); // migration done
+        } else {
+          // Supabase vide: migrer depuis localStorage si données existent
+          loadWatchlist();
+          if(watchlist.length>0)saveWatchlistToSupabase();
+        }
+      }catch(e){loadWatchlist();}
+    } else {
+      // Colonne pas encore existante ou null: migrer depuis localStorage
+      loadWatchlist();
+      if(watchlist.length>0)saveWatchlistToSupabase();
+    }
     // Charger la devise primaire depuis Supabase (priorité sur localStorage)
     if(row.currency){accountCurrency=row.currency;localStorage.setItem('nc_currency',row.currency);const sel=document.getElementById('currency-select');if(sel)sel.value=row.currency;}
   }
+}
+
+// Sauvegarde watchlist seule (sans recharger tout saveData)
+async function saveWatchlistToSupabase(){
+  if(!currentUser||!accessToken)return;
+  try{
+    await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`,{
+      method:'PATCH',headers:sbHeaders(),
+      body:JSON.stringify({watchlist:JSON.stringify(watchlist),updated_at:new Date().toISOString()})
+    });
+  }catch(e){console.warn('[watchlist] Supabase save failed, keeping in localStorage',e);}
 }
 
 // ─── PORTFOLIO HISTORY ────────────────────────────────────────────
@@ -2616,7 +2645,10 @@ async function confirmImportCsv(){
 // ─── WATCHLIST ───────────────────────────────────────────────────
 let watchlist = [];
 function loadWatchlist(){ try{ watchlist=JSON.parse(localStorage.getItem('nc_watchlist')||'[]'); }catch(e){ watchlist=[]; } }
-function saveWatchlist(){ localStorage.setItem('nc_watchlist', JSON.stringify(watchlist)); }
+function saveWatchlist(){
+  localStorage.setItem('nc_watchlist', JSON.stringify(watchlist)); // fallback local
+  saveWatchlistToSupabase(); // sync vers Supabase
+}
 
 function pickWlSymbol(sym){
   document.getElementById('wl-symbol').value=sym;
@@ -2779,8 +2811,60 @@ async function refreshWatchlist(){
     }));
     renderWatchlist();
     if(upd)upd.textContent='Mis à jour '+new Date().toLocaleTimeString('fr-CA',{hour:'2-digit',minute:'2-digit'});
+    // Vérifier alertes prix
+    await checkPriceAlerts();
   }catch(e){console.error('[watchlist] fetch error',e);}
   if(btn){btn.textContent='Actualiser';btn.disabled=false;}
+}
+
+async function checkPriceAlerts(){
+  // Construire liste des alertes déclenchées
+  const triggered=[];
+  const today=new Date().toISOString().slice(0,10);
+  // Éviter de renvoyer plusieurs fois par jour (localStorage)
+  const lastAlert=localStorage.getItem('nc_last_alert_date');
+
+  watchlist.forEach(w=>{
+    if(!w._price?.price)return;
+    const price=w._price.price;
+    if(w.alertTarget&&parseFloat(w.alertTarget)>0&&price>=parseFloat(w.alertTarget)){
+      triggered.push({symbol:w.symbol,type:'target',price:price.toFixed(2),alertTarget:w.alertTarget});
+    }
+    if(w.alertStop&&parseFloat(w.alertStop)>0&&price<=parseFloat(w.alertStop)){
+      triggered.push({symbol:w.symbol,type:'stop',price:price.toFixed(2),alertStop:w.alertStop});
+    }
+  });
+
+  if(!triggered.length)return;
+
+  // Afficher badge d'alerte dans l'UI
+  const badge=document.getElementById('strat-badge'); // réutiliser ou créer
+  console.log('[alerts] Alertes déclenchées:', triggered.map(a=>a.symbol+' '+a.type).join(', '));
+
+  // Envoyer email seulement une fois par jour
+  if(lastAlert===today){
+    console.log('[alerts] Email deja envoye - pas de re-envoi aujourd hui');
+    return;
+  }
+
+  try{
+    const r=await fetch('/api/check-alerts',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({alerts:triggered})
+    });
+    const data=await r.json();
+    if(data.sent>0){
+      localStorage.setItem('nc_last_alert_date',today);
+      console.log('[alerts] Email envoyé pour',data.sent,'alerte(s)');
+      // Notification visuelle
+      const notif=document.createElement('div');
+      notif.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--bg2);border:0.5px solid var(--amber);border-radius:10px;padding:12px 18px;font-size:12px;font-weight:600;color:var(--amber);z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.4);';
+      notif.textContent=`${data.sent} alerte(s) prix envoyée(s) par email`;
+      document.body.appendChild(notif);
+      setTimeout(()=>notif.remove(),5000);
+    }
+  }catch(e){console.warn('[alerts] Envoi email échoué:',e);}
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────
