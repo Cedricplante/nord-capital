@@ -325,7 +325,93 @@
   .acc-marge { background: rgba(255,181,71,0.12); color: var(--amber); border: 0.5px solid rgba(255,181,71,0.3); }
   .acc-crypto { background: rgba(255,77,109,0.1); color: var(--neg); border: 0.5px solid rgba(255,77,109,0.25); }
   .acc-default { background: rgba(0,255,136,0.08); color: var(--green); border: 0.5px solid rgba(0,255,136,0.2); }
-</style>
+
+  /* ─── RESPONSIVE MOBILE ──────────────────────────────────────────────── */
+  @media (max-width: 768px) {
+
+    /* Nav */
+    nav { padding: 0 1rem; height: auto; flex-wrap: wrap; gap: 6px; padding: 8px 1rem; }
+    .logo span { display: none; }
+    .nav-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 2px; width: 100%; padding-bottom: 2px; }
+    .nav-tab { padding: 5px 10px; font-size: 11px; white-space: nowrap; flex-shrink: 0; }
+    #nav-right { gap: 4px; }
+    #hamburger-menu { right: 0; min-width: 200px; }
+
+    /* Layout */
+    .body { padding: 1rem 0.75rem; }
+
+    /* KPI grids → 2 colonnes */
+    .kpi-grid { grid-template-columns: 1fr 1fr; }
+    .kpi-grid > .kpi:first-child { grid-column: span 2; }
+    .kpi-grid-2 { grid-template-columns: 1fr 1fr; }
+    .kpi { height: auto; min-height: 80px; padding: 0.9rem 1rem; }
+    .kpi-val-hero { font-size: 26px !important; }
+
+    /* Dashboard chart grid */
+    .grid-2-1 { grid-template-columns: 1fr; }
+    .grid-2-1 .card { height: auto; min-height: 200px; }
+
+    /* Alloc grids → 1 colonne */
+    .alloc-grid-2, .alloc-grid-3, #accounts-grid { grid-template-columns: 1fr; }
+    .alloc-hero { flex-direction: column; gap: 12px; }
+    .alloc-hero-right { flex-direction: row; gap: 16px; }
+
+    /* Analytics grid → 2 cols */
+    #analytics-grid { grid-template-columns: 1fr 1fr !important; }
+
+    /* Positions table → scrollable */
+    .pos-table-inner { max-height: none; overflow-x: auto; }
+    .pos-table-inner table { min-width: 700px; }
+
+    /* Historique KPI bar → 2 cols */
+    #hist-kpi-bar { grid-template-columns: 1fr 1fr !important; }
+
+    /* Watchlist cards → 1 col */
+    .wl-cards-grid { grid-template-columns: 1fr; }
+
+    /* Stratégie perf cards → 1 col */
+    #strat-perf-body > div { grid-template-columns: 1fr !important; }
+
+    /* Milestones → full width */
+    #milestones-body { gap: 8px; }
+
+    /* Forms */
+    .form-grid { grid-template-columns: 1fr 1fr !important; }
+    .form-grid .field:last-child { grid-column: span 2; }
+
+    /* Toolbar → stack */
+    .toolbar { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .toolbar > div { flex-wrap: wrap; gap: 6px; }
+
+    /* Modal → full width */
+    .modal { width: 95vw !important; max-width: 95vw !important; margin: 10px auto; }
+
+    /* Buttons */
+    .btn-export { font-size: 10px; padding: 5px 8px; }
+    .period-btns { gap: 2px; }
+    .period-btn { padding: 3px 8px; font-size: 10px; }
+    .mode-btn { padding: 3px 8px; font-size: 10px; }
+
+    /* Hist summary filters → stack */
+    #tab-historique > .toolbar { flex-direction: column; }
+    #tab-historique .filter-select { min-width: 0; flex: 1; }
+
+    /* Wl add form → stack */
+    #tab-watchlist .form-grid { grid-template-columns: 1fr !important; }
+    #tab-watchlist .form-grid .field:last-child { grid-column: span 1; }
+  }
+
+  @media (max-width: 480px) {
+    .kpi-grid { grid-template-columns: 1fr; }
+    .kpi-grid > .kpi:first-child { grid-column: span 1; }
+    .kpi-grid-2 { grid-template-columns: 1fr; }
+    #analytics-grid { grid-template-columns: 1fr !important; }
+    #hist-kpi-bar { grid-template-columns: 1fr 1fr !important; }
+    .nav-tab { font-size: 10px; padding: 4px 8px; }
+  }
+  /* ─────────────────────────────────────────────────────────────────────── */
+
+  </style>
 </head>
 <body>
 
