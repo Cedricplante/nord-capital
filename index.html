@@ -3044,7 +3044,7 @@ function posRow(p,idx,displayIdx){
   const dcaToggle=isDca?`<span onclick="toggleDcaExpand(${idx},event)" style="cursor:pointer;color:var(--purple);font-size:10px;margin-left:4px;user-select:none;">${isExpanded?'▲':'▼'}</span>`:'';
   let html=`<tr class="${rowClass}" onclick="selectPosRow(${idx})" style="cursor:pointer;">
     <td style="color:var(--text3);font-size:10px;">#${displayIdx+1}</td>
-    <td class="sym">${p.symbol}${isDca?`<span class="badge-dca">DCA×${p.entries.length}</span>`:''}${dcaToggle}${curBadge}</td>
+    <td class="sym">${p.symbol}${isDca?`<span class="badge-dca">DCA×${p.entries.length}</span>`:''}${dcaToggle}${curBadge}${p.note?'<span style="display:inline-block;width:5px;height:5px;background:var(--cyan);border-radius:50%;margin-left:5px;vertical-align:middle;" title="'+p.note.replace(/"/g,'&quot;')+'"></span>':''}</td>
     <td>${acctBadge}</td>
     <td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td>
     <td style="color:var(--text3);">${firstDate}</td>
@@ -3061,6 +3061,25 @@ function posRow(p,idx,displayIdx){
       <button class="btn-danger" onclick="openCloseModal(${idx});event.stopPropagation();">Fermer</button>
     </td>
   </tr>`;
+  // Note row — appears when row is selected
+  if(isSelected){
+    const noteVal=(p.note||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    html+=`<tr class="pos-note-row">
+      <td colspan="15" style="padding:6px 12px 10px 12px;background:rgba(0,255,136,0.04);border-top:none;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;white-space:nowrap;">Note</span>
+          <input type="text"
+            value="${noteVal}"
+            placeholder="Thesis, catalyst, plan de sortie…"
+            onchange="updatePosNote(${idx},this.value)"
+            onclick="event.stopPropagation()"
+            style="flex:1;background:transparent;border:none;border-bottom:0.5px solid var(--border2);color:var(--text2);font-size:12px;font-family:var(--sans);padding:3px 0;outline:none;min-width:0;"
+          />
+          ${p.note?`<span style="font-size:9px;color:var(--green);">Sauvegardé</span>`:''}
+        </div>
+      </td>
+    </tr>`;
+  }
   if(isDca&&isExpanded){
     html+=p.entries.map((e,ei)=>{
       const entryPnlPct=p.current>0?((p.current-e.price)/e.price*100):0;
@@ -3081,6 +3100,12 @@ function posRow(p,idx,displayIdx){
 }
 
 function selectPosRow(idx){selectedPosIdx=selectedPosIdx===idx?null:idx;renderPosTable();}
+async function updatePosNote(idx,val){
+  if(!positions[idx])return;
+  positions[idx].note=val.trim();
+  await saveData();
+  renderPosTable(); // re-render to show "Sauvegardé"
+}
 
 function resetPosFilters(){
   const ids=['pos-filter-cat','pos-filter-account','pos-filter-period'];
