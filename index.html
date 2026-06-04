@@ -759,49 +759,19 @@
         </div>
       </div>
 
-      <!-- Section Comptes -->
-      <div class="alloc-section-title">Par compte</div>
-      <div class="alloc-grid-3">
-        <div class="alloc-panel alloc-account-panel" data-account="CELI">
-          <div class="alloc-account-header">
-            <div class="alloc-account-icon" style="background:rgba(0,255,136,0.12);color:var(--green);">C</div>
-            <div>
-              <div class="alloc-account-name">CELI</div>
-              <div class="alloc-account-val" id="celi-total">—</div>
-            </div>
-          </div>
-          <div class="alloc-donut-wrap" style="height:130px;">
-            <canvas id="celiChart"></canvas>
-          </div>
-          <div class="donut-leg" id="celi-legend"></div>
-        </div>
-        <div class="alloc-panel alloc-account-panel" data-account="CELIAPP">
-          <div class="alloc-account-header">
-            <div class="alloc-account-icon" style="background:rgba(0,217,255,0.12);color:var(--cyan);">A</div>
-            <div>
-              <div class="alloc-account-name">CELIAPP</div>
-              <div class="alloc-account-val" id="celiapp-total">—</div>
-            </div>
-          </div>
-          <div class="alloc-donut-wrap" style="height:130px;">
-            <canvas id="celiappChart"></canvas>
-          </div>
-          <div class="donut-leg" id="celiapp-legend"></div>
-        </div>
-        <div class="alloc-panel alloc-account-panel" data-account="Crypto">
-          <div class="alloc-account-header">
-            <div class="alloc-account-icon" style="background:rgba(255,181,71,0.12);color:var(--amber);">₿</div>
-            <div>
-              <div class="alloc-account-name">Crypto</div>
-              <div class="alloc-account-val" id="crypto-total">—</div>
-            </div>
-          </div>
-          <div class="alloc-donut-wrap" style="height:130px;">
-            <canvas id="cryptoAllocChart"></canvas>
-          </div>
-          <div class="donut-leg" id="crypto-legend"></div>
-        </div>
+      <!-- Section Comptes — dynamique -->
+      <div class="alloc-section-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Par compte</span>
+        <span id="accounts-total-bar-label" style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;"></span>
       </div>
+      <!-- Barre de proportion -->
+      <div id="accounts-proportion-bar" style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin-bottom:16px;gap:1px;"></div>
+      <!-- Cards dynamiques -->
+      <div id="accounts-grid" class="alloc-grid-3"></div>
+      <!-- Canvases cachés pour rétrocompat -->
+      <canvas id="celiChart" style="display:none;"></canvas>
+      <canvas id="celiappChart" style="display:none;"></canvas>
+      <canvas id="cryptoAllocChart" style="display:none;"></canvas>
 
       <!-- Performance par classe -->
       <div class="alloc-section-title">Performance</div>
@@ -3583,6 +3553,105 @@ function renderAllocDashboard(){
   }
 }
 
+const ACCT_COLORS=[
+  {bg:'rgba(0,255,136,0.12)',text:'var(--green)',bar:'#00ff88'},
+  {bg:'rgba(0,217,255,0.12)',text:'var(--cyan)',bar:'#00d9ff'},
+  {bg:'rgba(255,181,71,0.12)',text:'var(--amber)',bar:'#ffb547'},
+  {bg:'rgba(167,139,250,0.12)',text:'var(--purple)',bar:'#a78bfa'},
+  {bg:'rgba(255,77,109,0.12)',text:'var(--red)',bar:'#ff4d6d'},
+  {bg:'rgba(96,165,250,0.12)',text:'var(--blue)',bar:'#60a5fa'},
+];
+
+// Destroy per-account sparkline charts between renders
+const acctCharts={};
+
+function renderAccountsPanels(totalSizeUSD){
+  const grid=document.getElementById('accounts-grid');
+  const propBar=document.getElementById('accounts-proportion-bar');
+  const barLabel=document.getElementById('accounts-total-bar-label');
+  if(!grid)return;
+
+  // Group positions by account
+  const acctMap=new Map();
+  positions.forEach(p=>{
+    const acct=p.account||'Sans compte';
+    if(!acctMap.has(acct))acctMap.set(acct,{positions:[],totalUSD:0,pnlUSD:0});
+    const g=acctMap.get(acct);
+    const valUSD=toUSD((p.shares||0)*p.current,p.currency||'USD');
+    const costUSD=toUSD((p.shares||0)*p.avgEntry,p.currency||'USD');
+    g.positions.push(p);
+    g.totalUSD+=valUSD;
+    g.pnlUSD+=(valUSD-costUSD);
+  });
+
+  if(!acctMap.size){
+    grid.innerHTML='<div style="color:var(--text3);font-size:12px;padding:1rem;">Aucune position avec compte assigné.</div>';
+    if(propBar)propBar.innerHTML='';
+    return;
+  }
+
+  // Sort by total desc
+  const sorted=[...acctMap.entries()].sort((a,b)=>b[1].totalUSD-a[1].totalUSD);
+  const grandTotalUSD=sorted.reduce((s,[,g])=>s+g.totalUSD,0);
+
+  // Proportion bar
+  if(propBar){
+    propBar.innerHTML=sorted.map(([name,g],i)=>{
+      const pct=(g.totalUSD/grandTotalUSD*100).toFixed(1);
+      const col=ACCT_COLORS[i%ACCT_COLORS.length];
+      return`<div style="flex:${pct};background:${col.bar};min-width:2px;" title="${name}: ${pct}%"></div>`;
+    }).join('');
+  }
+  if(barLabel)barLabel.textContent=sorted.length+' compte'+(sorted.length>1?'s':'');
+
+  // Destroy old charts
+  Object.values(acctCharts).forEach(c=>{try{c.destroy();}catch(e){}});
+  for(const k in acctCharts)delete acctCharts[k];
+
+  // Build cards
+  grid.innerHTML=sorted.map(([name,g],i)=>{
+    const col=ACCT_COLORS[i%ACCT_COLORS.length];
+    const totalCAD=(g.totalUSD*fxRate);
+    const pnlCAD=(g.pnlUSD*fxRate);
+    const pnlCls=pnlCAD>=0?'pos':'neg';
+    const pct=grandTotalUSD>0?(g.totalUSD/grandTotalUSD*100).toFixed(1):0;
+    const initial=name.slice(0,2).toUpperCase();
+    const topPositions=g.positions.slice().sort((a,b)=>toUSD((b.shares||0)*b.current,b.currency||'USD')-toUSD((a.shares||0)*a.current,a.currency||'USD')).slice(0,3);
+
+    return`<div class="alloc-panel alloc-account-panel" style="position:relative;overflow:hidden;">
+      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${col.bar};opacity:0.6;"></div>
+      <div class="alloc-account-header">
+        <div class="alloc-account-icon" style="background:${col.bg};color:${col.text};">${initial}</div>
+        <div style="flex:1;">
+          <div class="alloc-account-name">${name}</div>
+          <div class="alloc-account-val" style="color:${col.text};">${fmtAmtRound(totalCAD)}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px;font-family:var(--mono);color:${col.text};font-weight:600;">${pct}%</div>
+          <div style="font-size:10px;color:var(--text3);">${g.positions.length} pos.</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
+        <div style="background:var(--bg3);border-radius:6px;padding:6px 10px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;">P&L ouvert</div>
+          <div style="font-family:var(--mono);font-size:13px;font-weight:700;" class="${pnlCls}">${pnlCAD>=0?'+':''}${fmtAmtRound(pnlCAD)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:6px;padding:6px 10px;">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;">% du portfolio</div>
+          <div style="font-family:var(--mono);font-size:13px;font-weight:700;color:${col.text};">${pct}%</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${topPositions.map(p=>{
+          const pnlP=toUSD((p.shares||0)*p.current,p.currency||'USD')-toUSD((p.shares||0)*p.avgEntry,p.currency||'USD');
+          return`<span style="font-size:10px;font-family:var(--mono);background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:2px 7px;">${p.symbol} <span style="color:${pnlP>=0?'var(--green)':'var(--red)'};">${pnlP>=0?'+':''}${(pnlP/Math.max(0.01,toUSD((p.shares||0)*p.avgEntry,p.currency||'USD'))*100).toFixed(1)}%</span></span>`;
+        }).join('')}
+        ${g.positions.length>3?`<span style="font-size:10px;color:var(--text3);padding:2px 4px;">+${g.positions.length-3} autres</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function renderAllocCharts(){
   const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
   const totalCAD=totalSizeUSD*fxRate+cash; // cash déjà en CAD
@@ -3611,7 +3680,7 @@ function renderAllocCharts(){
     // Empty states
     ['alloc-sym-legend','alloc-cat-legend','celi-legend','celiapp-legend','crypto-legend'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<div class="alloc-empty-state">Aucune position</div>';});
     ['alloc-sym-count','alloc-cat-count'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
-    ['celi-total','celiapp-total','crypto-total'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
+    const acctGrid=document.getElementById('accounts-grid');if(acctGrid)acctGrid.innerHTML='<div style="color:var(--text3);font-size:12px;padding:1rem;">Aucune position avec compte assigné.</div>';
     return;
   }
 
@@ -3631,29 +3700,8 @@ function renderAllocCharts(){
   const catCount=document.getElementById('alloc-cat-count');
   if(catCount)catCount.textContent=cLabels.length+' classes';
 
-  // CELI
-  const celiPos=positions.filter(p=>p.account==='CELI');
-  const celiTotal=celiPos.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
-  const celiTotalEl=document.getElementById('celi-total');
-  if(celiTotalEl)celiTotalEl.textContent=fmtAmtRound(celiTotal*fxRate);
-  if(celiTotal>0){const d=mkDonutData(celiPos.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'})),celiTotal);updateDonut(celiChart,d.labels,d.values,COLORS.slice(0,d.labels.length));buildLegend('celi-legend',d.labels,d.values,COLORS.slice(0,d.labels.length));}
-  else{updateDonut(celiChart,[],[],[]);document.getElementById('celi-legend').innerHTML='<div class="alloc-empty-state">Aucune position CELI</div>';}
-
-  // CELIAPP
-  const celiappPos=positions.filter(p=>p.account==='CELIAPP');
-  const celiappTotal=celiappPos.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
-  const celiappTotalEl=document.getElementById('celiapp-total');
-  if(celiappTotalEl)celiappTotalEl.textContent=fmtAmtRound(celiappTotal*fxRate);
-  if(celiappTotal>0){const d=mkDonutData(celiappPos.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'})),celiappTotal);updateDonut(celiappChart,d.labels,d.values,COLORS.slice(0,d.labels.length));buildLegend('celiapp-legend',d.labels,d.values,COLORS.slice(0,d.labels.length));}
-  else{updateDonut(celiappChart,[],[],[]);document.getElementById('celiapp-legend').innerHTML='<div class="alloc-empty-state">Aucune position CELIAPP</div>';}
-
-  // Crypto
-  const cryptoPos=positions.filter(p=>getCat(p.symbol)==='Crypto');
-  const cryptoTotal=cryptoPos.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
-  const cryptoTotalEl=document.getElementById('crypto-total');
-  if(cryptoTotalEl)cryptoTotalEl.textContent=fmtAmtRound(cryptoTotal*fxRate);
-  if(cryptoTotal>0){const d=mkDonutData(cryptoPos.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'})),cryptoTotal);updateDonut(cryptoAllocChart,d.labels,d.values,COLORS.slice(0,d.labels.length));buildLegend('crypto-legend',d.labels,d.values,COLORS.slice(0,d.labels.length));}
-  else{updateDonut(cryptoAllocChart,[],[],[]);document.getElementById('crypto-legend').innerHTML='<div class="alloc-empty-state">Aucune crypto</div>';}
+  // Comptes dynamiques
+  renderAccountsPanels(totalSizeUSD);
 
   // P&L par classe
   const catPnl={};positions.forEach(p=>{const c=getCat(p.symbol);catPnl[c]=(catPnl[c]||0)+calcPnlUSD(p)*fxRate;});
