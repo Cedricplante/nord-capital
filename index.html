@@ -1491,12 +1491,12 @@ let portfolioHistory=[];
 
 // ─── FORMAT ──────────────────────────────────────────────────────
 // Espaces comme séparateurs de milliers (1 234,56 $)
-function fmtAmt(n){return n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';}
-function fmtAmtRound(n){return Math.round(n).toLocaleString('fr-FR')+' $';}
+function fmtAmt(n){if(!isFinite(n)||isNaN(n))return '—';return n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';}
+function fmtAmtRound(n){if(!isFinite(n)||isNaN(n))return '—';return Math.round(n).toLocaleString('fr-FR')+' $';}
 function fmt$(n){return fmtAmt(Math.abs(n)*fxRate);}
 function fmtPnl$(n){return(n>=0?'+':'-')+fmtAmt(Math.abs(n*fxRate));}
 function fmtPct(n){return(n>=0?'+':'')+n.toFixed(2)+'%';}
-function fmtPrice(p){return p>100?p.toFixed(2):p.toFixed(4);}
+function fmtPrice(p){if(p===null||p===undefined||isNaN(p))return '—';return p>100?p.toFixed(2):p.toFixed(4);}
 function fmtC(n,posCur){return fmtAmt(toUSD(n,posCur||'USD')*fxRate);}
 function fmtCpnl(n,posCur){const v=toUSD(n,posCur||'USD')*fxRate;return(v>=0?'+':'-')+fmtAmt(Math.abs(v));}
 
@@ -1632,12 +1632,17 @@ async function handleLogout(){
 // ─── DATA ────────────────────────────────────────────────────────
 function sbHeaders(){return{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':`Bearer ${accessToken}`};}
 function showSaving(){const el=document.getElementById('saving-indicator');el.classList.add('visible');setTimeout(()=>el.classList.remove('visible'),2000);}
+let _savePending=false;
 async function saveData(){
   if(!currentUser||!accessToken)return;
+  if(_savePending){setTimeout(saveData,300);return;}
+  _savePending=true;
   const payload={user_id:currentUser.id,positions:JSON.stringify(positions),trades:JSON.stringify(trades),cash,currency:accountCurrency,watchlist:JSON.stringify(watchlist),updated_at:new Date().toISOString()};
   const res=await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`,{method:'PATCH',headers:sbHeaders(),body:JSON.stringify(payload)});
-  if(res.ok)showSaving();
-  else{await fetch(`${SB_URL}/rest/v1/user_data`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});showSaving();}
+  try{
+    if(res.ok)showSaving();
+    else{await fetch(`${SB_URL}/rest/v1/user_data`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});showSaving();}
+  }finally{_savePending=false;}
 }
 async function loadData(){
   if(!currentUser||!accessToken)return;
@@ -2733,7 +2738,7 @@ async function confirmImportCsv(){
     trades.unshift(tradeEntry);
 
     if(r.action==='BUY'){
-      const existing=positions.find(p=>p.symbol===r.symbol&&p.dir==='Long');
+      const existing=positions.find(p=>p.symbol===r.symbol&&(p.dir==='Long'||!p.dir));
       if(existing){
         const prevShares=existing.shares||0;
         existing.avgEntry=prevShares>0?(existing.avgEntry*prevShares+r.price*r.qty)/(prevShares+r.qty):r.price;
@@ -2745,6 +2750,29 @@ async function confirmImportCsv(){
       } else {
         positions.push({symbol:r.symbol,dir:'Long',avgEntry:r.price,current:r.price,totalSize:r.size,shares:r.qty,currency:r.currency,account:r.account,entries:[{price:r.price,shares:r.qty,size:r.size,date:r.date}]});
         newPos++;
+      }
+    } else if(r.action==='SELL'){
+      // Réduire (ou fermer) la position correspondante
+      const posIdx=positions.findIndex(p=>p.symbol===r.symbol&&(p.dir==='Long'||!p.dir));
+      if(posIdx>-1){
+        const p=positions[posIdx];
+        const profit=(r.price-p.avgEntry)*r.qty;
+        tradeEntry.profit=parseFloat(profit.toFixed(2));
+        tradeEntry.avgEntry=p.avgEntry;
+        tradeEntry.montantFinal=parseFloat((p.avgEntry*r.qty+profit).toFixed(2));
+        tradeEntry.dcaCount=p.entries?p.entries.length:1;
+        p.shares=parseFloat(((p.shares||0)-r.qty).toFixed(6));
+        p.totalSize=Math.max(0,parseFloat(((p.totalSize||0)-r.size).toFixed(2)));
+        if(p.entries&&p.entries.length>0){
+          // Retirer des entries les plus anciennes (FIFO)
+          let toRemove=r.qty;
+          while(toRemove>0&&p.entries.length>0){
+            const e=p.entries[0];
+            if(e.shares<=toRemove){toRemove-=e.shares;p.entries.shift();}
+            else{e.shares-=toRemove;e.size=e.shares*e.price;toRemove=0;}
+          }
+        }
+        if(p.shares<=0.000001)positions.splice(posIdx,1);
       }
     }
   }
