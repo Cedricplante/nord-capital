@@ -788,6 +788,25 @@
       </div>
 
       <!-- Analytics avancés -->
+
+      <!-- Cotisations & Droits -->
+      <div class="card" style="margin-bottom:1.25rem;" id="contributions-card">
+        <div class="card-title" style="margin-bottom:1rem;">
+          <span>Cotisations &amp; Droits</span>
+          <button onclick="openCotisationModal()" style="background:rgba(0,255,136,0.1);border:0.5px solid rgba(0,255,136,0.3);color:var(--green);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:600;font-family:var(--mono);">+ Cotisation</button>
+        </div>
+        <div id="contributions-trackers" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;"></div>
+        <div id="contributions-history" style="display:none;">
+          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;margin-top:4px;">Historique des cotisations</div>
+          <div id="contributions-history-table"></div>
+        </div>
+        <div id="contributions-reer-limit-wrap" style="display:none;margin-top:12px;padding:10px 14px;background:var(--bg3);border-radius:6px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:10px;color:var(--text3);">Plafond REER :</span>
+          <input type="number" id="contributions-reer-limit-input" placeholder="ex: 31560" style="flex:1;padding:6px 10px;font-size:12px;max-width:140px;" />
+          <button onclick="saveReerLimit()" style="background:var(--bg4);border:0.5px solid var(--border2);color:var(--text2);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:11px;">Sauvegarder</button>
+        </div>
+      </div>
+
       <div class="card" style="margin-bottom:1.25rem;" id="analytics-card">
         <div class="card-title" style="margin-bottom:1rem;">
           <span>Analytics avancés</span>
@@ -877,6 +896,45 @@
           <div class="chart-wrap" style="height:180px;margin-top:1rem;"><canvas id="sectorVarChart"></canvas></div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- COTISATION MODAL -->
+<div class="modal-overlay" id="cotisation-modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Enregistrer une cotisation</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Type de compte</div>
+        <select id="cotis-account" onchange="updateCotisModal()" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
+          <option value="CELI">CELI</option>
+          <option value="CELIAPP">CELIAPP</option>
+          <option value="REER">REER</option>
+          <option value="REEE">REEE</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Année fiscale</div>
+        <select id="cotis-year" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;"></select>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Montant (CAD)</div>
+      <input type="number" id="cotis-amount" placeholder="0.00" step="0.01" oninput="updateCotisPreview()" style="font-size:15px;padding:10px 12px;width:100%;" />
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Date</div>
+      <input type="date" id="cotis-date" style="width:100%;padding:10px 12px;font-size:12px;" />
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Note (optionnel)</div>
+      <input type="text" id="cotis-note" placeholder="Ex: dépôt annuel CELI…" style="width:100%;padding:10px 12px;font-size:12px;" />
+    </div>
+    <div id="cotis-preview" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:20px;font-family:var(--mono);font-size:11px;color:var(--text2);line-height:1.7;"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn" style="flex:1;padding:10px;" onclick="saveCotisation()">Enregistrer</button>
+      <button class="btn-ghost" style="padding:10px 16px;" onclick="closeCotisationModal()">Annuler</button>
     </div>
   </div>
 </div>
@@ -3332,8 +3390,9 @@ async function confirmClose(){
 }
 
 function populateHistFilters(){
-  const months=[...new Set(trades.map(t=>t.date.slice(0,7)))].sort().reverse();
-  const assets=[...new Set(trades.map(t=>t.symbol))].sort();
+  const histTrades=trades.filter(t=>t.type!=="Cotisation");
+  const months=[...new Set(histTrades.map(t=>t.date.slice(0,7)))].sort().reverse();
+  const assets=[...new Set(histTrades.map(t=>t.symbol))].sort();
   const mSel=document.getElementById('filter-month'),aSel=document.getElementById('filter-asset');if(!mSel||!aSel)return;
   const curMonth=mSel.value,curAsset=aSel.value;
   mSel.innerHTML='<option value="">Tous les mois</option>'+months.map(m=>`<option value="${m}">${m}</option>`).join('');
@@ -3345,7 +3404,7 @@ function renderHistory(){
   populateHistFilters();
   const filterMonth=document.getElementById('filter-month')?.value||'',filterAsset=document.getElementById('filter-asset')?.value||'';
   const tbody=document.getElementById('hist-body');let wins=0,losses=0,totalPnl=0;
-  const filtered=trades.filter(t=>{if(filterMonth&&!t.date.startsWith(filterMonth))return false;if(filterAsset&&t.symbol!==filterAsset)return false;return true;});
+  const filtered=trades.filter(t=>{if(t.type==='Cotisation')return false;if(filterMonth&&!t.date.startsWith(filterMonth))return false;if(filterAsset&&t.symbol!==filterAsset)return false;return true;});
   tbody.innerHTML=filtered.map(t=>{
     if(t.type==='Dépôt'||t.type==='Retrait'){
       const isDeposit=t.type==='Dépôt',color=isDeposit?'var(--green)':'var(--amber)';
@@ -3550,6 +3609,7 @@ function updatePerfChart(){
       if(sp){spyPriceStart=sp;portStart=allHistory[i].value;break;}
     }
     // Inject live value as last point so chart matches KPI (must be before portStart fallback)
+    const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
     const liveVal=parseFloat((totalSizeUSD*fxRate+cash).toFixed(2));
     const todayStr2=new Date().toISOString().slice(0,10);
     const sampledWithLive=sampled.map((h,i)=>i===sampled.length-1?{...h,value:liveVal,date:todayStr2}:h);
@@ -3577,7 +3637,7 @@ function updatePerfChart(){
       perfChart.options.scales.y.ticks.callback=v=>v.toFixed(1)+'%';
     }
     perfChart.update();
-  });
+  }).catch(e=>console.warn("[chart] updatePerfChart error:",e));
 }
 
 // ─── ALLOCATION ───────────────────────────────────────────────────
@@ -3968,7 +4028,225 @@ function renderAnalytics(){
     mddSub.textContent=`pic ${peakDate} → creux ${troughDate}`;
   }
 }
-function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderStratPerf();renderMilestones();renderAnalytics();}
+
+// ─── COTISATIONS & DROITS ─────────────────────────────────────────────────
+const CELI_LIMITS={2009:5000,2010:5000,2011:5000,2012:5000,2013:5500,2014:5500,2015:10000,2016:5500,2017:5500,2018:5500,2019:6000,2020:6000,2021:6000,2022:6000,2023:6500,2024:7000,2025:7000,2026:7000};
+const CELIAPP_MAX_ANNUAL=8000,CELIAPP_LIFETIME=40000;
+
+function getCotisations(){return trades.filter(t=>t.type==='Cotisation');}
+function getCotisationsByAcct(acct){return getCotisations().filter(t=>t.account===acct);}
+
+function getCeliDroits(joinYear){
+  const curYear=new Date().getFullYear();
+  let total=0;
+  for(let y=Math.max(joinYear,2009);y<=curYear;y++){total+=CELI_LIMITS[y]||7000;}
+  const cotise=getCotisationsByAcct('CELI').reduce((s,t)=>s+(t.amount||0),0);
+  return{total,cotise,restant:Math.max(0,total-cotise)};
+}
+
+function getCeliappDroits(){
+  const cotise=getCotisationsByAcct('CELIAPP').reduce((s,t)=>s+(t.amount||0),0);
+  const annee=new Date().getFullYear();
+  const cotisAnnee=getCotisationsByAcct('CELIAPP').filter(t=>t.year===annee).reduce((s,t)=>s+(t.amount||0),0);
+  return{total:CELIAPP_LIFETIME,cotise,restant:Math.max(0,CELIAPP_LIFETIME-cotise),anneeMax:CELIAPP_MAX_ANNUAL,anneeCotise:cotisAnnee,anneeRestant:Math.max(0,CELIAPP_MAX_ANNUAL-cotisAnnee)};
+}
+
+function getReerDroits(){
+  const limit=parseFloat(localStorage.getItem('nc_reer_limit')||'0');
+  const cotise=getCotisationsByAcct('REER').reduce((s,t)=>s+(t.amount||0),0);
+  return{limit,cotise,restant:Math.max(0,limit-cotise)};
+}
+
+function fmtCAD(n){return new Intl.NumberFormat('fr-CA',{style:'currency',currency:'CAD',maximumFractionDigits:0}).format(n);}
+
+function renderContributions(){
+  const trackersEl=document.getElementById('contributions-trackers');
+  const histEl=document.getElementById('contributions-history');
+  const histTableEl=document.getElementById('contributions-history-table');
+  const reerWrap=document.getElementById('contributions-reer-limit-wrap');
+  if(!trackersEl)return;
+
+  const celiJoinYear=parseInt(localStorage.getItem('nc_celi_join_year')||'2009');
+  const celi=getCeliDroits(celiJoinYear);
+  const celiapp=getCeliappDroits();
+  const reer=getReerDroits();
+
+  function pct(used,total){return total>0?Math.min(100,used/total*100):0;}
+  function bar(used,total,color){
+    const p=pct(used,total);
+    return`<div style="width:100%;height:6px;background:var(--bg4);border-radius:3px;margin-top:8px;overflow:hidden;"><div style="width:${p.toFixed(1)}%;height:100%;background:${color};border-radius:3px;transition:width 0.4s;"></div></div>`;
+  }
+
+  trackersEl.innerHTML=`
+    <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+        <span style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:1px;">CELI</span>
+        <span style="font-size:9px;color:var(--text3);cursor:pointer;" onclick="promptCeliJoinYear()">Depuis ${celiJoinYear}</span>
+      </div>
+      <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text);">${fmtCAD(celi.restant)}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">restant / ${fmtCAD(celi.total)} total</div>
+      ${bar(celi.cotise,celi.total,'var(--green)')}
+      <div style="font-size:9px;color:var(--text3);margin-top:4px;">Cotisé : ${fmtCAD(celi.cotise)}</div>
+    </div>
+    <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+        <span style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:1px;">CELIAPP</span>
+        <span style="font-size:9px;color:var(--text3);">Max ${fmtCAD(CELIAPP_LIFETIME)}</span>
+      </div>
+      <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text);">${fmtCAD(celiapp.restant)}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">restant à vie · ${fmtCAD(celiapp.anneeRestant)} cette année</div>
+      ${bar(celiapp.cotise,CELIAPP_LIFETIME,'var(--cyan)')}
+      <div style="font-size:9px;color:var(--text3);margin-top:4px;">Cotisé : ${fmtCAD(celiapp.cotise)}</div>
+    </div>
+    <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+        <span style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:1px;">REER</span>
+        <span style="font-size:9px;color:var(--text3);cursor:pointer;text-decoration:underline dotted;" onclick="promptReerLimit()">Modifier plafond</span>
+      </div>
+      <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text);">${reer.limit>0?fmtCAD(reer.restant):'—'}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px;">${reer.limit>0?'restant / '+fmtCAD(reer.limit)+' plafond':'Plafond non configuré'}</div>
+      ${reer.limit>0?bar(reer.cotise,reer.limit,'var(--amber)'):''}
+      <div style="font-size:9px;color:var(--text3);margin-top:4px;">${reer.limit>0?'Cotisé : '+fmtCAD(reer.cotise):''}</div>
+    </div>`;
+
+  const allCotis=getCotisations().sort((a,b)=>b.date.localeCompare(a.date));
+  if(allCotis.length){
+    histEl.style.display='block';
+    const ACCT_COLOR={'CELI':'var(--green)','CELIAPP':'var(--cyan)','REER':'var(--amber)','REEE':'var(--amber)'};
+    histTableEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono);">
+      <thead><tr style="border-bottom:0.5px solid var(--border);">
+        <th style="text-align:left;padding:6px 8px;font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;">Date</th>
+        <th style="text-align:left;padding:6px 8px;font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;">Compte</th>
+        <th style="text-align:left;padding:6px 8px;font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;">Année</th>
+        <th style="text-align:right;padding:6px 8px;font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;">Montant</th>
+        <th style="text-align:left;padding:6px 8px;font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;">Note</th>
+        <th style="padding:4px;"></th>
+      </tr></thead>
+      <tbody>${allCotis.map((t,i)=>{
+        const col=ACCT_COLOR[t.account]||'var(--text2)';
+        const globalIdx=trades.findIndex(tr=>tr===t);
+        return`<tr style="border-bottom:0.5px solid var(--border);opacity:0.92;">
+          <td style="padding:7px 8px;color:var(--text2);">${t.date||'—'}</td>
+          <td style="padding:7px 8px;"><span style="color:${col};font-weight:700;">${t.account||'—'}</span></td>
+          <td style="padding:7px 8px;color:var(--text2);">${t.year||'—'}</td>
+          <td style="padding:7px 8px;text-align:right;color:var(--green);font-weight:600;">${fmtCAD(t.amount||0)}</td>
+          <td style="padding:7px 8px;color:var(--text3);">${t.note||''}</td>
+          <td style="padding:4px;"><button onclick="deleteCotisation(${globalIdx})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;" title="Supprimer">×</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  } else {
+    histEl.style.display='none';
+  }
+}
+
+function promptCeliJoinYear(){
+  const cur=localStorage.getItem('nc_celi_join_year')||'2009';
+  const y=prompt('Année où vous avez ouvert votre premier CELI (entre 2009 et '+new Date().getFullYear()+') :',cur);
+  const yi=parseInt(y);
+  if(y&&!isNaN(yi)&&yi>=2009&&yi<=new Date().getFullYear()){
+    localStorage.setItem('nc_celi_join_year',yi);
+    renderContributions();
+  }
+}
+
+function promptReerLimit(){
+  const cur=localStorage.getItem('nc_reer_limit')||'';
+  const v=prompt('Entrez votre plafond REER disponible (en CAD) :\n(Trouvable sur votre avis de cotisation ARC)',cur);
+  const vn=parseFloat(v);
+  if(v!==null&&!isNaN(vn)&&vn>=0){
+    localStorage.setItem('nc_reer_limit',vn.toFixed(2));
+    renderContributions();
+  }
+}
+
+function saveReerLimit(){
+  const input=document.getElementById('contributions-reer-limit-input');
+  if(!input)return;
+  const v=parseFloat(input.value);
+  if(!isNaN(v)&&v>=0){localStorage.setItem('nc_reer_limit',v.toFixed(2));renderContributions();}
+}
+
+function openCotisationModal(){
+  // Peupler les années
+  const yearSel=document.getElementById('cotis-year');
+  if(yearSel&&!yearSel.options.length){
+    const cur=new Date().getFullYear();
+    for(let y=cur;y>=2009;y--){const o=document.createElement('option');o.value=y;o.textContent=y;yearSel.appendChild(o);}
+  }
+  const dateEl=document.getElementById('cotis-date');
+  if(dateEl)dateEl.value=new Date().toISOString().split('T')[0];
+  const amtEl=document.getElementById('cotis-amount');
+  if(amtEl)amtEl.value='';
+  const noteEl=document.getElementById('cotis-note');
+  if(noteEl)noteEl.value='';
+  updateCotisPreview();
+  document.getElementById('cotisation-modal-overlay').style.display='flex';
+}
+
+function closeCotisationModal(){
+  document.getElementById('cotisation-modal-overlay').style.display='none';
+}
+
+function updateCotisModal(){updateCotisPreview();}
+
+function updateCotisPreview(){
+  const acct=document.getElementById('cotis-account')?.value||'CELI';
+  const amount=parseFloat(document.getElementById('cotis-amount')?.value||'0')||0;
+  const year=parseInt(document.getElementById('cotis-year')?.value||new Date().getFullYear());
+  const el=document.getElementById('cotis-preview');
+  if(!el)return;
+  let info='';
+  if(acct==='CELI'){
+    const joinYear=parseInt(localStorage.getItem('nc_celi_join_year')||'2009');
+    const celi=getCeliDroits(joinYear);
+    const afterCotis=celi.restant-amount;
+    const limitThisYear=CELI_LIMITS[year]||7000;
+    const cotisThisYear=getCotisationsByAcct('CELI').filter(t=>t.year===year).reduce((s,t)=>s+(t.amount||0),0);
+    info=`Plafond ${year} : ${fmtCAD(limitThisYear)}<br>Déjà cotisé ${year} : ${fmtCAD(cotisThisYear)}<br>Droits restants actuels : ${fmtCAD(celi.restant)}<br>Droits restants après : <strong style="color:${afterCotis>=0?'var(--green)':'var(--red)'}">${fmtCAD(afterCotis)}</strong>${afterCotis<0?'  <span style="color:var(--red);">Surcontribution!</span>':''}`;
+  } else if(acct==='CELIAPP'){
+    const celiapp=getCeliappDroits();
+    const afterLife=celiapp.restant-amount;
+    const afterYear=celiapp.anneeRestant-amount;
+    info=`Plafond vie : ${fmtCAD(CELIAPP_LIFETIME)} · Restant : ${fmtCAD(celiapp.restant)}<br>Plafond annuel : ${fmtCAD(CELIAPP_MAX_ANNUAL)} · Restant cette année : ${fmtCAD(celiapp.anneeRestant)}<br>Après cotisation : vie <strong style="color:${afterLife>=0?'var(--green)':'var(--red)'}">${fmtCAD(afterLife)}</strong> · année <strong style="color:${afterYear>=0?'var(--green)':'var(--red)'}">${fmtCAD(afterYear)}</strong>`;
+  } else if(acct==='REER'){
+    const reer=getReerDroits();
+    if(reer.limit>0){
+      const after=reer.restant-amount;
+      info=`Plafond configuré : ${fmtCAD(reer.limit)}<br>Déjà cotisé : ${fmtCAD(reer.cotise)}<br>Restant après : <strong style="color:${after>=0?'var(--green)':'var(--red)'}">${fmtCAD(after)}</strong>`;
+    } else {
+      info='Plafond REER non configuré — cliquez "Modifier plafond" dans la card Cotisations.';
+    }
+  } else {
+    info=`Cotisation ${acct} de ${fmtCAD(amount)} enregistrée.`;
+  }
+  el.innerHTML=info||'—';
+}
+
+async function saveCotisation(){
+  const acct=document.getElementById('cotis-account')?.value;
+  const amount=parseFloat(document.getElementById('cotis-amount')?.value||'0');
+  const year=parseInt(document.getElementById('cotis-year')?.value||new Date().getFullYear());
+  const date=document.getElementById('cotis-date')?.value||new Date().toISOString().split('T')[0];
+  const note=document.getElementById('cotis-note')?.value||'';
+  if(!acct||isNaN(amount)||amount<=0){alert('Montant invalide.');return;}
+  trades.push({type:'Cotisation',date,year,account:acct,amount:parseFloat(amount.toFixed(2)),note,symbol:'COTISATION',dir:'—',price:0,size:amount,profit:0});
+  await saveData();
+  closeCotisationModal();
+  renderContributions();
+}
+
+async function deleteCotisation(idx){
+  if(!confirm('Supprimer cette cotisation ?'))return;
+  trades.splice(idx,1);
+  await saveData();
+  renderContributions();
+}
+
+document.addEventListener('click',function(e){if(e.target===document.getElementById('cotisation-modal-overlay'))closeCotisationModal();});
+// ─── FIN COTISATIONS ──────────────────────────────────────────────────────
+
+function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderStratPerf();renderMilestones();renderAnalytics();renderContributions();}
 
 function initCharts(){
   if(chartsInitialized)return;chartsInitialized=true;
@@ -3977,8 +4255,8 @@ function initCharts(){
 
   const safeNew=(id,cfg)=>{const el=document.getElementById(id);return el?new Chart(el,cfg):null;};
   perfChart=safeNew('perfChart',{type:'line',data:{labels:[],datasets:[
-    {label:'Portfolio',data:[],borderColor:'#00ff88',backgroundColor:'rgba(0,255,136,0.08)',borderWidth:2,pointRadius:2,pointHoverRadius:5,pointBackgroundColor:'#00ff88',fill:true,tension:0.4},
-    {label:'S&P 500',data:[],borderColor:'#00d9ff',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,pointHoverRadius:3,fill:false,tension:0.4,borderDash:[5,3]}
+    {label:'Portfolio',data:[],borderColor:'#00ff88',backgroundColor:'rgba(0,255,136,0.08)',borderWidth:2,pointRadius:2,pointHoverRadius:5,pointBackgroundColor:'#00ff88',fill:true,tension:0.4,spanGaps:true},
+    {label:'S&P 500',data:[],borderColor:'#00d9ff',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,pointHoverRadius:3,fill:false,tension:0.4,borderDash:[5,3],spanGaps:true}
   ]},options:{...chartDefaults,interaction:{mode:'index',intersect:false},scales:{x:{ticks:{...cd},grid:{color:gc},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
 
   pnlBarChart=safeNew('pnlBarChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
