@@ -411,7 +411,26 @@
   }
   /* ─────────────────────────────────────────────────────────────────────── */
 
-  </style>
+  
+  /* ── PDF PRINT ─────────────────────────────────────────── */
+  @media print {
+    body { background: white !important; color: black !important; }
+    .nav-container, .toolbar, .period-btns, .mode-btns-wrap,
+    button, .btn, .btn-export, .btn-ghost, .btn-danger,
+    #modal-overlay, #edit-modal-overlay, #import-modal-overlay,
+    #cotisation-modal-overlay, #strat-modal-overlay, #shortcuts-modal-overlay,
+    .sort-arrow { display: none !important; }
+    .card { background: white !important; border: 0.5px solid #ccc !important; break-inside: avoid; }
+    .section { display: block !important; }
+    #tab-dashboard { display: block !important; }
+    #tab-positions, #tab-historique, #tab-allocation { display: block !important; page-break-before: always; }
+    #tab-strategie, #tab-watchlist { display: none !important; }
+    canvas { max-width: 100% !important; }
+    [data-sensitive] { opacity: 1 !important; }
+    .pos-table-inner { max-height: none !important; overflow: visible !important; }
+    @page { margin: 1.5cm; }
+  }
+</style>
 </head>
 <body>
 
@@ -554,9 +573,15 @@
                 <button class="period-btn" onclick="setPeriod('YTD',this)">YTD</button>
                 <button class="period-btn" onclick="setPeriod('ALL',this)">ALL</button>
               </div>
-              <div style="display:flex;gap:4px;">
-                <button class="mode-btn active" id="mode-btn-abs" onclick="setBenchmarkMode('absolute',this)">$ Valeur</button>
-                <button class="mode-btn" id="mode-btn-rel" onclick="setBenchmarkMode('relative',this)">% Variation</button>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <div style="display:flex;gap:4px;">
+                  <button class="mode-btn active" id="mode-btn-abs" onclick="setBenchmarkMode('absolute',this)">$ Valeur</button>
+                  <button class="mode-btn" id="mode-btn-rel" onclick="setBenchmarkMode('relative',this)">% Variation</button>
+                </div>
+                <div style="display:flex;gap:4px;">
+                  <button class="mode-btn active" id="chart-cur-cad" onclick="setChartCurrency('CAD',this)">CAD</button>
+                  <button class="mode-btn" id="chart-cur-usd" onclick="setChartCurrency('USD',this)">USD</button>
+                </div>
               </div>
             </div>
           </div>
@@ -628,6 +653,7 @@
               <th class="sortable" onclick="sortBy('shares')">Shares<span class="sort-arrow" id="sort-shares">⇅</span></th>
               <th class="sortable" onclick="sortBy('avgEntry')">Prix moy.<span class="sort-arrow" id="sort-avgEntry">⇅</span></th>
               <th class="sortable" onclick="sortBy('cost')">Coût total<span class="sort-arrow" id="sort-cost">⇅</span></th>
+              <th class="sortable" onclick="sortBy('acb')">ACB $CA<span class="sort-arrow" id="sort-acb">⇅</span></th>
               <th class="sortable" onclick="sortBy('current')">Prix actuel<span class="sort-arrow" id="sort-current">⇅</span></th>
               <th class="sortable" onclick="sortBy('value')">Valeur<span class="sort-arrow" id="sort-value">⇅</span></th>
               <th class="sortable" onclick="sortBy('pnl')">P&amp;L $<span class="sort-arrow" id="sort-pnl">⇅</span></th>
@@ -672,6 +698,7 @@
         <div style="display:flex;gap:8px;">
           <button class="btn-export" onclick="openImportModal()">Importer CSV</button>
           <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
+          <button class="btn-export" onclick="exportPdf()" style="color:var(--cyan);border-color:rgba(0,217,255,0.3);">Exporter PDF</button>
           <button class="btn-export" style="color:var(--red);border-color:rgba(245,101,101,0.3);" onclick="clearHistory()">Effacer</button>
         </div>
       </div>
@@ -683,6 +710,12 @@
           <span id="hist-summary-inline" style="font-size:11px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;"></span>
         </div>
         <div class="chart-wrap" style="height:140px;"><canvas id="pnlBarChart"></canvas></div>
+      </div>
+
+      <!-- P&L annuel -->
+      <div class="card" style="margin-bottom:12px;" id="annual-pnl-card">
+        <div class="card-title">P&amp;L réalisé par année</div>
+        <div id="annual-pnl-body" style="overflow-x:auto;"></div>
       </div>
 
       <!-- Transaction table -->
@@ -1485,7 +1518,8 @@ let perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerf
 let chartsInitialized=false;
 let accountCurrency='USD',fxRate=1;
 let activePeriod='1M';
-let benchmarkMode='absolute'; // 'absolute' | 'relative'
+let benchmarkMode='absolute';
+let chartCurrency='CAD'; // 'absolute' | 'relative'
 const spyCache={}; // {range: [{date,close}]}
 let portfolioHistory=[];
 
@@ -3175,6 +3209,7 @@ function posRow(p,idx,displayIdx){
   const pct=coutPnl>0?(pnl/coutPnl)*100:0,cls=pnl>=0?'pos':'neg';
   // Coût total affiché = somme réelle des achats (peut être en devise différente si DCA mixte)
   const coutTotal=p.entries&&p.entries.length?p.entries.reduce((s,e)=>s+(e.size||0),0):coutPnl;
+  const acbCAD=parseFloat((toUSD((p.shares||0)*p.avgEntry,p.currency||'USD')*fxRate).toFixed(2));
   const isDca=p.entries&&p.entries.length>1,firstDate=p.entries&&p.entries[0]?p.entries[0].date:'—';
   // Le badge DCA×N se met à jour automatiquement via entries.length après FIFO
   const sharesStr=shares?shares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—';
@@ -3193,6 +3228,7 @@ function posRow(p,idx,displayIdx){
     <td style="color:var(--text2);">${sharesStr}</td>
     <td>${fmtPrice(p.avgEntry)}</td>
     <td style="color:var(--text3);">${fmtC(coutTotal,p.currency||'USD')}</td>
+    <td data-sensitive style="color:var(--text3);">${fmtAmtRound(acbCAD)}</td>
     <td>${fmtPrice(p.current)}</td>
     <td>${fmtC(valeurMarche,p.currency||'USD')}</td>
     <td class="${cls}">${fmtCpnl(pnl,p.currency||'USD')}</td>
@@ -3292,6 +3328,7 @@ function getFilteredSortedPositions(){
         case'value':return toUSD((p.shares||0)*p.current,p.currency||'USD');
         case'pnl':return calcPnlUSD(p);
         case'pnlPct':{const c=(p.shares||0)*p.avgEntry;return c>0?(calcPnl(p)/c)*100:0;}
+        case'acb':return toUSD((p.shares||0)*p.avgEntry,p.currency||'USD')*fxRate;
         default:return 0;
       }
     };
@@ -3315,7 +3352,7 @@ function renderPosTable(){
   const filtered=getFilteredSortedPositions();
   const countEl=document.getElementById('pos-count-label');
   if(countEl)countEl.textContent=`${filtered.length} / ${positions.length} positions`;
-  t.innerHTML=filtered.length?filtered.map((p,displayIdx)=>posRow(p,p._origIdx,displayIdx)).join(''):`<tr><td colspan="13" class="empty">Aucune position${positions.length?' (filtrée)':' ouverte'}</td></tr>`;
+  t.innerHTML=filtered.length?filtered.map((p,displayIdx)=>posRow(p,p._origIdx,displayIdx)).join(''):`<tr><td colspan="15" class="empty">Aucune position${positions.length?' (filtrée)':' ouverte'}</td></tr>`;
 }
 
 function openEditModal(idx){
@@ -3463,6 +3500,34 @@ function renderHistory(){
   if(kpiPnl){kpiPnl.textContent=fmtPnl$(totalPnl);kpiPnl.style.color=totalPnl>=0?'var(--green)':'var(--red)';}
   if(kpiWin)kpiWin.textContent=winRate!==null?winRate+'%':'—';
   if(kpiBest)kpiBest.textContent=bestTrade!=null?(bestTrade>=0?'+':'')+fmtAmtRound(bestTrade):'—';
+  renderAnnualPnl();
+}
+
+function renderAnnualPnl(){
+  const el=document.getElementById('annual-pnl-body');if(!el)return;
+  const ventes=trades.filter(t=>t.type==='Vente');
+  if(!ventes.length){el.innerHTML='<p style="padding:14px;color:var(--text3);font-size:12px;">Aucune vente enregistrée.</p>';return;}
+  const byYear={};
+  ventes.forEach(t=>{
+    const yr=(t.date||'').slice(0,4)||'?';
+    if(!byYear[yr])byYear[yr]={count:0,pnlCAD:0,wins:0,best:-Infinity,bestSymbol:'—'};
+    const pCAD=toUSD(t.profit||0,t.currency||'USD')*fxRate;
+    byYear[yr].count++;byYear[yr].pnlCAD+=pCAD;
+    if(pCAD>0)byYear[yr].wins++;
+    if(pCAD>byYear[yr].best){byYear[yr].best=pCAD;byYear[yr].bestSymbol=t.symbol||'—';}
+  });
+  const years=Object.keys(byYear).sort((a,b)=>b-a);
+  el.innerHTML=`<table style="min-width:550px;"><thead><tr>
+    <th>Année</th><th>Trades</th><th>P&L réalisé (CAD)</th><th>Win rate</th><th>Meilleur trade</th>
+  </tr></thead><tbody>${years.map(yr=>{
+    const d=byYear[yr],cls=d.pnlCAD>=0?'pos':'neg',wr=d.count>0?Math.round(d.wins/d.count*100):0;
+    return`<tr>
+      <td style="font-weight:600;color:var(--text1);">${yr}</td>
+      <td style="color:var(--text2);">${d.count}</td>
+      <td class="${cls}" data-sensitive>${fmtCpnl(d.pnlCAD,'CAD')}</td>
+      <td style="color:${wr>=50?'var(--green)':'var(--amber)'};">${wr}%</td>
+      <td style="color:var(--text2);" data-sensitive>${d.bestSymbol} (${d.best>0?'+':''}${fmtAmtRound(d.best)})</td>
+    </tr>`;}).join('')}</tbody></table>`;
 }
 
 function updatePnlBar(){
@@ -3598,7 +3663,15 @@ function findSpyPrice(spyMap,date){
 }
 function setBenchmarkMode(mode,el){
   benchmarkMode=mode;
-  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('mode-btn-abs')?.classList.remove('active');
+  document.getElementById('mode-btn-rel')?.classList.remove('active');
+  if(el)el.classList.add('active');
+  updatePerfChart();
+}
+function setChartCurrency(cur,el){
+  chartCurrency=cur;
+  document.getElementById('chart-cur-cad')?.classList.remove('active');
+  document.getElementById('chart-cur-usd')?.classList.remove('active');
   if(el)el.classList.add('active');
   updatePerfChart();
 }
@@ -3647,14 +3720,16 @@ function updatePerfChart(){
 
     perfChart.data.labels=sampledWithLive.map(h=>h.date.slice(5));
 
+    const curDiv=chartCurrency==='USD'?(fxRate||1):1;
+    const portStartDisp=portStart/curDiv;
     if(benchmarkMode==='absolute'){
-      perfChart.data.datasets[0].data=sampledWithLive.map(h=>parseFloat(h.value.toFixed(2)));
+      perfChart.data.datasets[0].data=sampledWithLive.map(h=>parseFloat((h.value/curDiv).toFixed(2)));
       perfChart.data.datasets[1].data=spyPriceStart?sampledWithLive.map((h,i)=>{
         if(i<alignIdx)return null;
         const sp=findSpyPrice(spyMap,h.date);
-        return sp?parseFloat((portStart*(sp/spyPriceStart)).toFixed(2)):null;
+        return sp?parseFloat(((portStart/curDiv)*(sp/spyPriceStart)).toFixed(2)):null;
       }):[];
-      perfChart.options.scales.y.ticks.callback=v=>fmtAmtRound(v);
+      perfChart.options.scales.y.ticks.callback=v=>fmtAmtRound(v)+(chartCurrency==='USD'?' US$':' $');
     }else{
       perfChart.data.datasets[0].data=sampledWithLive.map(h=>parseFloat(((h.value/portStart-1)*100).toFixed(2)));
       perfChart.data.datasets[1].data=spyPriceStart?sampledWithLive.map((h,i)=>{
@@ -3899,6 +3974,17 @@ function renderAllocCharts(){
     sectorVarChart.data.datasets[0].backgroundColor=pcts.map(v=>v>=0?'rgba(0,255,136,0.75)':'rgba(255,77,109,0.75)');
     sectorVarChart.update();
   }
+}
+
+function exportPdf(){window.print();}
+
+function showShortcutsHelp(){
+  const el=document.getElementById('shortcuts-modal-overlay');
+  if(el)el.style.display='flex';
+}
+function closeShortcutsModal(){
+  const el=document.getElementById('shortcuts-modal-overlay');
+  if(el)el.style.display='none';
 }
 
 function exportCSV(){
@@ -4308,7 +4394,48 @@ function initCharts(){
 document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelClose();});
 document.getElementById('cash-modal-overlay').addEventListener('click',function(e){if(e.target===this)closeCashPopup();});
 document.getElementById('edit-modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelEdit();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){cancelClose();cancelEdit();}});
+document.addEventListener('keydown',e=>{
+  const tag=(e.target?.tagName||'').toLowerCase();
+  const inInput=tag==='input'||tag==='textarea'||e.target?.isContentEditable;
+  if(e.key==='Escape'){cancelClose();cancelEdit();closeShortcutsModal();return;}
+  if(inInput)return;
+  const key=e.key.toLowerCase();
+  if(key==='d'){switchTab('dashboard',document.querySelector('[onclick*="dashboard"]'));}
+  else if(key==='p'){switchTab('positions',document.querySelector('[onclick*="positions"]'));}
+  else if(key==='h'){switchTab('historique',document.querySelector('[onclick*="historique"]'));}
+  else if(key==='a'){switchTab('allocation',document.querySelector('[onclick*="allocation"]'));}
+  else if(key==='s'){switchTab('strategie',document.querySelector('[onclick*="strategie"]'));}
+  else if(key==='w'){switchTab('watchlist',document.querySelector('[onclick*="watchlist"]'));}
+  else if(key==='n'){switchTab('positions',document.querySelector('[onclick*="positions"]'));setTimeout(()=>{const sym=document.getElementById('f-symbol');if(sym){sym.focus();sym.select();}},100);}
+  else if(key==='t'){const cur=document.documentElement.getAttribute('data-theme')||'dark';setTheme(cur==='dark'?'light':'dark');}
+  else if(e.key==='?'){showShortcutsHelp();}
+});
 </script>
+
+    <!-- SHORTCUTS HELP MODAL -->
+    <div id="shortcuts-modal-overlay" class="modal-overlay" style="display:none;z-index:999;">
+      <div class="modal" style="max-width:420px;">
+        <div class="modal-title">Raccourcis clavier</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">
+          <thead><tr><th style="text-align:left;padding:6px 8px;color:var(--text3);font-weight:600;">Touche</th><th style="text-align:left;padding:6px 8px;color:var(--text3);font-weight:600;">Action</th></tr></thead>
+          <tbody>
+            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">D</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Dashboard</td></tr>
+            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">P</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Positions</td></tr>
+            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">H</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Historique</td></tr>
+            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">A</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Allocation</td></tr>
+            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">S</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Stratégie</td></tr>
+            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">W</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Watchlist</td></tr>
+            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">N</kbd></td><td style="padding:6px 8px;color:var(--text2);">Nouvelle position (focus symbole)</td></tr>
+            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">T</kbd></td><td style="padding:6px 8px;color:var(--text2);">Basculer thème clair/sombre</td></tr>
+            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">?</kbd></td><td style="padding:6px 8px;color:var(--text2);">Afficher cette aide</td></tr>
+            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">Esc</kbd></td><td style="padding:6px 8px;color:var(--text2);">Fermer les modals</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:16px;text-align:right;">
+          <button class="btn" onclick="closeShortcutsModal()" style="padding:8px 18px;">Fermer</button>
+        </div>
+      </div>
+    </div>
+
 </body>
 </html>
