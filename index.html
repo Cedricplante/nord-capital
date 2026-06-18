@@ -1744,15 +1744,22 @@ async function loadStrategies(){
 
 async function saveStrategy(strat){
   if(!currentUser||!accessToken)return null;
-  const payload={...strat,user_id:currentUser.id,updated_at:new Date().toISOString()};
+  const now=new Date().toISOString();
+  const payload={...strat,user_id:currentUser.id,updated_at:now};
+  if(!strat.id)payload.created_at=now; // pour l'ORDER BY created_at
   try{
+    let res;
     if(strat.id){
-      const res=await fetch(`${SB_URL}/rest/v1/strategies?id=eq.${strat.id}`,{method:'PATCH',headers:{...sbHeaders(),'Prefer':'return=representation'},body:JSON.stringify(payload)});
-      const data=await res.json();return data&&data[0]?data[0]:null;
+      res=await fetch(`${SB_URL}/rest/v1/strategies?id=eq.${strat.id}`,{method:'PATCH',headers:{...sbHeaders(),'Prefer':'return=representation'},body:JSON.stringify(payload)});
     }else{
-      const res=await fetch(`${SB_URL}/rest/v1/strategies`,{method:'POST',headers:{...sbHeaders(),'Prefer':'return=representation'},body:JSON.stringify(payload)});
-      const data=await res.json();return data&&data[0]?data[0]:null;
+      res=await fetch(`${SB_URL}/rest/v1/strategies`,{method:'POST',headers:{...sbHeaders(),'Prefer':'return=representation'},body:JSON.stringify(payload)});
     }
+    if(!res.ok){
+      const errText=await res.text();
+      console.error('[strategy] Supabase error',res.status,errText);
+      return null;
+    }
+    const data=await res.json();return data&&data[0]?data[0]:null;
   }catch(e){console.error('[strategy] save error:',e);return null;}
 }
 
