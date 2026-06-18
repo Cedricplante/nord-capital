@@ -3745,20 +3745,45 @@ function updatePerfChart(){
 
     const curDiv=chartCurrency==='USD'?(fxRate||1):1;
     const portStartDisp=portStart/curDiv;
+    // ── Benchmark ajusté pour dépôts/retraits ─────────────────────
+    // À chaque dépôt/retrait, le benchmark SPY reçoit aussi ce montant.
+    // benchValue(t) = Σ cf.amount × (spyNow / spyAtCf)  pour cf.date ≤ t
+    const cfWithSpy=[];
+    if(spyPriceStart&&allHistory.length>0){
+      const inceptionSpy=findSpyPrice(spyMap,allHistory[0].date)||spyPriceStart;
+      cfWithSpy.push({date:allHistory[0].date,amount:allHistory[0].value,spyAtCf:inceptionSpy});
+      trades.filter(t=>t.type==='Dépôt'||t.type==='Retrait').forEach(t=>{
+        if(t.date>=allHistory[0].date){
+          const sp=findSpyPrice(spyMap,t.date);
+          if(sp)cfWithSpy.push({date:t.date,amount:t.type==='Dépôt'?t.size:-t.size,spyAtCf:sp});
+        }
+      });
+      cfWithSpy.sort((a,b)=>a.date.localeCompare(b.date));
+    }
+    const calcBench=(pointDate,spyNow)=>{
+      const active=cfWithSpy.filter(cf=>cf.date<=pointDate);
+      if(!active.length)return null;
+      return active.reduce((sum,cf)=>sum+cf.amount*(spyNow/cf.spyAtCf),0);
+    };
+
     if(benchmarkMode==='absolute'){
       perfChart.data.datasets[0].data=sampledWithLive.map(h=>parseFloat((h.value/curDiv).toFixed(2)));
-      perfChart.data.datasets[1].data=spyPriceStart?sampledWithLive.map((h,i)=>{
+      perfChart.data.datasets[1].data=cfWithSpy.length?sampledWithLive.map((h,i)=>{
         if(i<alignIdx)return null;
         const sp=findSpyPrice(spyMap,h.date);
-        return sp?parseFloat(((portStart/curDiv)*(sp/spyPriceStart)).toFixed(2)):null;
+        if(!sp)return null;
+        const bv=calcBench(h.date,sp);
+        return bv!==null?parseFloat((bv/curDiv).toFixed(2)):null;
       }):[];
       perfChart.options.scales.y.ticks.callback=v=>chartCurrency==='USD'?Math.round(v).toLocaleString('fr-FR')+' US$':fmtAmtRound(v);
     }else{
       perfChart.data.datasets[0].data=sampledWithLive.map(h=>parseFloat(((h.value/portStart-1)*100).toFixed(2)));
-      perfChart.data.datasets[1].data=spyPriceStart?sampledWithLive.map((h,i)=>{
+      perfChart.data.datasets[1].data=cfWithSpy.length?sampledWithLive.map((h,i)=>{
         if(i<alignIdx)return null;
         const sp=findSpyPrice(spyMap,h.date);
-        return sp?parseFloat(((sp/spyPriceStart-1)*100).toFixed(2)):null;
+        if(!sp)return null;
+        const bv=calcBench(h.date,sp);
+        return bv!==null?parseFloat(((bv/portStart-1)*100).toFixed(2)):null;
       }):[];
       perfChart.options.scales.y.ticks.callback=v=>v.toFixed(1)+'%';
     }
