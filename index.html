@@ -125,9 +125,12 @@
 
   /* TABLE */
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th { color: var(--text3); font-weight: 600; text-align: left; padding: 10px 12px; border-bottom: 0.5px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--sans); user-select: none; }
+  th { color: var(--text3); font-weight: 600; text-align: left; padding: 7px 10px; border-bottom: 0.5px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--sans); user-select: none; }
   /* Sticky header pour la table positions */
   .pos-table-scroll { overflow: visible; }
+  #pos-form-body { overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease; max-height: 500px; opacity: 1; }
+  #pos-form-body.collapsed { max-height: 0; opacity: 0; pointer-events: none; }
+  #pos-form-toggle.collapsed { transform: rotate(180deg); }
   .pos-table-inner { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 340px); border-radius: 0 0 var(--r) var(--r); }
   .pos-table-inner thead th { position: sticky; top: 0; z-index: 10; background: var(--bg2); box-shadow: 0 1px 0 var(--border); }
   th.sortable { cursor: pointer; transition: color 0.15s; }
@@ -135,11 +138,11 @@
   th.sortable .sort-arrow { display: inline-block; margin-left: 4px; opacity: 0.4; font-size: 9px; }
   th.sortable.active .sort-arrow { opacity: 1; color: var(--green); }
   th.sortable.active { color: var(--text); }
-  td { padding: 9px 12px; border-bottom: 0.5px solid var(--border); color: var(--text2); font-family: var(--mono); font-size: 12px; transition: background 0.1s; }
+  td { padding: 6px 10px; border-bottom: 0.5px solid var(--border); color: var(--text2); font-family: var(--mono); font-size: 11.5px; transition: background 0.1s; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: rgba(0,255,136,0.08) !important; transition: background 0.2s ease; }
-  tbody tr:nth-child(odd) td { background: rgba(255,255,255,0.012); }
-  [data-theme="light"] tbody tr:nth-child(odd) td { background: rgba(0,0,0,0.015); }
+  tbody tr:nth-child(odd) td { background: rgba(255,255,255,0.04); }
+  [data-theme="light"] tbody tr:nth-child(odd) td { background: rgba(0,0,0,0.04); }
   [data-theme="light"] tr:hover td { background: rgba(0,184,124,0.05) !important; }
   td.sym { font-weight: 600; color: var(--text); font-family: var(--sans); }
 
@@ -505,7 +508,7 @@
       <button class="nav-tab" onclick="switchTab('watchlist',this)">Watchlist</button>
     </div>
     <div style="display:flex;align-items:center;gap:12px;">
-      <button class="btn-eye" id="btn-eye" onclick="toggleHideAmounts()" title="Cacher/afficher les montants">&#9679;</button>
+      <button class="btn-eye" id="btn-eye" onclick="toggleHideAmounts()" title="Cacher/afficher les montants"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;display:inline-block;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
       <div id="live-indicator" style="font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;align-items:center;">
         <span class="live-dot" id="live-dot" style="background:var(--text3);"></span>
         <span id="live-label">Hors ligne</span>
@@ -553,7 +556,7 @@
           <div class="kpi-label">Cash disponible</div>
           <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex:1;">
             <div class="kpi-val" id="kpi-cash" style="flex:unset;">—</div>
-            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;transform:scaleX(-1);" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">Editer</button>
+            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">Modifier</button>
           </div>
           <div class="kpi-sub neu" id="kpi-cash-pct">—% du portefeuille</div>
         </div>
@@ -604,7 +607,11 @@
       <div class="pos-tab-wrap">
         <div class="pos-form-sticky">
           <div class="card" style="margin-bottom:0;">
-            <div class="card-title">Ajouter / DCA une position</div>
+            <div class="card-title" style="cursor:pointer;user-select:none;" onclick="togglePosForm()">
+              <span>Ajouter / DCA une position</span>
+              <button id="pos-form-toggle" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0 4px;transition:transform 0.2s;line-height:1;" title="Réduire/Agrandir">▲</button>
+            </div>
+            <div id="pos-form-body">
             <div class="form-grid" style="grid-template-columns:1.4fr 0.7fr 0.7fr 0.9fr 0.9fr 0.9fr 0.9fr 0.65fr 1fr auto;">
               <div class="field"><label>Symbole</label><div class="autocomplete-wrap"><input type="text" id="f-symbol" placeholder="TQQQ, BTC/USD…" autocomplete="off" oninput="onSymbolInput(this.value)" onkeydown="onSymbolKey(event)" /><div class="autocomplete-list" id="symbol-dropdown"></div></div></div>
               <div class="field"><label>Direction</label><select id="f-dir"><option>Long</option><option>Short</option></select></div>
@@ -631,7 +638,7 @@
               <div class="field"><label>Stop loss ($) <span style="color:var(--text3);font-weight:400;">(optionnel)</span></label><input type="number" id="f-stop" step="any" placeholder="ex: 180.00" /></div>
               <div class="field" style="display:flex;align-items:flex-end;"><div class="dca-hint" style="margin:0;">Si le symbole existe déjà, le prix moyen sera recalculé (DCA). Montant = shares × prix achat.</div></div>
             </div>
-          </div>
+          </div></div>
         </div>
         <div class="pos-table-scroll">
           <div class="card" style="margin-top:8px;">
@@ -1644,6 +1651,7 @@ function toggleHideAmounts(){
 }
 // Restaurer l'état au chargement
 document.addEventListener('DOMContentLoaded',()=>{
+  initPosFormState();
   if(localStorage.getItem('nc_hide_amounts')==='1'){
     document.body.classList.add('hide-amounts');
     const btn=document.getElementById('btn-eye');if(btn)btn.classList.add('active');
@@ -1874,7 +1882,7 @@ function stratRow(s){
     <td class="${profitCls}" style="${profitPot===null?'color:var(--text3);font-size:11px;':''}">${profitPot===null?'N/A':((profitPot>=0?'+':'')+fmtC(profitPot,s.currency||'USD'))}</td>
     <td onclick="event.stopPropagation();">
       <button onclick="openStratDetails('${s.id}')" title="Détails" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">&#9679;</button>
-      <button onclick="editStrategy('${s.id}')" title="Modifier" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">Edit</button>
+      <button onclick="editStrategy('${s.id}')" title="Modifier" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">Modifier</button>
       <button onclick="confirmDeleteStrategy('${s.id}')" title="Supprimer" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;">Suppr.</button>
     </td>
   </tr>`;
@@ -3624,6 +3632,22 @@ function switchTab(name,el){
   if(name==='allocation'){renderAnalytics();}
   if(name==='allocation')renderAllocCharts();
 }
+function togglePosForm(){
+  const body=document.getElementById('pos-form-body');
+  const btn=document.getElementById('pos-form-toggle');
+  if(!body)return;
+  const collapsed=body.classList.toggle('collapsed');
+  btn.classList.toggle('collapsed',collapsed);
+  localStorage.setItem('nc_pos_form_collapsed',collapsed?'1':'0');
+}
+function initPosFormState(){
+  if(localStorage.getItem('nc_pos_form_collapsed')==='1'){
+    const body=document.getElementById('pos-form-body');
+    const btn=document.getElementById('pos-form-toggle');
+    if(body){body.classList.add('collapsed');body.style.maxHeight='0';}
+    if(btn)btn.classList.add('collapsed');
+  }
+}
 function setPeriod(p,el){document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');activePeriod=p;updatePerfChart();}
 function getFilteredHistory(){
   const display=getDisplayHistory();
@@ -3729,7 +3753,7 @@ function updatePerfChart(){
         const sp=findSpyPrice(spyMap,h.date);
         return sp?parseFloat(((portStart/curDiv)*(sp/spyPriceStart)).toFixed(2)):null;
       }):[];
-      perfChart.options.scales.y.ticks.callback=v=>fmtAmtRound(v)+(chartCurrency==='USD'?' US$':' $');
+      perfChart.options.scales.y.ticks.callback=v=>chartCurrency==='USD'?Math.round(v).toLocaleString('fr-FR')+' US$':fmtAmtRound(v);
     }else{
       perfChart.data.datasets[0].data=sampledWithLive.map(h=>parseFloat(((h.value/portStart-1)*100).toFixed(2)));
       perfChart.data.datasets[1].data=spyPriceStart?sampledWithLive.map((h,i)=>{
