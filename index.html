@@ -3882,15 +3882,19 @@ function updatePerfChart(){
 
     const curDiv=chartCurrency==='USD'?(fxRate||1):1;
     const portStartDisp=portStart/curDiv;
-    // ── Benchmark ajusté pour dépôts/retraits (mode absolu seulement) ────
-    // benchValue(t) = Σ cf.amount × (spyNow / spyAtCf)  pour cf.date ≤ t
-    // Note : seuls les dépôts APRÈS la date d'inception sont inclus (évite le double-comptage)
+    // ═══════════════════════════════════════════════════════════════════
+    // MODE ABSOLU ($)
+    // ─ Portfolio  : valeur totale réelle
+    // ─ Benchmark  : cash-flow adjusted — le SPY "reçoit" chaque dépôt/retrait
+    //                au même prix que le jour où tu l'as fait
+    //   benchValue(t) = Σ cf.amount × (spyNow / spyAtCf)  pour cf.date ≤ t
+    //   Seuls les dépôts APRÈS l'inception sont ajoutés (l'inception = portStart)
+    // ═══════════════════════════════════════════════════════════════════
     const cfWithSpy=[];
     if(spyPriceStart&&allHistory.length>0){
       const inceptionSpy=findSpyPrice(spyMap,allHistory[0].date)||spyPriceStart;
       cfWithSpy.push({date:allHistory[0].date,amount:allHistory[0].value,spyAtCf:inceptionSpy});
       trades.filter(t=>t.type==='Dépôt'||t.type==='Retrait').forEach(t=>{
-        // Strictement APRÈS l'inception — le snapshot initial inclut déjà le capital de départ
         if(t.date>allHistory[0].date){
           const sp=findSpyPrice(spyMap,t.date);
           if(sp)cfWithSpy.push({date:t.date,amount:t.type==='Dépôt'?t.size:-t.size,spyAtCf:sp});
@@ -3904,6 +3908,42 @@ function updatePerfChart(){
       return active.reduce((sum,cf)=>sum+cf.amount*(spyNow/cf.spyAtCf),0);
     };
 
+    // ═══════════════════════════════════════════════════════════════════
+    // MODE % (RELATIF) — Time-Weighted Return (TWR)
+    // ─ Portfolio  : TWR — exclut l'effet des dépôts/retraits du rendement
+    //                Un dépôt = capital, pas une performance
+    //   Algo : à chaque dépôt, on capture le rendement de la sous-période
+    //          (valeur avant dépôt / valeur au dernier checkpoint),
+    //          puis on reset le checkpoint à la valeur post-dépôt.
+    //   Sans dépôt → identique à (value/portStart - 1), rétrocompatible.
+    // ─ Benchmark  : rendement pur du SPY depuis l'inception
+    //                (spyNow / spyInception - 1) — pas affecté par les dépôts
+    // ═══════════════════════════════════════════════════════════════════
+    const depositsForTWR=trades
+      .filter(t=>(t.type==='Dépôt'||t.type==='Retrait')&&t.date>allHistory[0].date)
+      .map(t=>({date:t.date,amount:t.type==='Dépôt'?t.size:-t.size}));
+    const sortedHistTWR=[...allHistory].sort((a,b)=>a.date.localeCompare(b.date));
+    let twrFactor=1.0,twrBase=sortedHistTWR[0]?.value||portStart;
+    const twrMap=new Map();
+    for(let i=0;i<sortedHistTWR.length;i++){
+      const {date,value}=sortedHistTWR[i];
+      const prevDate=i>0?sortedHistTWR[i-1].date:null;
+      // Somme des dépôts/retraits entre le snapshot précédent (excl.) et celui-ci (incl.)
+      const periodDep=depositsForTWR
+        .filter(d=>(!prevDate||d.date>prevDate)&&d.date<=date)
+        .reduce((s,d)=>s+d.amount,0);
+      if(periodDep!==0&&twrBase>0){
+        // Valeur AVANT le dépôt = snapshot actuel - dépôt de la période
+        const valBefore=value-periodDep;
+        twrFactor*=Math.max(0.001,valBefore)/twrBase;
+        twrBase=value; // nouveau point de référence post-dépôt
+      }
+      twrMap.set(date,{f:twrFactor,base:twrBase});
+    }
+    // Point live (aujourd'hui) : utilise le dernier état TWR connu
+    const lastTwrEntry=twrMap.get(sortedHistTWR[sortedHistTWR.length-1]?.date);
+    if(lastTwrEntry)twrMap.set(todayStr2,lastTwrEntry);
+
     if(benchmarkMode==='absolute'){
       perfChart.data.datasets[0].data=sampledWithLive.map(h=>parseFloat((h.value/curDiv).toFixed(2)));
       perfChart.data.datasets[1].data=cfWithSpy.length?sampledWithLive.map((h,i)=>{
@@ -3915,9 +3955,13 @@ function updatePerfChart(){
       }):[];
       perfChart.options.scales.y.ticks.callback=v=>chartCurrency==='USD'?Math.round(v).toLocaleString('fr-FR')+' US$':fmtAmtRound(v);
     }else{
-      // Mode % : comparaison simple SPY vs portfolio depuis l'inception
-      // (le mode absolu gère l'ajustement dépôts/retraits ; le mode % reste une vue rendement pur)
-      perfChart.data.datasets[0].data=sampledWithLive.map(h=>parseFloat(((h.value/portStart-1)*100).toFixed(2)));
+      // Portfolio : TWR (rendement pur, dépôts exclus)
+      perfChart.data.datasets[0].data=sampledWithLive.map(h=>{
+        const e=twrMap.get(h.date);
+        if(!e)return parseFloat(((h.value/portStart-1)*100).toFixed(2)); // fallback
+        return parseFloat(((e.f*(h.value/e.base)-1)*100).toFixed(2));
+      });
+      // Benchmark : rendement SPY depuis l'inception (comparable au TWR)
       perfChart.data.datasets[1].data=spyPriceStart?sampledWithLive.map((h,i)=>{
         if(i<alignIdx)return null;
         const sp=findSpyPrice(spyMap,h.date);
