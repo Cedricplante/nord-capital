@@ -1805,7 +1805,7 @@ function renderStratPerf(){
     const ep=s.entries_plan||[],xp=s.exits_plan||[];
     totalPaliers+=ep.length+xp.length;
     donePaliers+=ep.filter(e=>e.executed).length+xp.filter(e=>e.executed).length;
-    totalAlloc+=ep.filter(e=>!e.executed).reduce((sum,e)=>sum+(parseFloat(e.amount)||0),0);
+    const amtCurS=s.amount_currency||s.currency||'USD';totalAlloc+=ep.filter(e=>!e.executed).reduce((sum,e)=>sum+toUSD(parseFloat(e.amount)||0,amtCurS)*fxRate,0);
   });
 
   const pct=totalPaliers>0?Math.round(donePaliers/totalPaliers*100):0;
@@ -2498,7 +2498,8 @@ async function togglePalierExecuted(stratId,planType,idx){
   const plan=planType==='entry'?s.entries_plan:s.exits_plan;
   if(!plan||!plan[idx])return;
   plan[idx].executed=!plan[idx].executed;
-  await saveStrategy(s);
+  const saved=await saveStrategy(s);
+  if(!saved){plan[idx].executed=!plan[idx].executed;}// revert si échec
   renderStratDetails(stratId);
   renderStrategies();
   renderStratPerf();
