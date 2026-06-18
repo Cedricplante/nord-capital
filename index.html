@@ -421,7 +421,7 @@
     .nav-container, .toolbar, .period-btns, .mode-btns-wrap,
     button, .btn, .btn-export, .btn-ghost, .btn-danger,
     #modal-overlay, #edit-modal-overlay, #import-modal-overlay,
-    #cotisation-modal-overlay, #strat-modal-overlay, #shortcuts-modal-overlay,
+    #cotisation-modal-overlay, #strat-modal-overlay, #strat-details-overlay, #shortcuts-modal-overlay,
     .sort-arrow { display: none !important; }
     .card { background: white !important; border: 0.5px solid #ccc !important; break-inside: avoid; }
     .section { display: block !important; }
@@ -1289,6 +1289,13 @@
   </div>
 </div>
 
+<!-- MODAL : DÉTAILS STRATÉGIE + PALIERS COCHABLES -->
+<div class="modal-overlay" id="strat-details-overlay">
+  <div class="modal" style="width:700px;max-width:96vw;max-height:92vh;overflow-y:auto;">
+    <div id="strat-details-content"></div>
+  </div>
+</div>
+
 <script>
 const SB_URL='https://spgcwvmehcixchtsfuaf.supabase.co';
 // SCHEMA user_data requis: user_id, positions (text), trades (text), cash (numeric), currency (text, default 'USD'), updated_at (timestamptz)
@@ -1775,67 +1782,63 @@ async function deleteStrategy(id){
 function renderStratPerf(){
   const body=document.getElementById('strat-perf-body');
   if(!body)return;
-  // Grouper les positions par stratégie (matching par symbole)
-  const stratSymbols=new Map(); // stratId → [symbols]
-  strategies.forEach(s=>{if(s.symbol)stratSymbols.set(s.id,s.symbol);});
 
-  // Stats par type de stratégie
-  const typeGroups={DCA:[],Swing:[],Libre:[],Sans:[]};
+  const activeStrats=strategies.filter(s=>s.status==='Active'||s.status==='Brouillon');
+  let totalAlloc=0,totalOpenPnl=0,totalRealPnl=0,totalPaliers=0,donePaliers=0;
+  const typeData={DCA:{open:0,real:0,pos:0},Swing:{open:0,real:0,pos:0},Libre:{open:0,real:0,pos:0}};
+
   positions.forEach(p=>{
-    const linkedStrat=strategies.find(s=>s.symbol===p.symbol&&(s.status==='Active'||s.status==='Brouillon'));
-    const type=linkedStrat?.type||'Sans';
-    const key=typeGroups[type]!==undefined?type:'Libre';
-    const pnlUSD=toUSD((p.shares||0)*p.current,p.currency||'USD')-toUSD(p.totalSize||0,p.currency||'USD');
-    typeGroups[key].push({symbol:p.symbol,pnlUSD,valueUSD:toUSD((p.shares||0)*p.current,p.currency||'USD'),stratType:type});
+    const ls=strategies.find(s=>s.symbol===p.symbol&&(s.status==='Active'||s.status==='Brouillon'));
+    const type=ls?.type||null;
+    const pnlCAD=(toUSD((p.shares||0)*p.current,p.currency||'USD')-toUSD(p.totalSize||0,p.currency||'USD'))*fxRate;
+    totalOpenPnl+=pnlCAD;
+    if(type&&typeData[type]){typeData[type].open+=pnlCAD;typeData[type].pos++;}
   });
-
-  // P&L réalisé par type
-  const realizedByType={DCA:0,Swing:0,Libre:0,Sans:0};
   trades.filter(t=>t.type==='Vente').forEach(t=>{
-    const linkedStrat=strategies.find(s=>s.symbol===t.symbol);
-    const type=linkedStrat?.type||'Sans';
-    const key=realizedByType[type]!==undefined?type:'Libre';
-    realizedByType[key]+=(t.profitUSD||0)*fxRate;
+    const ls=strategies.find(s=>s.symbol===t.symbol);
+    const type=ls?.type||null;
+    const realCAD=(t.profitUSD||0)*fxRate;
+    totalRealPnl+=realCAD;
+    if(type&&typeData[type])typeData[type].real+=realCAD;
+  });
+  strategies.forEach(s=>{
+    const ep=s.entries_plan||[],xp=s.exits_plan||[];
+    totalPaliers+=ep.length+xp.length;
+    donePaliers+=ep.filter(e=>e.executed).length+xp.filter(e=>e.executed).length;
+    totalAlloc+=ep.filter(e=>!e.executed).reduce((sum,e)=>sum+(parseFloat(e.amount)||0),0);
   });
 
-  const TYPES=[
-    {key:'DCA',label:'DCA',icon:'DCA',desc:'Accumulation progressive'},
-    {key:'Swing',label:'Swing',icon:'SW',desc:'Trading tactique'},
-    {key:'Libre',label:'Libre',icon:'LB',desc:'Conviction / momentum'},
-    {key:'Sans',label:'Non classé',icon:'--',desc:'Sans stratégie liée'},
-  ];
+  const pct=totalPaliers>0?Math.round(donePaliers/totalPaliers*100):0;
+  const clr=v=>v>=0?'var(--green)':'var(--red)';
+  const fmt=v=>(v>=0?'+':'')+fmtAmtRound(v);
 
-  const cards=TYPES.map(({key,label,icon,desc})=>{
-    const grp=typeGroups[key]||[];
-    if(!grp.length&&!realizedByType[key])return'';
-    const openPnlCAD=grp.reduce((s,p)=>s+p.pnlUSD*fxRate,0);
-    const realPnlCAD=realizedByType[key]||0;
-    const totalVal=grp.reduce((s,p)=>s+p.valueUSD*fxRate,0);
-    const nbPos=grp.length;
-    return`<div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text3);min-width:24px;text-align:center;">${icon}</span>
-        <div>
-          <div style="font-weight:700;font-size:13px;">${label}</div>
-          <div style="font-size:10px;color:var(--text3);">${desc}</div>
-        </div>
-        <span style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text3);">${nbPos} pos · ${fmtAmtRound(totalVal)}</span>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-        <div style="background:var(--bg3);border-radius:6px;padding:8px 10px;">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px;">P&L ouvert</div>
-          <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:${openPnlCAD>=0?'var(--green)':'var(--red)'};">${openPnlCAD>=0?'+':''}${fmtAmtRound(openPnlCAD)}</div>
-        </div>
-        <div style="background:var(--bg3);border-radius:6px;padding:8px 10px;">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:2px;">P&L réalisé</div>
-          <div style="font-family:var(--mono);font-size:14px;font-weight:700;color:${realPnlCAD>=0?'var(--green)':'var(--red)'};">${realPnlCAD>=0?'+':''}${fmtAmtRound(realPnlCAD)}</div>
-        </div>
-      </div>
-      ${grp.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;">${grp.map(p=>{const pct=p.pnlUSD*fxRate/(p.valueUSD*fxRate-p.pnlUSD*fxRate||1)*100;return`<span style="background:${p.pnlUSD>=0?'rgba(0,255,136,0.1)':'rgba(255,77,109,0.1)'};border:0.5px solid ${p.pnlUSD>=0?'rgba(0,255,136,0.25)':'rgba(255,77,109,0.25)'};border-radius:4px;padding:2px 7px;font-size:10px;font-family:var(--mono);">${p.symbol} <span style="color:${p.pnlUSD>=0?'var(--green)':'var(--red)'};">${p.pnlUSD>=0?'+':''}${pct.toFixed(1)}%</span></span>`;}).join('')}</div>`:''}
-    </div>`;
-  }).filter(Boolean).join('');
+  const typeChips=Object.entries(typeData).filter(([k,v])=>v.pos>0||v.real!==0).map(([k,v])=>{
+    const total=v.open+v.real;
+    return`<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--bg3);border-radius:20px;font-size:10px;">
+      <span style="font-weight:600;color:var(--text2);">${k}</span>
+      ${v.pos>0?`<span style="color:var(--text3);">${v.pos} pos</span>`:''}
+      <span style="font-family:var(--mono);color:${clr(total)};">${fmt(total)}</span>
+    </span>`;
+  }).join('');
 
-  body.innerHTML=cards?`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:4px;">${cards}</div>`:'';
+  if(!activeStrats.length&&!totalPaliers){body.innerHTML='';return;}
+
+  body.innerHTML=`<div style="padding:2px 0 16px;">
+    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:${typeChips||totalPaliers?'10px':'0'};">
+      <span style="font-size:11px;color:var(--text3);">${activeStrats.length} stratégie${activeStrats.length!==1?'s':''} active${activeStrats.length!==1?'s':''}</span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:11px;"><span style="color:var(--text3);">Non déployé</span><span style="font-family:var(--mono);font-weight:600;">${fmtAmtRound(totalAlloc)}</span></span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:11px;"><span style="color:var(--text3);">P&L ouvert</span><span style="font-family:var(--mono);font-weight:600;color:${clr(totalOpenPnl)};">${fmt(totalOpenPnl)}</span></span>
+      <span style="display:flex;align-items:center;gap:5px;font-size:11px;"><span style="color:var(--text3);">Réalisé</span><span style="font-family:var(--mono);font-weight:600;color:${clr(totalRealPnl)};">${fmt(totalRealPnl)}</span></span>
+    </div>
+    ${typeChips?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${typeChips}</div>`:''}
+    ${totalPaliers>0?`<div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${donePaliers}/${totalPaliers} paliers exécutés</span>
+      <div style="flex:1;height:4px;background:var(--bg3);border-radius:4px;overflow:hidden;">
+        <div style="width:${Math.max(2,pct)}%;height:100%;background:var(--green);border-radius:4px;transition:width 0.3s;"></div>
+      </div>
+      <span style="font-size:10px;color:var(--text3);font-family:var(--mono);">${pct}%</span>
+    </div>`:''}
+  </div>`;
 }
 
 function renderStrategies(){
@@ -2365,7 +2368,141 @@ function editStrategy(id){
   openStratModal(s);
 }
 
-function openStratDetails(id){const s=strategies.find(s=>s.id===id);if(s)openStratModal(s);}
+let currentStratDetailsId=null;
+
+function openStratDetails(id){
+  currentStratDetailsId=id;
+  renderStratDetails(id);
+  document.getElementById('strat-details-overlay').classList.add('open');
+}
+
+function closeStratDetails(){
+  document.getElementById('strat-details-overlay').classList.remove('open');
+  currentStratDetailsId=null;
+}
+
+function renderStratDetails(id){
+  const s=strategies.find(s=>s.id===id);
+  if(!s)return;
+  const el=document.getElementById('strat-details-content');
+  if(!el)return;
+  const ep=s.entries_plan||[],xp=s.exits_plan||[];
+  const amtCur=s.amount_currency||s.currency||'USD';
+  const priceCur=s.currency||'USD';
+  const pos=positions.find(p=>p.symbol===s.symbol);
+  const livePrice=pos?pos.current:null;
+  const statusColors={'Brouillon':'var(--text3)','Active':'var(--green)','Complétée':'var(--blue)','Archivée':'var(--text3)'};
+
+  // Stats calculées depuis les paliers exécutés
+  const execEntries=ep.filter(e=>e.executed);
+  const totalShares=execEntries.reduce((s,e)=>s+(parseFloat(e.shares)||0),0);
+  const totalCost=execEntries.reduce((s,e)=>s+(parseFloat(e.shares)||0)*(parseFloat(e.price)||0),0);
+  const avgEntry=totalShares>0?totalCost/totalShares:null;
+  const totalDeployedAmt=execEntries.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const livePnlPrice=(livePrice&&avgEntry)?(livePrice-avgEntry)*totalShares:null;
+  const livePnlPct=(avgEntry&&livePnlPrice!==null&&totalCost>0)?(livePnlPrice/totalCost*100):null;
+
+  const epDone=ep.filter(e=>e.executed).length,xpDone=xp.filter(e=>e.executed).length;
+  const totalP=ep.length+xp.length,doneP=epDone+xpDone;
+
+  const palierRow=(e,i,planType)=>{
+    const price=parseFloat(e.price)||0,shares=parseFloat(e.shares)||0,amount=parseFloat(e.amount)||0;
+    let badge='';
+    if(livePrice&&price>0){
+      const reached=planType==='entry'?livePrice<=price:livePrice>=price;
+      if(reached&&!e.executed)badge=`<span style="background:rgba(255,183,52,0.15);color:#ffb547;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:5px;">Atteint</span>`;
+    }
+    const chkClr=e.executed?'var(--green)':'var(--border2)';
+    const rowBg=e.executed?'rgba(0,255,136,0.04)':'var(--bg3)';
+    const rowBord=e.executed?'rgba(0,255,136,0.2)':'var(--border)';
+    return`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:${rowBg};border:0.5px solid ${rowBord};border-radius:8px;margin-bottom:6px;cursor:pointer;transition:background 0.15s,border-color 0.15s;" onclick="togglePalierExecuted('${s.id}','${planType}',${i})">
+      <div style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${chkClr};background:${e.executed?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;">
+        ${e.executed?'<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5.5 4,8 8.5,2" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:baseline;gap:4px;flex-wrap:wrap;">
+          <span style="font-family:var(--mono);font-size:12px;font-weight:600;">${price>0?fmtPrice(price)+' '+priceCur:'—'}</span>${badge}
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px;">
+          ${shares>0?shares.toLocaleString('fr-FR',{maximumFractionDigits:4})+' act.':''}${shares>0&&amount>0?' · ':''}${amount>0?fmtC(amount,amtCur):''}
+        </div>
+      </div>
+      <span style="font-size:9px;color:${e.executed?'var(--green)':'var(--text3)'};white-space:nowrap;">${e.executed?'Exécuté':'En attente'}</span>
+    </div>`;
+  };
+
+  const stats=[];
+  if(avgEntry!==null)stats.push({label:'Prix moy. entrée',val:fmtPrice(avgEntry)+' '+priceCur,color:''});
+  if(totalDeployedAmt>0)stats.push({label:'Capital déployé',val:fmtC(totalDeployedAmt,amtCur),color:''});
+  if(livePnlPrice!==null){
+    const pnlStr=(livePnlPrice>=0?'+':'')+fmtC(livePnlPrice,priceCur);
+    const pctStr=livePnlPct!==null?` (${livePnlPct>=0?'+':''}${livePnlPct.toFixed(2)}%)`:'';
+    stats.push({label:'P&L live',val:pnlStr+pctStr,color:livePnlPrice>=0?'var(--green)':'var(--red)'});
+  }
+
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;flex-wrap:wrap;">
+          <span style="font-size:20px;font-weight:700;">${s.symbol}</span>
+          <span style="font-size:10px;background:var(--bg3);padding:3px 9px;border-radius:12px;color:var(--text2);">${s.type||'—'}</span>
+          <span style="font-size:10px;font-weight:600;color:${statusColors[s.status]||'var(--text3)'};">${s.status}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;font-size:11px;color:var(--text3);flex-wrap:wrap;">
+          ${s.account?`<span>${s.account}</span>`:''}
+          ${livePrice?`<span>Prix live : <span style="font-family:var(--mono);color:var(--text);">${fmtPrice(livePrice)} ${priceCur}</span></span>`:''}
+          ${totalP>0?`<span>${doneP}/${totalP} paliers</span>`:''}
+        </div>
+      </div>
+      <button onclick="closeStratDetails()" style="background:transparent;border:none;color:var(--text3);font-size:22px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;">×</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:11px;font-weight:600;">Paliers d'entrée</span>
+          <span style="font-size:10px;color:var(--text3);">${epDone}/${ep.length}</span>
+        </div>
+        ${ep.length?ep.map((e,i)=>palierRow(e,i,'entry')).join(''):'<div style="font-size:10px;color:var(--text3);padding:8px 0;">Aucun palier défini</div>'}
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:11px;font-weight:600;">Paliers de sortie</span>
+          <span style="font-size:10px;color:var(--text3);">${xpDone}/${xp.length}</span>
+        </div>
+        ${xp.length?xp.map((e,i)=>palierRow(e,i,'exit')).join(''):'<div style="font-size:10px;color:var(--text3);padding:8px 0;">Aucun palier défini</div>'}
+      </div>
+    </div>
+
+    ${stats.length?`<div style="border-top:0.5px solid var(--border);padding-top:14px;margin-bottom:16px;">
+      <div style="font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);margin-bottom:10px;">Performance calculée</div>
+      <div style="display:flex;flex-wrap:wrap;gap:20px;">
+        ${stats.map(st=>`<div>
+          <div style="font-size:9px;color:var(--text3);margin-bottom:3px;">${st.label}</div>
+          <div style="font-size:14px;font-weight:700;font-family:var(--mono);color:${st.color||'var(--text)'};">${st.val}</div>
+        </div>`).join('')}
+      </div>
+    </div>`:''}
+
+    ${s.notes?`<div style="background:var(--bg3);border-radius:8px;padding:10px 12px;font-size:11px;color:var(--text2);margin-bottom:16px;line-height:1.6;">${s.notes}</div>`:''}
+
+    <div style="display:flex;justify-content:flex-end;gap:8px;border-top:0.5px solid var(--border);padding-top:14px;">
+      <button class="btn-ghost" onclick="closeStratDetails();setTimeout(()=>editStrategy('${s.id}'),80)" style="padding:8px 16px;">Modifier</button>
+      <button class="btn-ghost" onclick="closeStratDetails()" style="padding:8px 16px;">Fermer</button>
+    </div>`;
+}
+
+async function togglePalierExecuted(stratId,planType,idx){
+  const s=strategies.find(s=>s.id===stratId);
+  if(!s)return;
+  const plan=planType==='entry'?s.entries_plan:s.exits_plan;
+  if(!plan||!plan[idx])return;
+  plan[idx].executed=!plan[idx].executed;
+  await saveStrategy(s);
+  renderStratDetails(stratId);
+  renderStrategies();
+  renderStratPerf();
+}
 
 
 async function loadPortfolioHistory(){
