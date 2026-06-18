@@ -2417,9 +2417,7 @@ function getDisplayHistory(){
   }
   return filled;
 }
-// backfillMissingDays conservé mais ne fait plus rien — les vrais snapshots
-// sont écrits uniquement par saveSnapshot() lors des mises à jour de prix live.
-async function backfillMissingDays(){return;}
+
 
 // Nettoie les snapshots interpolés qui ont pu être écrits par l'ancienne version.
 // Conserve uniquement les entrées espacées d'au moins 1 jour "de vraie activité"
@@ -3092,7 +3090,7 @@ async function startApp(){
     await saveSnapshot(initialValueCAD);
     if(firstTradeDate<today){
       await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:firstTradeDate,value:parseFloat(initialValueCAD.toFixed(2)),currency:accountCurrency,updated_at:new Date().toISOString()})});
-      await loadPortfolioHistory();await backfillMissingDays();
+      await loadPortfolioHistory();
     }
   }
   fetchLivePrices();
@@ -3644,7 +3642,7 @@ function initPosFormState(){
   if(localStorage.getItem('nc_pos_form_collapsed')==='1'){
     const body=document.getElementById('pos-form-body');
     const btn=document.getElementById('pos-form-toggle');
-    if(body){body.classList.add('collapsed');body.style.maxHeight='0';}
+    if(body){body.style.transition='none';body.classList.add('collapsed');requestAnimationFrame(()=>{body.style.transition='';});}
     if(btn)btn.classList.add('collapsed');
   }
 }
@@ -3661,13 +3659,7 @@ function getFilteredHistory(){
   return display.filter(h=>new Date(h.date)>=cutoff);
 }
 // ─── BENCHMARK ────────────────────────────────────────────────────
-function periodToRange(p){
-  if(p==='1W')return'5d';
-  if(p==='1M')return'1mo';
-  if(p==='3M')return'3mo';
-  if(p==='YTD')return'ytd';
-  return'5y'; // ALL
-}
+
 async function fetchSpyHistory(range){
   if(spyCache[range])return spyCache[range];
   try{
