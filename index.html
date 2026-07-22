@@ -2543,24 +2543,13 @@ async function saveSnapshot(valueCAD){
 // Ne plus écrire l'interpolation dans Supabase — ça écrasait les vraies valeurs.
 // Les jours manquants sont comblés côté client uniquement pour l'affichage du chart.
 function getDisplayHistory(){
+  // Anciennement : comblait les jours manquants entre deux vrais snapshots par une
+  // interpolation linéaire (points "fictifs"). Ça masquait les vraies variations
+  // du portfolio par une fausse ligne droite entre deux jours de connexion.
+  // Le cron /api/snapshot tourne tous les jours ouvrables sans besoin de login —
+  // on affiche donc uniquement les vrais snapshots, sans données inventées.
   if(!portfolioHistory.length)return[];
-  // Copie locale enrichie pour l'affichage uniquement (ne touche pas portfolioHistory)
-  const filled=[];
-  for(let i=0;i<portfolioHistory.length;i++){
-    filled.push({...portfolioHistory[i]});
-    if(i<portfolioHistory.length-1){
-      const cur=portfolioHistory[i],next=portfolioHistory[i+1];
-      const d0=new Date(cur.date).getTime(),d1=new Date(next.date).getTime();
-      let d=new Date(cur.date);d.setDate(d.getDate()+1);
-      while(d.getTime()<d1){
-        const ds=d.toISOString().split('T')[0];
-        const t=(d.getTime()-d0)/(d1-d0);
-        filled.push({date:ds,value:cur.value+t*(next.value-cur.value),interpolated:true});
-        d.setDate(d.getDate()+1);
-      }
-    }
-  }
-  return filled;
+  return portfolioHistory.map(h=>({...h}));
 }
 
 
@@ -3206,16 +3195,14 @@ async function startApp(){
   // Charger fxRate en premier — critique pour la migration des snapshots USD
   fxRate=await fetchFxRate(accountCurrency);
   updateFxDisplay();
-  // Migration one-time : cash était stocké en USD, maintenant en devise du compte
-  if(!localStorage.getItem('nc_cash_migrated_v2')&&accountCurrency!=='USD'&&fxRate>1){
-    cash=parseFloat((cash*fxRate).toFixed(2));
-    await saveData();
-    localStorage.setItem('nc_cash_migrated_v2','1');
-    console.log(`[migration] Cash converti en ${accountCurrency}: ${cash}`);
-  }else if(!localStorage.getItem('nc_cash_migrated_v2')){
-    localStorage.setItem('nc_cash_migrated_v2','1'); // USD natif, rien à convertir
-  }
-  // Maintenant charger l'historique (migration USD→accountCurrency si besoin)
+  // Ancienne migration one-time (cash USD → devise du compte) retirée le 2026-07-22 :
+  // le flag était stocké en localStorage (par navigateur/appareil), pas en Supabase.
+  // Sur un nouvel appareil (ex: nouveau PC), le flag est absent alors que le cash
+  // en base est DÉJÀ dans la devise du compte → le code le reconvertissait une
+  // 2e fois (cash × fxRate) et écrivait la valeur gonflée dans Supabase.
+  // La migration a fait son travail une fois il y a longtemps ; ce code n'est
+  // plus qu'un risque de corruption silencieuse, donc supprimé.
+  // Maintenant charger l'historique
   await loadPortfolioHistory();
   // cleanInterpolatedSnapshots désactivé — heuristique trop agressive (supprime de vrais snapshots en tendance linéaire)
   // Pré-cacher les taux des devises de positions non-USD et non-accountCurrency
@@ -3234,6 +3221,19 @@ async function startApp(){
   }
   fetchLivePrices();
   setInterval(fetchLivePrices,900000);
+  showOnboardingIfNeeded();
+}
+// ─── ONBOARDING (popup "comment ça marche" à la 1re connexion) ────
+function showOnboardingIfNeeded(){
+  if(localStorage.getItem('nc_onboarding_seen'))return;
+  const el=document.getElementById('onboarding-modal-overlay');
+  if(el)el.style.display='flex';
+}
+function closeOnboarding(){
+  const chk=document.getElementById('onboarding-dont-show');
+  if(chk&&chk.checked)localStorage.setItem('nc_onboarding_seen','1');
+  const el=document.getElementById('onboarding-modal-overlay');
+  if(el)el.style.display='none';
 }
 window.addEventListener('DOMContentLoaded',async()=>{
   const savedTheme=localStorage.getItem('nc_theme')||'dark';setTheme(savedTheme);
@@ -4636,6 +4636,30 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='?'){showShortcutsHelp();}
 });
 </script>
+
+    <!-- ONBOARDING MODAL (1re connexion) -->
+    <div id="onboarding-modal-overlay" class="modal-overlay" style="display:none;z-index:999;">
+      <div class="modal" style="max-width:460px;">
+        <div class="modal-title">Bienvenue sur NORD <span style="color:var(--green);">CAPITAL</span></div>
+        <div style="font-family:var(--sans);font-size:12.5px;color:var(--text2);line-height:1.7;margin-top:6px;">
+          <p style="margin:0 0 10px;">Petit tour rapide du dashboard :</p>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:5px 8px 5px 0;color:var(--green);font-weight:700;white-space:nowrap;">Dashboard</td><td style="padding:5px 0;color:var(--text2);">Vue d'ensemble — valeur totale, courbe de performance vs S&amp;P 500, allocation.</td></tr>
+            <tr><td style="padding:5px 8px 5px 0;color:var(--green);font-weight:700;white-space:nowrap;">Positions</td><td style="padding:5px 0;color:var(--text2);">Tes positions ouvertes, prix live, P&amp;L par titre.</td></tr>
+            <tr><td style="padding:5px 8px 5px 0;color:var(--green);font-weight:700;white-space:nowrap;">Historique</td><td style="padding:5px 0;color:var(--text2);">Toutes tes transactions, import/export CSV.</td></tr>
+            <tr><td style="padding:5px 8px 5px 0;color:var(--green);font-weight:700;white-space:nowrap;">Allocation</td><td style="padding:5px 0;color:var(--text2);">Répartition par titre, catégorie et compte.</td></tr>
+            <tr><td style="padding:5px 8px 5px 0;color:var(--green);font-weight:700;white-space:nowrap;">Stratégie</td><td style="padding:5px 0;color:var(--text2);">Tes plans d'entrée/sortie et suivi des milestones.</td></tr>
+          </table>
+          <p style="margin:12px 0 0;color:var(--text3);font-size:11.5px;">Astuce : appuie sur <kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);">?</kbd> à tout moment pour voir tous les raccourcis clavier.</p>
+        </div>
+        <label style="display:flex;align-items:center;gap:7px;margin-top:16px;font-family:var(--sans);font-size:11.5px;color:var(--text3);cursor:pointer;">
+          <input type="checkbox" id="onboarding-dont-show" style="cursor:pointer;" /> Ne plus jamais afficher ce message
+        </label>
+        <div style="margin-top:14px;text-align:right;">
+          <button class="btn" onclick="closeOnboarding()" style="padding:8px 18px;">Compris</button>
+        </div>
+      </div>
+    </div>
 
     <!-- SHORTCUTS HELP MODAL -->
     <div id="shortcuts-modal-overlay" class="modal-overlay" style="display:none;z-index:999;">
