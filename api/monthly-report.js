@@ -69,7 +69,7 @@ function fmtSign(n) { return (n >= 0 ? '+' : '') + fmt(n, 0); }
 function fmtPct(n)  { return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
 
 function positionPnl(pos, prices, usdcad) {
-  const sym   = (pos.symbol || '').replace('/', '-');
+  const sym   = getYahooTicker(pos.symbol || '');
   const price = prices[sym] || pos.current || pos.avgEntry || 0;
   const cur   = (pos.currency || 'USD').toUpperCase();
   const toCAD = cur === 'CAD' ? 1 : usdcad;
