@@ -73,9 +73,16 @@ function positionPnl(pos, prices, usdcad) {
   const price = prices[sym] || pos.current || pos.avgEntry || 0;
   const cur   = (pos.currency || 'USD').toUpperCase();
   const toCAD = cur === 'CAD' ? 1 : usdcad;
-  const shares = pos.shares || 0;
+  const avgEntry  = parseFloat(pos.avgEntry || pos.avg_cost || 0);
+  const totalSize = parseFloat(pos.totalSize || pos.total_size || 0);
+  // Même source de vérité que positionValueCAD (_lib/valuation.js) : shares
+  // dérivées de totalSize/avgEntry plutôt que pos.shares directement, pour que
+  // le classement top/flop et le total du même email ne divergent jamais
+  // (pos.shares peut légèrement dériver de totalSize/avgEntry après des ventes
+  // partielles). Fallback sur pos.shares si avgEntry est absent/invalide.
+  const shares = avgEntry > 0 ? totalSize / avgEntry : (pos.shares || 0);
   const mktVal = shares * price * toCAD;
-  const cost   = shares * (pos.avgEntry || 0) * toCAD;
+  const cost   = shares * avgEntry * toCAD;
   const pnl    = pos.dir === 'Short' ? cost - mktVal : mktVal - cost;
   const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
   return { symbol: pos.symbol, mktVal, cost, pnl, pnlPct, price, currency: cur };

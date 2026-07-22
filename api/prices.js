@@ -1,20 +1,8 @@
 // Cryptos à fetcher via CoinGecko (Yahoo Finance les gère mal)
-const COINGECKO_MAP = {
-  'TAO-USD': 'bittensor',
-  'RNDR-USD': 'render-token',
-  'AKT-USD': 'akash-network',
-  'PYTH-USD': 'pyth-network',
-  'RSR-USD': 'reserve-rights-token',
-  'AERO-USD': 'aerodrome-finance',
-  'PENDLE-USD': 'pendle',
-  'JUP-USD': 'jupiter-exchange-solana',
-  'ENA-USD': 'ethena',
-  'NOT-USD': 'notcoin',
-  'MEW-USD': 'cat-in-a-dogs-world',
-  'TIA-USD': 'celestia',
-  'STX-USD': 'blockstack',
-  'POL-USD': 'matic-network',
-};
+// Source unique : api/_lib/valuation.js — partagée avec snapshot.js et
+// monthly-report.js pour que le dashboard live et les calculs cron ne
+// puissent jamais lister des cryptos différentes.
+import { COINGECKO_MAP } from './_lib/valuation.js';
 
 async function fetchCoinGecko(symbols) {
   const prices = {};
