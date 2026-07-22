@@ -3148,8 +3148,6 @@ async function checkPriceAlerts(){
   // Construire liste des alertes déclenchées
   const triggered=[];
   const today=new Date().toISOString().slice(0,10);
-  // Éviter de renvoyer plusieurs fois par jour (localStorage)
-  const lastAlert=localStorage.getItem('nc_last_alert_date');
 
   watchlist.forEach(w=>{
     if(!w._price?.price)return;
@@ -3164,25 +3162,19 @@ async function checkPriceAlerts(){
 
   if(!triggered.length)return;
 
-  // Afficher badge d'alerte dans l'UI
-  const badge=document.getElementById('strat-badge'); // réutiliser ou créer
   console.log('[alerts] Alertes déclenchées:', triggered.map(a=>a.symbol+' '+a.type).join(', '));
 
-  // Envoyer email seulement une fois par jour
-  if(lastAlert===today){
-    console.log('[alerts] Email deja envoye - pas de re-envoi aujourd hui');
-    return;
-  }
-
+  // Dédup "1 email/jour" gérée côté serveur (user_data.last_alert_date) — fiable
+  // même en changeant d'appareil (portable ↔ PC), contrairement à l'ancien localStorage.
+  if(!accessToken){console.warn('[alerts] Pas de session active, envoi annulé');return;}
   try{
     const r=await fetch('/api/check-alerts',{
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'application/json','Authorization':`Bearer ${accessToken}`},
       body:JSON.stringify({alerts:triggered})
     });
     const data=await r.json();
     if(data.sent>0){
-      localStorage.setItem('nc_last_alert_date',today);
       console.log('[alerts] Email envoyé pour',data.sent,'alerte(s)');
       // Notification visuelle
       const notif=document.createElement('div');
@@ -3190,6 +3182,8 @@ async function checkPriceAlerts(){
       notif.textContent=`${data.sent} alerte(s) prix envoyée(s) par email`;
       document.body.appendChild(notif);
       setTimeout(()=>notif.remove(),5000);
+    }else if(data.reason){
+      console.log('[alerts]',data.reason);
     }
   }catch(e){console.warn('[alerts] Envoi email échoué:',e);}
 }

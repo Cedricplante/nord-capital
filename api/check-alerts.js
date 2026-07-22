@@ -1,28 +1,89 @@
 // api/check-alerts.js
 // Called client-side after refreshWatchlist to check target/stop alerts
 // Sends email via Resend if any alert is triggered
+//
+// Protections (avant : endpoint public sans limite, spammable) :
+//   1. Auth  : exige un token Supabase valide correspondant au seul compte de l'app
+//              (app mono-utilisateur, cf. SUPABASE_USER_ID utilisé partout ailleurs).
+//   2. Dédup : "1 email d'alertes / jour" appliqué côté serveur (user_data.last_alert_date),
+//              donc fiable même si l'appel vient de deux appareils différents (portable + PC),
+//              contrairement à l'ancien système basé sur localStorage.
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const REPORT_EMAIL = process.env.REPORT_EMAIL;
+const REPORT_EMAIL   = process.env.REPORT_EMAIL;
+const SUPA_URL       = (process.env.SUPABASE_URL || 'https://spgcwvmehcixchtsfuaf.supabase.co').replace(/\/$/, '');
+const SUPA_KEY       = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || '';
+const SUPA_USER_ID   = process.env.SUPABASE_USER_ID || '871afd38-3c0b-4554-9ed1-a38a2ca966ff';
+
+function sbHeaders() {
+  return { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json' };
+}
+
+// Vérifie que le bearer token envoyé par le client correspond bien à l'unique
+// utilisateur de l'app — bloque tout appel externe (curl, script, etc.).
+async function verifyOwner(req) {
+  const auth = req.headers['authorization'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (!token) return false;
+  try {
+    const r = await fetch(`${SUPA_URL}/auth/v1/user`, {
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return false;
+    const user = await r.json();
+    return user?.id === SUPA_USER_ID;
+  } catch {
+    return false;
+  }
+}
+
+async function getLastAlertDate() {
+  const url = `${SUPA_URL}/rest/v1/user_data?user_id=eq.${SUPA_USER_ID}&select=last_alert_date&limit=1`;
+  const r = await fetch(url, { headers: sbHeaders() });
+  if (!r.ok) return null;
+  const rows = await r.json();
+  return rows[0]?.last_alert_date || null;
+}
+
+async function setLastAlertDate(date) {
+  const url = `${SUPA_URL}/rest/v1/user_data?user_id=eq.${SUPA_USER_ID}`;
+  await fetch(url, {
+    method: 'PATCH',
+    headers: sbHeaders(),
+    body: JSON.stringify({ last_alert_date: date }),
+  });
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
 
+  const isOwner = await verifyOwner(req);
+  if (!isOwner) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
   if (!RESEND_API_KEY || !REPORT_EMAIL) {
     res.status(200).json({ skipped: true, reason: 'Resend not configured' });
     return;
   }
 
-  let alerts;
-  try { alerts = req.body?.alerts || []; } catch(e) { alerts = []; }
+  const alerts = Array.isArray(req.body?.alerts) ? req.body.alerts : [];
   if (!alerts.length) { res.status(200).json({ sent: 0 }); return; }
 
-  // Filter only new alerts (not yet notified today)
-  const today = new Date().toISOString().slice(0, 10);
   const triggered = alerts.filter(a => a.type === 'target' || a.type === 'stop');
   if (!triggered.length) { res.status(200).json({ sent: 0 }); return; }
+
+  // Dédup serveur : au plus un email d'alertes par jour, peu importe le nombre
+  // d'appareils/appels. Remplace l'ancien système localStorage (non partagé entre appareils).
+  const today = new Date().toISOString().slice(0, 10);
+  const lastAlertDate = await getLastAlertDate();
+  if (lastAlertDate === today) {
+    res.status(200).json({ sent: 0, reason: 'already sent today' });
+    return;
+  }
 
   const rows = triggered.map(a => `
     <tr style="border-bottom:1px solid #eee;">
@@ -68,8 +129,12 @@ export default async function handler(req, res) {
       }),
     });
     const data = await r.json();
-    if (r.ok) res.status(200).json({ sent: triggered.length, id: data.id });
-    else res.status(200).json({ sent: 0, error: data });
+    if (r.ok) {
+      await setLastAlertDate(today);
+      res.status(200).json({ sent: triggered.length, id: data.id });
+    } else {
+      res.status(200).json({ sent: 0, error: data });
+    }
   } catch(e) {
     res.status(200).json({ sent: 0, error: e.message });
   }
