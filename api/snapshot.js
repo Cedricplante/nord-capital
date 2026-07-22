@@ -181,9 +181,19 @@ function positionValueCAD(pos, prices, usdcad) {
   const price     = prices[ticker];
   const avgEntry  = parseFloat(pos.avgEntry || pos.avg_cost || 0);
   const totalSize = parseFloat(pos.totalSize || pos.total_size || 0);
-  if (!price || !avgEntry || avgEntry === 0) return 0;
+  // Garde-fou : totalSize/avgEntry invalides ou non-finis → position ignorée (valeur 0)
+  // plutôt que de propager un NaN qui contaminerait le snapshot complet.
+  if (!price || !avgEntry || avgEntry === 0 || !Number.isFinite(totalSize) || totalSize <= 0) {
+    if (!price) console.warn(`[snapshot] Prix manquant pour ${symbol} (${ticker}), position ignorée`);
+    else console.warn(`[snapshot] Données invalides pour ${symbol}: avgEntry=${avgEntry}, totalSize=${pos.totalSize}, position ignorée`);
+    return 0;
+  }
   const shares = totalSize / avgEntry;
   const mktVal = shares * price;
+  if (!Number.isFinite(mktVal)) {
+    console.warn(`[snapshot] mktVal non-fini pour ${symbol}, position ignorée`);
+    return 0;
+  }
   const isCad = symbol.toUpperCase().endsWith('.TO');
   return isCad ? mktVal : mktVal * usdcad;
 }
@@ -212,7 +222,8 @@ export default async function handler(req, res) {
 
     // 2. Parser positions
     const positions = parsePositions(userData.positions);
-    const cash      = parseFloat(userData.cash || 0);
+    const cashRaw   = parseFloat(userData.cash || 0);
+    const cash      = Number.isFinite(cashRaw) ? cashRaw : 0;
     const currency  = userData.currency || 'CAD';
 
     console.log(`[snapshot] ${positions.length} position(s) | cash=${cash} ${currency}`);
@@ -246,6 +257,12 @@ export default async function handler(req, res) {
     const totalCAD = totalPositionsCAD + cash;
     const today    = new Date().toISOString().split('T')[0];
     const elapsed  = Date.now() - startTime;
+
+    // Garde-fou final : ne jamais écrire une valeur non-finie dans portfolio_history.
+    // Mieux vaut un snapshot manquant (visible, alertable) qu'un total corrompu à null/NaN.
+    if (!Number.isFinite(totalCAD)) {
+      throw new Error(`totalCAD non-fini (${totalCAD}) — snapshot annulé pour éviter la corruption`);
+    }
 
     console.log(`[snapshot] Total=${totalCAD.toFixed(2)} CAD | USDCAD=${usdcad} | ${elapsed}ms`);
 
