@@ -6,7 +6,21 @@
 // Env vars Vercel requises :
 //   SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_USER_ID
 //   RESEND_API_KEY, REPORT_EMAIL
+//
+// Logique de valorisation (tickers, positions, cash→CAD) centralisée dans
+// ./_lib/valuation.js — partagée avec snapshot.js pour que le rapport mensuel
+// et le graphique du dashboard ne puissent jamais diverger.
 // ============================================================
+
+import {
+  COINGECKO_MAP,
+  getYahooTicker,
+  positionValueCAD,
+  cashToCAD,
+  accountCurrencyTicker,
+  fetchYahooBatch,
+  fetchCoinGeckoBatch,
+} from './_lib/valuation.js';
 
 const SUPA_URL     = (process.env.SUPABASE_URL || 'https://spgcwvmehcixchtsfuaf.supabase.co').replace(/\/$/, '');
 const SUPA_KEY     = process.env.SUPABASE_SERVICE_KEY || '';
@@ -14,15 +28,6 @@ const SUPA_USER_ID = process.env.SUPABASE_USER_ID || '871afd38-3c0b-4554-9ed1-a3
 const RESEND_KEY   = process.env.RESEND_API_KEY || '';
 const TO_EMAIL     = process.env.REPORT_EMAIL || 'cedric.plante@outlook.com';
 const APP_URL      = 'https://nord-capital-cedricplantes-projects.vercel.app';
-
-// ── CoinGecko map (identique à snapshot.js) ──────────────────
-const COINGECKO_MAP = {
-  'TAO-USD':'bittensor','RNDR-USD':'render-token','AKT-USD':'akash-network',
-  'PYTH-USD':'pyth-network','RSR-USD':'reserve-rights-token','AERO-USD':'aerodrome-finance',
-  'PENDLE-USD':'pendle','JUP-USD':'jupiter-exchange-solana','ENA-USD':'ethena',
-  'NOT-USD':'notcoin','MEW-USD':'cat-in-a-dogs-world','TIA-USD':'celestia',
-  'STX-USD':'blockstack','POL-USD':'matic-network',
-};
 
 function sbHeaders() {
   return { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` };
@@ -41,46 +46,18 @@ async function fetchHistory() {
   return await res.json();
 }
 
-// ── Prix batch (évite double cold-start via /api/prices) ─────
-async function fetchYahooBatch(tickers) {
-  if (!tickers.length) return {};
-  const prices = {};
-  const headers = { 'User-Agent': 'Mozilla/5.0', 'Accept': 'application/json', 'Referer': 'https://finance.yahoo.com' };
-  for (const base of ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com']) {
-    try {
-      const url = `${base}/v7/finance/quote?symbols=${encodeURIComponent(tickers.join(','))}&fields=regularMarketPrice`;
-      const r = await fetch(url, { headers, signal: AbortSignal.timeout(7000) });
-      if (!r.ok) continue;
-      const data = await r.json();
-      for (const q of (data?.quoteResponse?.result || [])) {
-        if (q.regularMarketPrice > 0) prices[q.symbol] = q.regularMarketPrice;
-      }
-      if (Object.keys(prices).length > 0) break;
-    } catch(e) { console.warn('[monthly-report] Yahoo batch error:', e.message); }
-  }
-  return prices;
-}
-
-async function fetchCoinGeckoBatch(tickers) {
-  const cgTickers = tickers.filter(t => COINGECKO_MAP[t]);
-  if (!cgTickers.length) return {};
-  const prices = {};
-  const ids = [...new Set(cgTickers.map(t => COINGECKO_MAP[t]))];
-  try {
-    const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=usd`, { signal: AbortSignal.timeout(5000) });
-    const data = await r.json();
-    for (const t of cgTickers) {
-      const id = COINGECKO_MAP[t];
-      if (data[id]?.usd) prices[t] = data[id].usd;
-    }
-  } catch(e) { console.warn('[monthly-report] CoinGecko error:', e.message); }
-  return prices;
-}
-
-async function fetchAllPrices(positions) {
-  const tickers = [...new Set(positions.map(p => (p.symbol || '').replace('/', '-')))];
-  const yahooTickers = [...tickers.filter(t => !COINGECKO_MAP[t]), 'USDCAD=X'];
-  const [yahoo, cg] = await Promise.all([fetchYahooBatch(yahooTickers), fetchCoinGeckoBatch(tickers)]);
+async function fetchAllPrices(positions, currency) {
+  const tickers = [...new Set(positions.map(p => getYahooTicker(p.symbol || p.ticker || '')))];
+  const acctTicker = accountCurrencyTicker(currency);
+  const yahooTickers = [...new Set([
+    ...tickers.filter(t => !COINGECKO_MAP[t]),
+    'USDCAD=X',
+    ...(acctTicker ? [acctTicker] : []),
+  ])];
+  const [yahoo, cg] = await Promise.all([
+    fetchYahooBatch(yahooTickers, { label: 'monthly-report' }),
+    fetchCoinGeckoBatch(tickers, { label: 'monthly-report' }),
+  ]);
   return { ...yahoo, ...cg };
 }
 
@@ -198,21 +175,20 @@ export default async function handler(req, res) {
     const [userData, history] = await Promise.all([fetchUserData(), fetchHistory()]);
     if (!userData) return res.status(404).json({ error: 'user_data not found' });
 
-    const positions = JSON.parse(userData.positions || '[]');
-    const cash      = parseFloat(userData.cash || 0);
+    const positions  = JSON.parse(userData.positions || '[]');
+    const cashRaw    = parseFloat(userData.cash || 0);
+    const cash       = Number.isFinite(cashRaw) ? cashRaw : 0;
+    const currency   = (userData.currency || 'CAD').toUpperCase();
 
     // Fetch prix batch (Yahoo + CoinGecko directs, pas via /api/prices)
-    const prices = await fetchAllPrices(positions);
+    const prices = await fetchAllPrices(positions, currency);
     const usdcad = parseFloat(prices['USDCAD=X'] || 0) || 1.365;
 
-    let totalPos = 0;
-    for (const p of positions) {
-      const sym   = (p.symbol || '').replace('/', '-');
-      const price = prices[sym] || p.current || p.avgEntry || 0;
-      const cur   = (p.currency || 'USD').toUpperCase();
-      totalPos   += (p.shares || 0) * price * (cur === 'CAD' ? 1 : usdcad);
-    }
-    const totalCAD = totalPos + cash;
+    // Même fonction de valorisation que snapshot.js (api/_lib/valuation.js) —
+    // évite que le total du rapport mensuel diverge de celui du graphique.
+    const totalPos = positions.reduce((sum, p) => sum + positionValueCAD(p, prices, usdcad), 0);
+    const cashCAD  = cashToCAD(cash, currency, prices);
+    const totalCAD = totalPos + cashCAD;
 
     const now       = new Date();
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -222,7 +198,7 @@ export default async function handler(req, res) {
 
     const monthLabel = now.toLocaleDateString('fr-CA', { month: 'long', year: 'numeric' });
     const subject    = `Nord Capital · Rapport ${monthLabel} · ${Math.round(totalCAD).toLocaleString('fr-CA')} CAD`;
-    const html       = buildEmail({ totalCAD, prevMonthCAD, positions, cash, prices, usdcad, monthLabel });
+    const html       = buildEmail({ totalCAD, prevMonthCAD, positions, cash: cashCAD, prices, usdcad, monthLabel });
 
     const result = await sendEmail(subject, html);
     const elapsed = Date.now() - startTime;

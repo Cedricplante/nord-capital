@@ -12,48 +12,21 @@
 //   SUPABASE_URL          ex. https://spgcwvmehcixchtsfuaf.supabase.co
 //   SUPABASE_SERVICE_KEY  clé service_role (bypass RLS) — ⚠ jamais exposée côté client
 //   SUPABASE_USER_ID      UUID Cédric : 871afd38-3c0b-4554-9ed1-a38a2ca966ff
+//
+// Logique de valorisation (tickers, positions, cash→CAD) centralisée dans
+// ./_lib/valuation.js — partagée avec monthly-report.js pour que le graphique
+// et le rapport mensuel ne puissent jamais diverger.
 // ============================================================
 
-// Mapping symboles internes → tickers Yahoo Finance
-const SYMBOL_MAP = {
-  'BTC/USD': 'BTC-USD',    'ETH/USD': 'ETH-USD',    'SOL/USD': 'SOL-USD',
-  'BNB/USD': 'BNB-USD',    'XRP/USD': 'XRP-USD',    'ADA/USD': 'ADA-USD',
-  'AVAX/USD':'AVAX-USD',   'DOGE/USD':'DOGE-USD',   'MATIC/USD':'MATIC-USD',
-  'TAO/USD': 'TAO-USD',    'RNDR/USD':'RNDR-USD',   'AKT/USD': 'AKT-USD',
-  'PYTH/USD':'PYTH-USD',   'RSR/USD': 'RSR-USD',
-  'AKASH/USD': 'AKT-USD',
-  'FET/USD':  'FET-USD',   'ONDO/USD': 'ONDO-USD',  'INJ/USD':  'INJ-USD',
-  'RENDER/USD':'RNDR-USD', 'LINK/USD': 'LINK-USD',  'DOT/USD':  'DOT-USD',
-  'EUR/USD': 'EURUSD=X',  'GBP/USD': 'GBPUSD=X',  'USD/JPY': 'USDJPY=X',
-  'USD/CAD': 'USDCAD=X',  'AUD/USD': 'AUDUSD=X',
-  'XAU/USD': 'GC=F',      'XAG/USD': 'SI=F',       'WTI': 'CL=F',
-};
-
-// Cryptos à fetcher via CoinGecko
-const COINGECKO_MAP = {
-  'TAO-USD':    'bittensor',
-  'RNDR-USD':   'render-token',
-  'AKT-USD':    'akash-network',
-  'PYTH-USD':   'pyth-network',
-  'RSR-USD':    'reserve-rights-token',
-  'AERO-USD':   'aerodrome-finance',
-  'PENDLE-USD': 'pendle',
-  'JUP-USD':    'jupiter-exchange-solana',
-  'ENA-USD':    'ethena',
-  'NOT-USD':    'notcoin',
-  'MEW-USD':    'cat-in-a-dogs-world',
-  'TIA-USD':    'celestia',
-  'STX-USD':    'blockstack',
-  'POL-USD':    'matic-network',
-};
-
-function getYahooTicker(symbol) {
-  if (SYMBOL_MAP[symbol]) return SYMBOL_MAP[symbol];
-  const upper = symbol.toUpperCase();
-  if (SYMBOL_MAP[upper]) return SYMBOL_MAP[upper];
-  if (upper.includes('/')) return upper.replace('/', '-');
-  return upper;
-}
+import {
+  COINGECKO_MAP,
+  getYahooTicker,
+  positionValueCAD,
+  cashToCAD,
+  accountCurrencyTicker,
+  fetchYahooBatch,
+  fetchCoinGeckoBatch,
+} from './_lib/valuation.js';
 
 // ── Supabase helpers ─────────────────────────────────────────
 const SUPA_URL     = (process.env.SUPABASE_URL || 'https://spgcwvmehcixchtsfuaf.supabase.co').replace(/\/$/, '');
@@ -98,70 +71,6 @@ async function upsertPortfolioHistory(date, value, currency) {
   }
 }
 
-// ── Prix en BATCH ─────────────────────────────────────────────
-// Yahoo Finance: une seule requête pour tous les symboles Yahoo
-async function fetchYahooBatch(tickers) {
-  if (!tickers.length) return {};
-  const prices = {};
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    'Accept': 'application/json',
-    'Referer': 'https://finance.yahoo.com',
-  };
-  try {
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(tickers.join(','))}&fields=regularMarketPrice`;
-    const r = await fetch(url, { headers, signal: AbortSignal.timeout(7000) });
-    if (!r.ok) throw new Error(`Yahoo batch HTTP ${r.status}`);
-    const data = await r.json();
-    const results = data?.quoteResponse?.result || [];
-    for (const q of results) {
-      if (q.regularMarketPrice && q.regularMarketPrice > 0) {
-        prices[q.symbol] = q.regularMarketPrice;
-      }
-    }
-    console.log(`[snapshot] Yahoo batch: ${Object.keys(prices).length}/${tickers.length} prix reçus`);
-  } catch (e) {
-    console.error('[snapshot] Yahoo batch error:', e.message);
-    // Fallback: essayer query2
-    try {
-      const url2 = `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(tickers.join(','))}&fields=regularMarketPrice`;
-      const r2 = await fetch(url2, { headers, signal: AbortSignal.timeout(5000) });
-      const data2 = await r2.json();
-      const results2 = data2?.quoteResponse?.result || [];
-      for (const q of results2) {
-        if (q.regularMarketPrice && q.regularMarketPrice > 0) {
-          prices[q.symbol] = q.regularMarketPrice;
-        }
-      }
-      console.log(`[snapshot] Yahoo batch fallback: ${Object.keys(prices).length}/${tickers.length} prix reçus`);
-    } catch (e2) {
-      console.error('[snapshot] Yahoo batch fallback error:', e2.message);
-    }
-  }
-  return prices;
-}
-
-// CoinGecko: une seule requête pour tous les symboles CG
-async function fetchCoinGeckoBatch(tickers) {
-  const cgTickers = tickers.filter(t => COINGECKO_MAP[t]);
-  if (!cgTickers.length) return {};
-  const prices = {};
-  const ids = [...new Set(cgTickers.map(t => COINGECKO_MAP[t]))];
-  try {
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids.join(',')}&vs_currencies=usd`;
-    const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    const data = await r.json();
-    for (const ticker of cgTickers) {
-      const id = COINGECKO_MAP[ticker];
-      if (id && data[id]?.usd) prices[ticker] = data[id].usd;
-    }
-    console.log(`[snapshot] CoinGecko: ${Object.keys(prices).length}/${cgTickers.length} prix reçus`);
-  } catch (e) {
-    console.error('[snapshot] CoinGecko error:', e.message);
-  }
-  return prices;
-}
-
 // ── Parsing positions ─────────────────────────────────────────
 function parsePositions(raw) {
   if (!raw) return [];
@@ -173,29 +82,6 @@ function parsePositions(raw) {
     console.error('[snapshot] parsePositions failed:', raw);
     return [];
   }
-}
-
-function positionValueCAD(pos, prices, usdcad) {
-  const symbol    = pos.symbol || pos.ticker || '';
-  const ticker    = getYahooTicker(symbol);
-  const price     = prices[ticker];
-  const avgEntry  = parseFloat(pos.avgEntry || pos.avg_cost || 0);
-  const totalSize = parseFloat(pos.totalSize || pos.total_size || 0);
-  // Garde-fou : totalSize/avgEntry invalides ou non-finis → position ignorée (valeur 0)
-  // plutôt que de propager un NaN qui contaminerait le snapshot complet.
-  if (!price || !avgEntry || avgEntry === 0 || !Number.isFinite(totalSize) || totalSize <= 0) {
-    if (!price) console.warn(`[snapshot] Prix manquant pour ${symbol} (${ticker}), position ignorée`);
-    else console.warn(`[snapshot] Données invalides pour ${symbol}: avgEntry=${avgEntry}, totalSize=${pos.totalSize}, position ignorée`);
-    return 0;
-  }
-  const shares = totalSize / avgEntry;
-  const mktVal = shares * price;
-  if (!Number.isFinite(mktVal)) {
-    console.warn(`[snapshot] mktVal non-fini pour ${symbol}, position ignorée`);
-    return 0;
-  }
-  const isCad = symbol.toUpperCase().endsWith('.TO');
-  return isCad ? mktVal : mktVal * usdcad;
 }
 
 // ── Handler principal ─────────────────────────────────────────
@@ -220,11 +106,11 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'user_data not found' });
     }
 
-    // 2. Parser positions
+    // 2. Parser positions + cash (cash stocké en devise du compte, cf. cashToCAD)
     const positions = parsePositions(userData.positions);
-    const cashRaw   = parseFloat(userData.cash || 0);
-    const cash      = Number.isFinite(cashRaw) ? cashRaw : 0;
-    const currency  = userData.currency || 'CAD';
+    const cashRaw    = parseFloat(userData.cash || 0);
+    const cash       = Number.isFinite(cashRaw) ? cashRaw : 0;
+    const currency   = (userData.currency || 'CAD').toUpperCase();
 
     console.log(`[snapshot] ${positions.length} position(s) | cash=${cash} ${currency}`);
 
@@ -232,21 +118,26 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: 'No positions to snapshot' });
     }
 
-    // 3. Tickers uniques
-    const tickers       = [...new Set(positions.map(p => getYahooTicker(p.symbol || p.ticker || '')))];
-    const yahooTickers  = [...new Set([...tickers.filter(t => !COINGECKO_MAP[t]), 'USDCAD=X'])];
+    // 3. Tickers uniques (+ USDCAD=X pour les positions, + taux devise-compte→CAD si != CAD)
+    const tickers      = [...new Set(positions.map(p => getYahooTicker(p.symbol || p.ticker || '')))];
+    const acctTicker    = accountCurrencyTicker(currency); // ex: 'USDCAD=X', null si déjà CAD
+    const yahooTickers  = [...new Set([
+      ...tickers.filter(t => !COINGECKO_MAP[t]),
+      'USDCAD=X',
+      ...(acctTicker ? [acctTicker] : []),
+    ])];
     const cgTickers     = tickers.filter(t => COINGECKO_MAP[t]);
 
     // 4. Fetch prix en BATCH (Yahoo + CoinGecko en parallèle = ~1-2 requêtes)
     const [yahooPrices, cgPrices] = await Promise.all([
-      fetchYahooBatch(yahooTickers),
-      fetchCoinGeckoBatch(cgTickers),
+      fetchYahooBatch(yahooTickers, { label: 'snapshot' }),
+      fetchCoinGeckoBatch(cgTickers, { label: 'snapshot' }),
     ]);
     const prices = { ...yahooPrices, ...cgPrices };
 
     const usdcad = parseFloat(prices['USDCAD=X'] || 0) || 1.3650;
 
-    // 5. Calculer valeur totale CAD
+    // 5. Calculer valeur totale CAD (positions + cash converti correctement)
     let totalPositionsCAD = 0;
     const details = [];
     for (const pos of positions) {
@@ -254,7 +145,13 @@ export default async function handler(req, res) {
       totalPositionsCAD += mktValCAD;
       details.push({ symbol: pos.symbol || pos.ticker, mktVal: Math.round(mktValCAD * 100) / 100 });
     }
-    const totalCAD = totalPositionsCAD + cash;
+
+    const cashCAD = cashToCAD(cash, currency, prices);
+    if (currency !== 'CAD' && cashCAD === cash) {
+      console.warn(`[snapshot] Taux ${currency}CAD=X indisponible — cash ajouté sans conversion (${cash} ${currency})`);
+    }
+
+    const totalCAD = totalPositionsCAD + cashCAD;
     const today    = new Date().toISOString().split('T')[0];
     const elapsed  = Date.now() - startTime;
 
@@ -264,7 +161,7 @@ export default async function handler(req, res) {
       throw new Error(`totalCAD non-fini (${totalCAD}) — snapshot annulé pour éviter la corruption`);
     }
 
-    console.log(`[snapshot] Total=${totalCAD.toFixed(2)} CAD | USDCAD=${usdcad} | ${elapsed}ms`);
+    console.log(`[snapshot] Total=${totalCAD.toFixed(2)} CAD | USDCAD=${usdcad} | cash=${cashCAD.toFixed(2)} CAD | ${elapsed}ms`);
 
     // 6. Upsert Supabase
     await upsertPortfolioHistory(today, totalCAD, 'CAD');
