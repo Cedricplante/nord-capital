@@ -106,16 +106,21 @@ const YAHOO_HEADERS = {
 export async function fetchYahooBatch(tickers, { label = 'valuation', timeoutMs = 7000 } = {}) {
   if (!tickers.length) return {};
   const prices = {};
+  // Corrigé 2026-07-23 : le deuxième endpoint n'était tenté que si le premier
+  // n'avait renvoyé AUCUN prix ; s'il en manquait juste quelques-uns (ex: un
+  // ticker mal supporté par query1), ils restaient manquants pour rien. On
+  // ne redemande maintenant que les tickers encore manquants à chaque essai.
   for (const base of ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com']) {
+    const missing = tickers.filter(t => !(t in prices));
+    if (!missing.length) break;
     try {
-      const url = `${base}/v7/finance/quote?symbols=${encodeURIComponent(tickers.join(','))}&fields=regularMarketPrice`;
+      const url = `${base}/v7/finance/quote?symbols=${encodeURIComponent(missing.join(','))}&fields=regularMarketPrice`;
       const r = await fetch(url, { headers: YAHOO_HEADERS, signal: AbortSignal.timeout(timeoutMs) });
       if (!r.ok) continue;
       const data = await r.json();
       for (const q of (data?.quoteResponse?.result || [])) {
         if (q.regularMarketPrice && q.regularMarketPrice > 0) prices[q.symbol] = q.regularMarketPrice;
       }
-      if (Object.keys(prices).length > 0) break;
     } catch (e) {
       console.warn(`[${label}] Yahoo batch error (${base}):`, e.message);
     }

@@ -1812,7 +1812,7 @@ function renderStratPerf(){
   positions.forEach(p=>{
     const ls=strategies.find(s=>s.symbol===p.symbol&&(s.status==='Active'||s.status==='Brouillon'));
     const type=ls?.type||null;
-    const pnlCAD=(toUSD((p.shares||0)*p.current,p.currency||'USD')-toUSD(p.totalSize||0,p.currency||'USD'))*fxRate;
+    const pnlCAD=(toUSD((p.shares||0)*p.current,getPosCurrency(p))-toUSD(p.totalSize||0,getPosCurrency(p)))*fxRate;
     totalOpenPnl+=pnlCAD;
     if(type&&typeData[type]){typeData[type].open+=pnlCAD;typeData[type].pos++;}
   });
@@ -1827,7 +1827,7 @@ function renderStratPerf(){
     const ep=s.entries_plan||[],xp=s.exits_plan||[];
     totalPaliers+=ep.length+xp.length;
     donePaliers+=ep.filter(e=>e.executed).length+xp.filter(e=>e.executed).length;
-    const amtCurS=s.amount_currency||s.currency||'USD';totalAlloc+=ep.filter(e=>!e.executed).reduce((sum,e)=>sum+toUSD(parseFloat(e.amount)||0,amtCurS)*fxRate,0);
+    const amtCurS=s.amount_currency||getStratCurrency(s);totalAlloc+=ep.filter(e=>!e.executed).reduce((sum,e)=>sum+toUSD(parseFloat(e.amount)||0,amtCurS)*fxRate,0);
   });
 
   const pct=totalPaliers>0?Math.round(donePaliers/totalPaliers*100):0;
@@ -1883,7 +1883,7 @@ function renderStrategies(){
 function stratRow(s){
   const ep=s.entries_plan||[],xp=s.exits_plan||[];
   const epDone=ep.filter(e=>e.executed).length,xpDone=xp.filter(e=>e.executed).length;
-  const amtCur=s.amount_currency||s.currency||'USD';
+  const amtCur=s.amount_currency||getStratCurrency(s);
   const cashAlloc=ep.filter(e=>!e.executed).reduce((sum,e)=>sum+(parseFloat(e.amount)||0),0);
   // Profit potentiel : N/A si sorties partielles ou aucune sortie
   const totalEntryShares=ep.reduce((sum,e)=>sum+(parseFloat(e.shares)||0),0);
@@ -1911,7 +1911,7 @@ function stratRow(s){
     <td style="color:var(--text3);">${epDone}/${ep.length}</td>
     <td style="color:var(--text3);">${xpDone}/${xp.length}</td>
     <td>${fmtC(cashAlloc,amtCur)}</td>
-    <td class="${profitCls}" style="${profitPot===null?'color:var(--text3);font-size:11px;':''}">${profitPot===null?'N/A':((profitPot>=0?'+':'')+fmtC(profitPot,s.currency||'USD'))}</td>
+    <td class="${profitCls}" style="${profitPot===null?'color:var(--text3);font-size:11px;':''}">${profitPot===null?'N/A':((profitPot>=0?'+':'')+fmtC(profitPot,getStratCurrency(s)))}</td>
     <td onclick="event.stopPropagation();">
       <button onclick="openStratDetails('${s.id}')" title="Détails" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">&#9679;</button>
       <button onclick="editStrategy('${s.id}')" title="Modifier" style="background:transparent;border:0.5px solid var(--border2);color:var(--text2);padding:5px 9px;border-radius:5px;cursor:pointer;font-size:12px;margin-right:4px;">Modifier</button>
@@ -2106,8 +2106,8 @@ function renderEntryLevels(){
 // Retourne le taux pour convertir 1 unité de la devise du montant vers la devise du prix
 // Ex: amountCur=CAD, priceCur=USD → renvoie le facteur (CAD * facteur = USD)
 function getAmountToPriceRate(){
-  const amtCur=stratDraft.amount_currency||stratDraft.currency||'USD';
-  const priceCur=stratDraft.currency||'USD';
+  const amtCur=stratDraft.amount_currency||getStratCurrency(stratDraft);
+  const priceCur=getStratCurrency(stratDraft);
   if(amtCur===priceCur)return 1;
   // Convertir via USD : amtCur → USD → priceCur
   const amtToUSD=amtCur==='USD'?1:(liveFxRates[amtCur]||(1/(FX_FALLBACK[amtCur]||1)));
@@ -2177,8 +2177,8 @@ async function onAmountCurrencyChange(){
 
 function updateFxHint(){
   const el=document.getElementById('strat-fx-hint');if(!el)return;
-  const amtCur=stratDraft.amount_currency||stratDraft.currency||'USD';
-  const priceCur=stratDraft.currency||'USD';
+  const amtCur=stratDraft.amount_currency||getStratCurrency(stratDraft);
+  const priceCur=getStratCurrency(stratDraft);
   if(amtCur===priceCur){el.textContent='';return;}
   const fx=getAmountToPriceRate();
   el.textContent=`Conversion live : 1 ${amtCur} = ${fx.toFixed(4)} ${priceCur} · les montants sont saisis en ${amtCur} et convertis automatiquement.`;
@@ -2191,7 +2191,7 @@ function collectEntryLevels(){
 function updateEntriesTotal(){
   const total=stratDraft.entries_plan.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
   const el=document.getElementById('strat-entries-total');
-  if(el)el.textContent=fmtC(total,stratDraft.currency||'USD');
+  if(el)el.textContent=fmtC(total,getStratCurrency(stratDraft));
 }
 
 // ─── PALIERS DE SORTIE ─────────────────────────────────────────
@@ -2299,7 +2299,7 @@ function updateExitsTotal(){
   const totalExitInPrice=stratDraft.exits_plan.reduce((s,e)=>s+((parseFloat(e.shares)||0)*(parseFloat(e.price)||0)),0);
   const profit=totalExitInPrice-totalEntryInPrice;
   const profitPct=totalEntryInPrice>0?((profit/totalEntryInPrice)*100):0;
-  const cur=stratDraft.currency||'USD';
+  const cur=getStratCurrency(stratDraft);
   el.textContent=`${profit>=0?'+':''}${fmtC(profit,cur)} (${profit>=0?'+':''}${profitPct.toFixed(1)}%)`;
   el.style.color=profit>=0?'var(--green)':'var(--red)';
 }
@@ -2307,7 +2307,7 @@ function updateExitsTotal(){
 function renderStratSummary(){
   stratDraft.notes=document.getElementById('strat-notes').value;
   stratDraft.status=document.getElementById('strat-status').value;
-  const cur=stratDraft.currency||'USD';
+  const cur=getStratCurrency(stratDraft);
   const amtCur=stratDraft.amount_currency||cur;
   const totalEntryAmt=stratDraft.entries_plan.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
   const totalEntryShares=stratDraft.entries_plan.reduce((s,e)=>s+(parseFloat(e.shares)||0),0);
@@ -2409,8 +2409,8 @@ function renderStratDetails(id){
   const el=document.getElementById('strat-details-content');
   if(!el)return;
   const ep=s.entries_plan||[],xp=s.exits_plan||[];
-  const amtCur=s.amount_currency||s.currency||'USD';
-  const priceCur=s.currency||'USD';
+  const amtCur=s.amount_currency||getStratCurrency(s);
+  const priceCur=getStratCurrency(s);
   const pos=positions.find(p=>p.symbol===s.symbol);
   const livePrice=pos?pos.current:null;
   const statusColors={'Brouillon':'var(--text3)','Active':'var(--green)','Complétée':'var(--blue)','Archivée':'var(--text3)'};
@@ -2585,7 +2585,7 @@ async function setCurrency(cur){
   localStorage.setItem('nc_currency',cur);
   fxRate=await fetchFxRate(cur);
   // Mettre à jour le cache live pour toutes les devises de positions
-  const posCurrencies=[...new Set(positions.map(p=>p.currency||'USD').filter(c=>c!=='USD'&&c!==cur))];
+  const posCurrencies=[...new Set(positions.map(p=>getPosCurrency(p)).filter(c=>c!=='USD'&&c!==cur))];
   await fetchAndCacheFxRates(posCurrencies);
   updateFxDisplay();renderAll();
 }
@@ -2615,6 +2615,17 @@ function toUSD(amount,posCur){
   return amount/(FX_FALLBACK[pc]||1);
 }
 
+// Devise réelle d'un ticker .TO : toujours coté en CAD sur Yahoo, peu importe
+// le champ .currency stocké (qui peut être mal renseigné si le titre a été
+// ajouté manuellement hors de la liste de suggestions curée — cf. audit 2026-07-23).
+// Même logique que api/_lib/valuation.js:positionValueCAD côté serveur.
+function tickerCurrency(symbol){
+  return (symbol||'').toUpperCase().endsWith('.TO') ? 'CAD' : null;
+}
+function getPosCurrency(p){ return tickerCurrency(p.symbol) || p.currency || 'USD'; }
+function getTradeCurrency(t){ return tickerCurrency(t.symbol) || t.currency || 'USD'; }
+function getStratCurrency(s){ return tickerCurrency(s.symbol) || s.currency || 'USD'; }
+
 // ─── LIVE PRICES ─────────────────────────────────────────────────
 function setLiveStatus(status){
   const dot=document.getElementById('live-dot'),label=document.getElementById('live-label');if(!dot||!label)return;
@@ -2639,13 +2650,13 @@ async function fetchLivePrices(){
     console.log(`[prices] ${updated}/${positions.length} mis à jour.${failed.length?' Manquants: '+failed.join(','):''}`);
     if(updated>0){
       // Rafraîchir les taux live pour toutes les devises de positions avant calcul
-      const posCurrencies=[...new Set(positions.map(p=>p.currency||'USD').filter(c=>c!=='USD'&&c!==accountCurrency))];
+      const posCurrencies=[...new Set(positions.map(p=>getPosCurrency(p)).filter(c=>c!=='USD'&&c!==accountCurrency))];
       await fetchAndCacheFxRates(posCurrencies);
       // S'assurer que fxRate est bien chargé avant le snapshot
       if(!fxRate||fxRate===0)fxRate=await fetchFxRate(accountCurrency);
       await saveData();
       // Snapshot en USD, converti dans la devise du compte par saveSnapshot()
-      const totalValueCAD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0)*fxRate+cash;
+      const totalValueCAD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0)*fxRate+cash;
       console.log(`[snapshot] Valeur ${accountCurrency}: ${totalValueCAD.toFixed(2)}`);
       await saveSnapshot(totalValueCAD);
       renderAll();setLiveStatus('live');
@@ -3197,13 +3208,13 @@ async function startApp(){
   // Maintenant charger l'historique
   await loadPortfolioHistory();
   // Pré-cacher les taux des devises de positions non-USD et non-accountCurrency
-  const posCurrencies=[...new Set(positions.map(p=>p.currency||'USD').filter(c=>c!=='USD'&&c!==accountCurrency))];
+  const posCurrencies=[...new Set(positions.map(p=>getPosCurrency(p)).filter(c=>c!=='USD'&&c!==accountCurrency))];
   await fetchAndCacheFxRates(posCurrencies);
   renderAll();
   if(portfolioHistory.length===0&&positions.length>0){
     const firstTradeDate=trades.length>0?[...trades].sort((a,b)=>a.date.localeCompare(b.date))[0].date:new Date().toISOString().split('T')[0];
     const today=new Date().toISOString().split('T')[0];
-    const initialValueCAD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0)*fxRate+cash;
+    const initialValueCAD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0)*fxRate+cash;
     await saveSnapshot(initialValueCAD);
     if(firstTradeDate<today){
       await fetch(`${SB_URL}/rest/v1/portfolio_history`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:currentUser.id,date:firstTradeDate,value:parseFloat(initialValueCAD.toFixed(2)),currency:accountCurrency,updated_at:new Date().toISOString()})});
@@ -3257,16 +3268,16 @@ function calcPnl(p){
   const pct=p.dir==='Long'?(p.current-p.avgEntry)/p.avgEntry:(p.avgEntry-p.current)/p.avgEntry;
   return p.totalSize*pct;
 }
-function calcPnlUSD(p){return toUSD(calcPnl(p),p.currency||'USD');}
+function calcPnlUSD(p){return toUSD(calcPnl(p),getPosCurrency(p));}
 function getCat(symbol){const found=SYMBOLS.find(s=>s.s===symbol);if(found)return found.cat;if(symbol.includes('/'))return symbol.includes('USD')&&!symbol.includes('EUR')&&!symbol.includes('GBP')?'Crypto':'Forex';return'Action';}
 function getAcctClass(acct){if(!acct)return'acc-default';if(acct==='CELI')return'acc-celi';if(acct==='CELIAPP')return'acc-celiapp';if(acct==='REER'||acct==='REEE')return'acc-reer';if(acct==='Marge')return'acc-marge';if(['Coinbase','Binance','Kraken','Bitget','OKX','Bybit','Ledger Nano S','Ledger Nano X','Ledger Stax','Tangem','Trezor Model One','Trezor Model T','MetaMask','Autre wallet'].includes(acct))return'acc-crypto';return'acc-default';}
 
 function updateKPIs(){
   const totalPnlOpenUSD=positions.reduce((s,p)=>s+calcPnlUSD(p),0);
-  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
-  const totalInvestedUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.avgEntry,p.currency||'USD'),0);
+  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0);
+  const totalInvestedUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p)),0);
   const closedTrades=trades.filter(t=>t.type==='Vente');
-  const totalPnlRealUSD=closedTrades.reduce((s,t)=>s+toUSD(t.profit||0,t.currency||'USD'),0);
+  const totalPnlRealUSD=closedTrades.reduce((s,t)=>s+toUSD(t.profit||0,getTradeCurrency(t)),0);
   const wins=closedTrades.filter(t=>(t.profit||0)>0).length,losses=closedTrades.filter(t=>(t.profit||0)<=0).length;
   const winRate=closedTrades.length>0?Math.round(wins/closedTrades.length*100):0;
   const pnlPct=totalInvestedUSD>0?(totalPnlOpenUSD/totalInvestedUSD)*100:0;
@@ -3345,7 +3356,7 @@ function posRow(p,idx,displayIdx){
   const pct=coutPnl>0?(pnl/coutPnl)*100:0,cls=pnl>=0?'pos':'neg';
   // Coût total affiché = somme réelle des achats (peut être en devise différente si DCA mixte)
   const coutTotal=p.entries&&p.entries.length?p.entries.reduce((s,e)=>s+(e.size||0),0):coutPnl;
-  const acbCAD=parseFloat((toUSD((p.shares||0)*p.avgEntry,p.currency||'USD')*fxRate).toFixed(2));
+  const acbCAD=parseFloat((toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p))*fxRate).toFixed(2));
   const isDca=p.entries&&p.entries.length>1,firstDate=p.entries&&p.entries[0]?p.entries[0].date:'—';
   // Le badge DCA×N se met à jour automatiquement via entries.length après FIFO
   const sharesStr=shares?shares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—';
@@ -3363,11 +3374,11 @@ function posRow(p,idx,displayIdx){
     <td style="color:var(--text3);">${firstDate}</td>
     <td style="color:var(--text2);">${sharesStr}</td>
     <td>${fmtPrice(p.avgEntry)}</td>
-    <td style="color:var(--text3);">${fmtC(coutTotal,p.currency||'USD')}</td>
+    <td style="color:var(--text3);">${fmtC(coutTotal,getPosCurrency(p))}</td>
     <td data-sensitive style="color:var(--text3);">${fmtAmtRound(acbCAD)}</td>
     <td>${fmtPrice(p.current)}</td>
-    <td>${fmtC(valeurMarche,p.currency||'USD')}</td>
-    <td class="${cls}">${fmtCpnl(pnl,p.currency||'USD')}</td>
+    <td>${fmtC(valeurMarche,getPosCurrency(p))}</td>
+    <td class="${cls}">${fmtCpnl(pnl,getPosCurrency(p))}</td>
     <td class="${cls}">${fmtPct(pct)}</td>
     <td style="min-width:110px;">${renderTargetStop(p)}</td>
     <td style="display:flex;gap:4px;white-space:nowrap;">
@@ -3403,7 +3414,7 @@ function posRow(p,idx,displayIdx){
         <td style="color:var(--text3);">${e.date||'—'}</td><td></td>
         <td style="color:var(--text3);">${e.shares?e.shares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—'}</td>
         <td>${fmtPrice(e.price)}</td>
-        <td style="color:var(--text3);">${fmtC(e.size,p.currency||'USD')}</td>
+        <td style="color:var(--text3);">${fmtC(e.size,getPosCurrency(p))}</td>
         <td></td><td></td>
         <td class="${entryPnlCls}">${entryPnlPct>=0?'+':''}${entryPnlPct.toFixed(2)}%</td>
         <td></td><td></td>
@@ -3459,12 +3470,12 @@ function getFilteredSortedPositions(){
         case'date':return p.entries?.[0]?.date||'';
         case'shares':return p.shares||0;
         case'avgEntry':return p.avgEntry||0;
-        case'cost':return toUSD((p.shares||0)*p.avgEntry,p.currency||'USD');
+        case'cost':return toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p));
         case'current':return p.current||0;
-        case'value':return toUSD((p.shares||0)*p.current,p.currency||'USD');
+        case'value':return toUSD((p.shares||0)*p.current,getPosCurrency(p));
         case'pnl':return calcPnlUSD(p);
         case'pnlPct':{const c=(p.shares||0)*p.avgEntry;return c>0?(calcPnl(p)/c)*100:0;}
-        case'acb':return toUSD((p.shares||0)*p.avgEntry,p.currency||'USD')*fxRate;
+        case'acb':return toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p))*fxRate;
         default:return 0;
       }
     };
@@ -3514,7 +3525,7 @@ async function confirmEdit(){
   p.shares=parseFloat(document.getElementById('edit-shares').value)||p.shares;
   p.totalSize=p.avgEntry*p.shares;
   p.current=parseFloat(document.getElementById('edit-current').value)||p.current;
-  p.currency=document.getElementById('edit-currency').value||p.currency;
+  p.currency=tickerCurrency(p.symbol)||document.getElementById('edit-currency').value||p.currency;
   p.account=document.getElementById('edit-account').value;
   const tVal=parseFloat(document.getElementById('edit-target').value);
   const sVal=parseFloat(document.getElementById('edit-stop').value);
@@ -3529,7 +3540,7 @@ function openCloseModal(i){
   closeTarget=i;const p=positions[i];
   document.getElementById('modal-symbol').textContent=p.symbol;
   const isDca=p.entries&&p.entries.length>1,totalShares=p.shares||0;
-  document.getElementById('modal-info').textContent='Prix moy. entrée : '+fmtPrice(p.avgEntry)+'  |  Shares : '+(totalShares||'—')+'  |  Valeur : '+fmtC((p.shares||0)*p.current,p.currency||'USD')+(isDca?'\n'+p.entries.length+' achats DCA':'');
+  document.getElementById('modal-info').textContent='Prix moy. entrée : '+fmtPrice(p.avgEntry)+'  |  Shares : '+(totalShares||'—')+'  |  Valeur : '+fmtC((p.shares||0)*p.current,getPosCurrency(p))+(isDca?'\n'+p.entries.length+' achats DCA':'');
   document.getElementById('modal-exit').value=p.current||'';document.getElementById('modal-shares').value=totalShares||'';
   document.getElementById('modal-shares-hint').textContent=totalShares?'Max : '+totalShares+' shares':'';
   updatePartialSize();document.getElementById('modal-overlay').classList.add('open');setTimeout(()=>document.getElementById('modal-shares').focus(),100);
@@ -3538,7 +3549,7 @@ function setPartial(pct){const p=positions[closeTarget];if(!p)return;document.ge
 function updatePartialSize(){
   if(closeTarget===null)return;const p=positions[closeTarget];
   const shares=parseFloat(document.getElementById('modal-shares').value),exitPrice=parseFloat(document.getElementById('modal-exit').value),totalShares=p.shares||0;
-  if(!isNaN(shares)&&!isNaN(exitPrice)&&totalShares>0){const pct=shares/totalShares,sizeToClose=(p.shares||0)*p.avgEntry*pct;const profit=p.dir==='Long'?(exitPrice-p.avgEntry)/p.avgEntry*sizeToClose:(p.avgEntry-exitPrice)/p.avgEntry*sizeToClose;document.getElementById('modal-preview').textContent='Vendre '+shares+' / '+totalShares+' shares ('+Math.round(pct*100)+'%) · P&L estimé : '+fmtCpnl(profit,p.currency||'USD')+'  ·  Cash récupéré : '+fmtAmtRound(parseFloat((toUSD(sizeToClose+profit,p.currency||'USD')*fxRate).toFixed(0)))+' CAD';}
+  if(!isNaN(shares)&&!isNaN(exitPrice)&&totalShares>0){const pct=shares/totalShares,sizeToClose=(p.shares||0)*p.avgEntry*pct;const profit=p.dir==='Long'?(exitPrice-p.avgEntry)/p.avgEntry*sizeToClose:(p.avgEntry-exitPrice)/p.avgEntry*sizeToClose;document.getElementById('modal-preview').textContent='Vendre '+shares+' / '+totalShares+' shares ('+Math.round(pct*100)+'%) · P&L estimé : '+fmtCpnl(profit,getPosCurrency(p))+'  ·  Cash récupéré : '+fmtAmtRound(parseFloat((toUSD(sizeToClose+profit,getPosCurrency(p))*fxRate).toFixed(0)))+' CAD';}
   else document.getElementById('modal-preview').textContent='—';
 }
 function cancelClose(){closeTarget=null;document.getElementById('modal-overlay').classList.remove('open');}
@@ -3551,9 +3562,9 @@ async function confirmClose(){
   const pnlPct=p.dir==='Long'?(exitPrice-p.avgEntry)/p.avgEntry:(p.avgEntry-exitPrice)/p.avgEntry;
   const profit=parseFloat((sizeToClose*pnlPct).toFixed(2)),montantFinal=parseFloat((sizeToClose+profit).toFixed(2));
   // Libérer cash en devise du compte (CAD)
-  const profitUSD=toUSD(profit,p.currency||'USD'),montantUSD=toUSD(montantFinal,p.currency||'USD');
+  const profitUSD=toUSD(profit,getPosCurrency(p)),montantUSD=toUSD(montantFinal,getPosCurrency(p));
   const montantCAD=parseFloat((montantUSD*fxRate).toFixed(2));
-  trades.unshift({date,symbol:p.symbol,dir:p.dir,type:'Vente',price:exitPrice,avgEntry:p.avgEntry,size:sizeToClose,profit,profitUSD,montantFinal,montantUSD,shares:sharesToSell,dcaCount:p.entries?p.entries.length:1,currency:p.currency||'USD',account:p.account||''});
+  trades.unshift({date,symbol:p.symbol,dir:p.dir,type:'Vente',price:exitPrice,avgEntry:p.avgEntry,size:sizeToClose,profit,profitUSD,montantFinal,montantUSD,shares:sharesToSell,dcaCount:p.entries?p.entries.length:1,currency:getPosCurrency(p),account:p.account||''});
   cash+=montantCAD;
   if(pctToSell>=0.9999){
     positions.splice(closeTarget,1);
@@ -3615,7 +3626,7 @@ function renderHistory(){
       // cash déjà en CAD depuis migration v2
       return`<tr style="opacity:0.85;"><td>${t.date}</td><td class="sym" style="color:var(--text3);">—</td><td><span class="badge" style="${bs}">${t.type}</span>${acctBadge}${noteTip}</td><td style="color:var(--text3);">—</td><td style="color:${color};">${isDeposit?'+':'-'}${fmtAmt(t.size)}</td><td style="color:var(--text2);">${fmtAmtRound(t.montantFinal)} cash</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
     }else if(t.type==='Vente'){
-      const profit=t.profit||0;const profitDisp=toUSD(profit,t.currency||'USD');totalPnl+=profitDisp;profitDisp>0?wins++:losses++;
+      const profit=t.profit||0;const profitDisp=toUSD(profit,getTradeCurrency(t));totalPnl+=profitDisp;profitDisp>0?wins++:losses++;
       const cls=profitDisp>=0?'pos':'neg',roi=t.size>0?(profit/t.size)*100:0,isDca=t.dcaCount&&t.dcaCount>1;
       return`<tr><td>${t.date}</td><td class="sym">${t.symbol}${isDca?'<span class="badge-dca">DCA×'+t.dcaCount+'</span>':''}</td><td><span class="badge badge-vente">Vente</span></td><td style="color:var(--text3);">${fmtPrice(t.avgEntry||t.price)} → ${fmtPrice(t.price)}</td><td>${fmtC(t.size,t.currency)}</td><td class="${cls}">${fmtC(t.montantFinal||t.size+profit,t.currency)}</td><td class="${cls}">${fmtCpnl(profit,t.currency)}</td><td class="${cls}">${fmtPct(roi)}</td></tr>`;
     }else{return`<tr><td>${t.date}</td><td class="sym">${t.symbol}</td><td><span class="badge badge-achat">Achat</span></td><td>${fmtPrice(t.price)}</td><td>${fmtC(t.size,t.currency)}</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;}
@@ -3626,7 +3637,7 @@ function renderHistory(){
 
   // Update KPI cards
   const ventes=filtered.filter(t=>t.type==='Vente');
-  const bestTrade=ventes.reduce((best,t)=>{const p=toUSD(t.profit||0,t.currency||'USD')*fxRate;return p>(best||0)?p:best;},null);
+  const bestTrade=ventes.reduce((best,t)=>{const p=toUSD(t.profit||0,getTradeCurrency(t))*fxRate;return p>(best||0)?p:best;},null);
   const winRate=ventes.length>0?Math.round(wins/(wins+losses)*100):null;
   const kpiCount=document.getElementById('hist-kpi-count');
   const kpiPnl=document.getElementById('hist-kpi-pnl');
@@ -3647,7 +3658,7 @@ function renderAnnualPnl(){
   ventes.forEach(t=>{
     const yr=(t.date||'').slice(0,4)||'?';
     if(!byYear[yr])byYear[yr]={count:0,pnlCAD:0,wins:0,best:-Infinity,bestSymbol:'—'};
-    const pCAD=toUSD(t.profit||0,t.currency||'USD')*fxRate;
+    const pCAD=toUSD(t.profit||0,getTradeCurrency(t))*fxRate;
     byYear[yr].count++;byYear[yr].pnlCAD+=pCAD;
     if(pCAD>0)byYear[yr].wins++;
     if(pCAD>byYear[yr].best){byYear[yr].best=pCAD;byYear[yr].bestSymbol=t.symbol||'—';}
@@ -3670,7 +3681,7 @@ function updatePnlBar(){
   if(!pnlBarChart)return;
   const ventes=[...trades].filter(t=>t.type==='Vente').reverse();
   pnlBarChart.data.labels=ventes.map(t=>t.symbol);
-  const data=ventes.map(t=>parseFloat((toUSD(t.profit||0,t.currency||'USD')*fxRate).toFixed(2)));
+  const data=ventes.map(t=>parseFloat((toUSD(t.profit||0,getTradeCurrency(t))*fxRate).toFixed(2)));
   pnlBarChart.data.datasets[0].data=data;pnlBarChart.data.datasets[0].backgroundColor=data.map(v=>v>=0?'#00ff88':'#ff4d6d');pnlBarChart.update();
 }
 
@@ -3678,7 +3689,7 @@ async function addPosition(){
   const s=document.getElementById('f-symbol').value.trim().toUpperCase(),d=document.getElementById('f-dir').value;
   const dateVal=document.getElementById('f-date').value||new Date().toISOString().split('T')[0];
   const e=parseFloat(document.getElementById('f-entry').value),shares=parseFloat(document.getElementById('f-shares').value);
-  const posCurrency=document.getElementById('f-currency').value||'USD',cur=parseFloat(document.getElementById('f-current').value),sz=parseFloat(document.getElementById('f-size').value);
+  const posCurrency=tickerCurrency(s)||document.getElementById('f-currency').value||'USD',cur=parseFloat(document.getElementById('f-current').value),sz=parseFloat(document.getElementById('f-size').value);
   const account=document.getElementById('f-account').value||'';
   const targetVal=parseFloat(document.getElementById('f-target').value)||null;
   const stopVal=parseFloat(document.getElementById('f-stop').value)||null;
@@ -3856,7 +3867,7 @@ function updatePerfChart(){
       if(sp){spyPriceStart=sp;portStart=allHistory[i].value;break;}
     }
     // Inject live value as last point so chart matches KPI (must be before portStart fallback)
-    const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
+    const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0);
     const liveVal=parseFloat((totalSizeUSD*fxRate+cash).toFixed(2));
     const todayStr2=new Date().toISOString().slice(0,10);
     const sampledWithLive=sampled.map((h,i)=>i===sampled.length-1?{...h,value:liveVal,date:todayStr2}:h);
@@ -3980,11 +3991,11 @@ function updateDonut(chart,labels,values,colors){
 
 function renderAllocDashboard(){
   if(!cashAllocChart)return;
-  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
+  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0);
 
   // Par symbole
   if(totalSizeUSD>0){
-    const syms=positions.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'}));
+    const syms=positions.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:getPosCurrency(p)}));
     const{labels,values}=mkDonutData(syms,totalSizeUSD);
     updateDonut(allocChart,labels,values,COLORS.slice(0,labels.length));
     buildLegend('alloc-legend',labels,values,COLORS.slice(0,labels.length));
@@ -3992,7 +4003,7 @@ function renderAllocDashboard(){
 
   // Par catégorie
   if(totalSizeUSD>0){
-    const cats={};positions.forEach(p=>{const c=getCat(p.symbol);cats[c]=(cats[c]||0)+toUSD((p.shares||0)*p.current,p.currency||'USD');});
+    const cats={};positions.forEach(p=>{const c=getCat(p.symbol);cats[c]=(cats[c]||0)+toUSD((p.shares||0)*p.current,getPosCurrency(p));});
     const labels=Object.keys(cats),values=labels.map(c=>parseFloat((cats[c]/totalSizeUSD*100).toFixed(1)));
     updateDonut(allocCatDashChart,labels,values,COLORS.slice(0,labels.length));
     buildLegend('alloc-cat-dash-legend',labels,values,COLORS.slice(0,labels.length));
@@ -4042,8 +4053,8 @@ function renderAccountsPanels(totalSizeUSD){
     const acct=p.account||'Sans compte';
     if(!acctMap.has(acct))acctMap.set(acct,{positions:[],totalUSD:0,pnlUSD:0});
     const g=acctMap.get(acct);
-    const valUSD=toUSD((p.shares||0)*p.current,p.currency||'USD');
-    const costUSD=toUSD((p.shares||0)*p.avgEntry,p.currency||'USD');
+    const valUSD=toUSD((p.shares||0)*p.current,getPosCurrency(p));
+    const costUSD=toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p));
     g.positions.push(p);
     g.totalUSD+=valUSD;
     g.pnlUSD+=(valUSD-costUSD);
@@ -4081,7 +4092,7 @@ function renderAccountsPanels(totalSizeUSD){
     const pnlCls=pnlCAD>=0?'pos':'neg';
     const pct=grandTotalUSD>0?(g.totalUSD/grandTotalUSD*100).toFixed(1):0;
     const initial=name.slice(0,2).toUpperCase();
-    const topPositions=g.positions.slice().sort((a,b)=>toUSD((b.shares||0)*b.current,b.currency||'USD')-toUSD((a.shares||0)*a.current,a.currency||'USD')).slice(0,3);
+    const topPositions=g.positions.slice().sort((a,b)=>toUSD((b.shares||0)*b.current,getPosCurrency(b))-toUSD((a.shares||0)*a.current,getPosCurrency(a))).slice(0,3);
 
     return`<div class="alloc-panel alloc-account-panel" style="position:relative;overflow:hidden;">
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${col.bar};opacity:0.6;"></div>
@@ -4108,8 +4119,8 @@ function renderAccountsPanels(totalSizeUSD){
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;">
         ${topPositions.map(p=>{
-          const pnlP=toUSD((p.shares||0)*p.current,p.currency||'USD')-toUSD((p.shares||0)*p.avgEntry,p.currency||'USD');
-          return`<span style="font-size:10px;font-family:var(--mono);background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:2px 7px;">${p.symbol} <span style="color:${pnlP>=0?'var(--green)':'var(--red)'};">${pnlP>=0?'+':''}${(pnlP/Math.max(0.01,toUSD((p.shares||0)*p.avgEntry,p.currency||'USD'))*100).toFixed(1)}%</span></span>`;
+          const pnlP=toUSD((p.shares||0)*p.current,getPosCurrency(p))-toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p));
+          return`<span style="font-size:10px;font-family:var(--mono);background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:2px 7px;">${p.symbol} <span style="color:${pnlP>=0?'var(--green)':'var(--red)'};">${pnlP>=0?'+':''}${(pnlP/Math.max(0.01,toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p)))*100).toFixed(1)}%</span></span>`;
         }).join('')}
         ${g.positions.length>3?`<span style="font-size:10px;color:var(--text3);padding:2px 4px;">+${g.positions.length-3} autres</span>`:''}
       </div>
@@ -4118,7 +4129,7 @@ function renderAccountsPanels(totalSizeUSD){
 }
 
 function renderAllocCharts(){
-  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
+  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0);
   const totalCAD=totalSizeUSD*fxRate+cash; // cash déjà en CAD
 
   // Hero header
@@ -4135,7 +4146,7 @@ function renderAllocCharts(){
   const closedTrades=trades.filter(t=>t.type==='Vente');
   const wins=closedTrades.filter(t=>(t.profit||0)>0).length;
   const winRate=closedTrades.length>0?Math.round(wins/closedTrades.length*100):0;
-  const totalPnlRealUSD=closedTrades.reduce((s,t)=>s+toUSD(t.profit||0,t.currency||'USD'),0);
+  const totalPnlRealUSD=closedTrades.reduce((s,t)=>s+toUSD(t.profit||0,getTradeCurrency(t)),0);
   const wr=document.getElementById('alloc-mini-winrate');
   if(wr){wr.textContent=winRate+'%';wr.className='alloc-mini-val '+(winRate>=50?'pos':winRate>0?'neg':'');}
   const pr=document.getElementById('alloc-mini-pnlreal');
@@ -4150,7 +4161,7 @@ function renderAllocCharts(){
   }
 
   // Par symbole
-  const syms=positions.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:p.currency||'USD'}));
+  const syms=positions.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:getPosCurrency(p)}));
   const{labels:sLabels,values:sValues}=mkDonutData(syms,totalSizeUSD);
   updateDonut(allocSymChart,sLabels,sValues,COLORS.slice(0,sLabels.length));
   buildLegend('alloc-sym-legend',sLabels,sValues,COLORS.slice(0,sLabels.length));
@@ -4158,7 +4169,7 @@ function renderAllocCharts(){
   if(symCount)symCount.textContent=sLabels.length+' actifs';
 
   // Par catégorie
-  const cats={};positions.forEach(p=>{const c=getCat(p.symbol);cats[c]=(cats[c]||0)+toUSD((p.shares||0)*p.current,p.currency||'USD');});
+  const cats={};positions.forEach(p=>{const c=getCat(p.symbol);cats[c]=(cats[c]||0)+toUSD((p.shares||0)*p.current,getPosCurrency(p));});
   const cLabels=Object.keys(cats),cValues=cLabels.map(c=>parseFloat((cats[c]/totalSizeUSD*100).toFixed(1)));
   updateDonut(allocCatChart,cLabels,cValues,COLORS.slice(0,cLabels.length));
   buildLegend('alloc-cat-legend',cLabels,cValues,COLORS.slice(0,cLabels.length));
@@ -4178,7 +4189,7 @@ function renderAllocCharts(){
     positions.forEach(p=>{
       const c=getCat(p.symbol);
       sectorPnl[c]=(sectorPnl[c]||0)+calcPnlUSD(p);
-      sectorCost[c]=(sectorCost[c]||0)+toUSD((p.shares||0)*p.avgEntry,p.currency||'USD');
+      sectorCost[c]=(sectorCost[c]||0)+toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p));
     });
     const sectorEntries=Object.entries(sectorPnl)
       .filter(([c])=>sectorCost[c]>0)
@@ -4214,7 +4225,7 @@ function renderMilestones(){
   const body=document.getElementById('milestones-body');
   if(!body)return;
   const MILESTONES=[10000,25000,50000,75000,100000,150000,250000,500000,1000000];
-  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,p.currency||'USD'),0);
+  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0);
   const totalCAD=totalSizeUSD*fxRate+cash;
 
   // Calcul CAGR depuis le premier snapshot

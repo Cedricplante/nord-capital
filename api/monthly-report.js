@@ -71,8 +71,13 @@ function fmtPct(n)  { return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
 function positionPnl(pos, prices, usdcad) {
   const sym   = getYahooTicker(pos.symbol || '');
   const price = prices[sym] || pos.current || pos.avgEntry || 0;
-  const cur   = (pos.currency || 'USD').toUpperCase();
-  const toCAD = cur === 'CAD' ? 1 : usdcad;
+  // Devise réelle du prix dérivée du ticker (.TO = coté CAD sur Yahoo), pas du champ
+  // pos.currency qui peut être mal renseigné pour un titre ajouté hors de la liste
+  // curée côté frontend. Même détection que positionValueCAD (_lib/valuation.js) —
+  // corrigé le 2026-07-23, avant cette fonction utilisait pos.currency et pouvait
+  // afficher un P&L faussé d'environ le taux USD/CAD pour ces titres (audit du jour).
+  const isCad = (pos.symbol || '').toUpperCase().endsWith('.TO');
+  const toCAD = isCad ? 1 : usdcad;
   const avgEntry  = parseFloat(pos.avgEntry || pos.avg_cost || 0);
   const totalSize = parseFloat(pos.totalSize || pos.total_size || 0);
   // Même source de vérité que positionValueCAD (_lib/valuation.js) : shares
@@ -85,7 +90,7 @@ function positionPnl(pos, prices, usdcad) {
   const cost   = shares * avgEntry * toCAD;
   const pnl    = pos.dir === 'Short' ? cost - mktVal : mktVal - cost;
   const pnlPct = cost > 0 ? (pnl / cost) * 100 : 0;
-  return { symbol: pos.symbol, mktVal, cost, pnl, pnlPct, price, currency: cur };
+  return { symbol: pos.symbol, mktVal, cost, pnl, pnlPct, price, currency: isCad ? 'CAD' : (pos.currency || 'USD').toUpperCase() };
 }
 
 function colorSign(val, label) {

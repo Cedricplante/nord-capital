@@ -19,6 +19,14 @@ function sbHeaders() {
   return { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json' };
 }
 
+// Échappe les caractères HTML spéciaux avant interpolation dans l'email
+// (défense en profondeur — app mono-utilisateur donc risque faible, mais coûte rien).
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
 // Vérifie que le bearer token envoyé par le client correspond bien à l'unique
 // utilisateur de l'app — bloque tout appel externe (curl, script, etc.).
 async function verifyOwner(req) {
@@ -87,13 +95,13 @@ export default async function handler(req, res) {
 
   const rows = triggered.map(a => `
     <tr style="border-bottom:1px solid #eee;">
-      <td style="padding:8px 12px;font-family:monospace;font-weight:bold;">${a.symbol}</td>
+      <td style="padding:8px 12px;font-family:monospace;font-weight:bold;">${esc(a.symbol)}</td>
       <td style="padding:8px 12px;color:${a.type==='target'?'#16a34a':'#dc2626'};">
         ${a.type === 'target' ? 'Target atteint' : 'Stop atteint'}
       </td>
-      <td style="padding:8px 12px;font-family:monospace;">${a.price}</td>
+      <td style="padding:8px 12px;font-family:monospace;">${esc(a.price)}</td>
       <td style="padding:8px 12px;font-family:monospace;color:${a.type==='target'?'#16a34a':'#dc2626'};">
-        ${a.type === 'target' ? a.alertTarget : a.alertStop}
+        ${esc(a.type === 'target' ? a.alertTarget : a.alertStop)}
       </td>
     </tr>`).join('');
 
