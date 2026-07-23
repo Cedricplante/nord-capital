@@ -106,10 +106,29 @@ const YAHOO_HEADERS = {
 export async function fetchYahooBatch(tickers, { label = 'valuation', timeoutMs = 7000 } = {}) {
   if (!tickers.length) return {};
   const prices = {};
-  // Corrigé 2026-07-23 : le deuxième endpoint n'était tenté que si le premier
-  // n'avait renvoyé AUCUN prix ; s'il en manquait juste quelques-uns (ex: un
-  // ticker mal supporté par query1), ils restaient manquants pour rien. On
-  // ne redemande maintenant que les tickers encore manquants à chaque essai.
+
+  // Corrigé 2026-07-23 : le endpoint batch v7/finance/quote est de plus en plus
+  // bloqué par Yahoo depuis les IP datacenter (Vercel) — il renvoyait 0 résultat
+  // EN SILENCE (pas d'erreur HTTP), donc snapshot.js écrivait des totaux gravement
+  // sous-évalués dans portfolio_history sans jamais lever d'alerte (ex: 23k au lieu
+  // de 49k, un seul ticker sur deux manquant). /api/prices utilise depuis longtemps
+  // le endpoint chart (v8/finance/chart/{symbol}) avec succès — on fait pareil ici,
+  // un symbole par requête mais en parallèle (Promise.all), donc pas plus lent.
+  await Promise.all(tickers.map(async (t) => {
+    try {
+      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(t)}?interval=1d&range=1d`;
+      const r = await fetch(url, { headers: YAHOO_HEADERS, signal: AbortSignal.timeout(timeoutMs) });
+      if (!r.ok) return;
+      const data = await r.json();
+      const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+      if (price && price > 0) prices[t] = price;
+    } catch (e) {
+      console.warn(`[${label}] Yahoo chart error (${t}):`, e.message);
+    }
+  }));
+
+  // Fallback : retenter le batch v7 pour ce qui manque encore, au cas où il
+  // fonctionne de nouveau pour certains tickers (ne coûte rien si tout est déjà trouvé).
   for (const base of ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com']) {
     const missing = tickers.filter(t => !(t in prices));
     if (!missing.length) break;
@@ -122,9 +141,10 @@ export async function fetchYahooBatch(tickers, { label = 'valuation', timeoutMs 
         if (q.regularMarketPrice && q.regularMarketPrice > 0) prices[q.symbol] = q.regularMarketPrice;
       }
     } catch (e) {
-      console.warn(`[${label}] Yahoo batch error (${base}):`, e.message);
+      console.warn(`[${label}] Yahoo batch fallback error (${base}):`, e.message);
     }
   }
+
   return prices;
 }
 

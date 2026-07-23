@@ -139,11 +139,26 @@ export default async function handler(req, res) {
 
     // 5. Calculer valeur totale CAD (positions + cash converti correctement)
     let totalPositionsCAD = 0;
+    let missingPriceCount = 0;
     const details = [];
     for (const pos of positions) {
       const mktValCAD = positionValueCAD(pos, prices, usdcad);
+      const totalSizeNum = parseFloat(pos.totalSize || pos.total_size || 0);
+      // mktVal=0 alors que la position a un coût d'acquisition > 0 => prix manquant,
+      // pas une position qui vaut vraiment 0 (cf. audit 2026-07-23 : le endpoint Yahoo
+      // batch a déjà renvoyé silencieusement 0 résultat, produisant un total à moitié
+      // du vrai montant sans aucune erreur visible).
+      if (mktValCAD === 0 && Number.isFinite(totalSizeNum) && totalSizeNum > 0) missingPriceCount++;
       totalPositionsCAD += mktValCAD;
       details.push({ symbol: pos.symbol || pos.ticker, mktVal: Math.round(mktValCAD * 100) / 100 });
+    }
+
+    // Garde-fou : si trop de positions n'ont pas pu être valorisées (prix manquant),
+    // le total serait gravement sous-évalué mais techniquement "fini" (donc pas
+    // attrapé par le garde-fou NaN plus bas). Mieux vaut un snapshot manquant pour
+    // aujourd'hui (comblé plus tard) qu'un chiffre faux écrit silencieusement.
+    if (positions.length > 0 && missingPriceCount / positions.length > 0.2) {
+      throw new Error(`${missingPriceCount}/${positions.length} positions sans prix — snapshot annulé pour éviter un total sous-évalué`);
     }
 
     const cashCAD = cashToCAD(cash, currency, prices);
