@@ -3294,7 +3294,7 @@ function updateKPIs(){
     const yesterdayVal=yesterdayPt[yesterdayPt.length-1].value;
     const dayDiff=totalCAD-yesterdayVal,dayPct=yesterdayVal>0?(dayDiff/yesterdayVal)*100:0;
     const sign=dayDiff>=0?'+':'-';
-    if(dayEl){dayEl.textContent=sign+fmtAmt(Math.abs(dayDiff))+' ('+fmtPct(Math.abs(dayPct))+') auj.';dayEl.className='kpi-sub '+(dayDiff>=0?'pos':'neg');}
+    if(dayEl){dayEl.textContent=sign+fmtAmt(Math.abs(dayDiff))+' ('+fmtPct(dayPct)+') auj.';dayEl.className='kpi-sub '+(dayDiff>=0?'pos':'neg');}
   }else{if(dayEl){dayEl.textContent='— aujourd\'hui';dayEl.className='kpi-sub neu';}}
 
   {const _e=document.getElementById('kpi-invested');if(_e)_e.textContent=fmtAmtRound(totalInvestedUSD*fxRate);}
