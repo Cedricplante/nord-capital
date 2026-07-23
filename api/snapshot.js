@@ -1,6 +1,11 @@
 // ============================================================
 // api/snapshot.js — Vercel Cron Job
-// Schedule : 0 20 * * 1-5  (20h UTC = 22h heure de Montréal, lun-ven)
+// Schedule : 0 21 * * 1-5  (21h UTC = 17h heure du Québec en EDT, lun-ven)
+// ATTENTION fuseau horaire : Cédric est de retour au Québec (EDT=UTC-4 l'été,
+// EST=UTC-5 l'hiver) depuis 2026-07-23. Vercel cron est en UTC fixe, pas de DST
+// automatique — à l'entrée en vigueur de l'heure d'hiver (~début novembre),
+// 21h UTC redevient 16h heure du Québec au lieu de 17h. Ajuster à "0 22 * * 1-5"
+// à ce moment-là si on veut garder 17h heure locale toute l'année.
 // Rôle     : snapshot quotidien automatique du portfolio
 //            lit user_data Supabase → prix live (batch Yahoo + CoinGecko)
 //            → upsert portfolio_history
