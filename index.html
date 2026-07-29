@@ -365,8 +365,8 @@
     /* Analytics grid → 2 cols */
     #analytics-grid { grid-template-columns: 1fr 1fr !important; }
 
-    /* Positions table → scrollable */
-    .pos-table-inner { max-height: none; overflow-x: auto; }
+    /* Positions table → page fixe, seule la liste scrolle (demandé par Cédric 2026-07-28) */
+    .pos-table-inner { max-height: calc(100vh - 380px); min-height: 240px; overflow-x: auto; overflow-y: auto; }
     .pos-table-inner table { min-width: 700px; }
 
     /* Historique KPI bar → 2 cols */
