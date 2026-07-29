@@ -131,6 +131,9 @@
   #pos-form-body { overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease; max-height: 500px; opacity: 1; }
   #pos-form-body.collapsed { max-height: 0; opacity: 0; pointer-events: none; }
   #pos-form-toggle.collapsed { transform: rotate(180deg); }
+  #contributions-history-body { overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease; max-height: 2000px; opacity: 1; }
+  #contributions-history-body.collapsed { max-height: 0; opacity: 0; pointer-events: none; }
+  #cotis-hist-toggle.collapsed { transform: rotate(180deg); }
   .pos-table-inner { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 340px); border-radius: 0 0 var(--r) var(--r); }
   .pos-table-inner thead th { position: sticky; top: 0; z-index: 10; background: var(--bg2); box-shadow: 0 1px 0 var(--border); }
   th.sortable { cursor: pointer; transition: color 0.15s; }
@@ -839,8 +842,22 @@
         </div>
         <div id="contributions-trackers" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;"></div>
         <div id="contributions-history" style="display:none;">
-          <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;margin-top:4px;">Historique des cotisations</div>
-          <div id="contributions-history-table"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;margin-top:4px;cursor:pointer;user-select:none;" onclick="toggleCotisHistory()">
+            <span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;">Historique des cotisations</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <select class="filter-select" id="cotis-hist-filter-acct" onclick="event.stopPropagation()" onchange="renderContributions()" style="font-size:10px;padding:3px 8px;">
+                <option value="">Tous les comptes</option>
+                <option value="CELI">CELI</option>
+                <option value="CELIAPP">CELIAPP</option>
+                <option value="REER">REER</option>
+                <option value="REEE">REEE</option>
+              </select>
+              <button id="cotis-hist-toggle" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0 4px;transition:transform 0.2s;line-height:1;" title="Réduire/Agrandir">&#9650;</button>
+            </div>
+          </div>
+          <div id="contributions-history-body">
+            <div id="contributions-history-table"></div>
+          </div>
         </div>
         <div id="contributions-reer-limit-wrap" style="display:none;margin-top:12px;padding:10px 14px;background:var(--bg3);border-radius:6px;display:flex;align-items:center;gap:10px;">
           <span style="font-size:10px;color:var(--text3);">Plafond REER :</span>
@@ -1670,6 +1687,7 @@ function toggleHideAmounts(){
 // Restaurer l'état au chargement
 document.addEventListener('DOMContentLoaded',()=>{
   initPosFormState();
+  initCotisHistoryState();
   if(localStorage.getItem('nc_hide_amounts')==='1'){
     document.body.classList.add('hide-amounts');
     const btn=document.getElementById('btn-eye');if(btn)btn.classList.add('active');
@@ -3832,6 +3850,20 @@ function togglePosForm(){
   btn.classList.toggle('collapsed',collapsed);
   localStorage.setItem('nc_pos_form_collapsed',collapsed?'1':'0');
 }
+function toggleCotisHistory(){
+  const body=document.getElementById('contributions-history-body');
+  const btn=document.getElementById('cotis-hist-toggle');
+  if(!body)return;
+  const collapsed=body.classList.toggle('collapsed');
+  btn?.classList.toggle('collapsed',collapsed);
+  localStorage.setItem('nc_cotis_hist_collapsed',collapsed?'1':'0');
+}
+function initCotisHistoryState(){
+  if(localStorage.getItem('nc_cotis_hist_collapsed')==='1'){
+    document.getElementById('contributions-history-body')?.classList.add('collapsed');
+    document.getElementById('cotis-hist-toggle')?.classList.add('collapsed');
+  }
+}
 function initPosFormState(){
   if(localStorage.getItem('nc_pos_form_collapsed')==='1'){
     const body=document.getElementById('pos-form-body');
@@ -4513,7 +4545,8 @@ function renderContributions(){
       <div style="font-size:9px;color:var(--text3);margin-top:4px;">${reer.limit>0?'Cotisé : '+fmtCAD(reer.cotise):''}${reer.retraits>0?` · Retiré : ${fmtCAD(reer.retraits)} (aucun droit redonné)`:''}</div>
     </div>`;
 
-  const allCotis=getCotisations().sort((a,b)=>b.date.localeCompare(a.date));
+  const histFilterAcct=document.getElementById('cotis-hist-filter-acct')?.value||'';
+  const allCotis=getCotisations().filter(t=>!histFilterAcct||t.account===histFilterAcct).sort((a,b)=>b.date.localeCompare(a.date));
   if(allCotis.length){
     histEl.style.display='block';
     const ACCT_COLOR={'CELI':'var(--green)','CELIAPP':'var(--cyan)','REER':'var(--amber)','REEE':'var(--amber)'};
