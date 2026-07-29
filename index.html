@@ -945,7 +945,11 @@
 <!-- COTISATION MODAL -->
 <div class="modal-overlay" id="cotisation-modal-overlay">
   <div class="modal">
-    <div class="modal-title">Enregistrer une cotisation</div>
+    <div class="modal-title" id="cotis-modal-title">Enregistrer une cotisation</div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button id="cotis-type-depot" onclick="setCotisType('depot')" style="flex:1;padding:10px;background:rgba(45,212,160,0.15);border:1px solid rgba(45,212,160,0.4);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;">Cotisation</button>
+      <button id="cotis-type-retrait" onclick="setCotisType('retrait')" style="flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;transition:all 0.15s;">Retrait</button>
+    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
       <div>
         <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Type de compte</div>
@@ -4425,26 +4429,37 @@ const CELIAPP_MAX_ANNUAL=8000,CELIAPP_LIFETIME=40000;
 
 function getCotisations(){return trades.filter(t=>t.type==='Cotisation');}
 function getCotisationsByAcct(acct){return getCotisations().filter(t=>t.account===acct);}
+// kind absent (anciennes entrées) = dépôt, pour rétrocompatibilité
+function getDepositsByAcct(acct){return getCotisationsByAcct(acct).filter(t=>t.kind!=='retrait');}
+function getWithdrawalsByAcct(acct){return getCotisationsByAcct(acct).filter(t=>t.kind==='retrait');}
 
 function getCeliDroits(joinYear){
   const curYear=new Date().getFullYear();
   let total=0;
   for(let y=Math.max(joinYear,2009);y<=curYear;y++){total+=CELI_LIMITS[y]||7000;}
-  const cotise=getCotisationsByAcct('CELI').reduce((s,t)=>s+(t.amount||0),0);
-  return{total,cotise,restant:Math.max(0,total-cotise)};
+  const cotise=getDepositsByAcct('CELI').reduce((s,t)=>s+(t.amount||0),0);
+  // Règle ARC : un retrait CELI ne redonne des droits qu'à partir du 1er janvier de l'année SUIVANTE.
+  const retraits=getWithdrawalsByAcct('CELI').reduce((s,t)=>s+(t.amount||0),0);
+  const retraitsAnneesPassees=getWithdrawalsByAcct('CELI').filter(t=>(t.year||curYear)<curYear).reduce((s,t)=>s+(t.amount||0),0);
+  return{total,cotise,retraits,restant:Math.max(0,total-cotise+retraitsAnneesPassees)};
 }
 
 function getCeliappDroits(){
-  const cotise=getCotisationsByAcct('CELIAPP').reduce((s,t)=>s+(t.amount||0),0);
+  // CELIAPP : un retrait ne redonne PAS de droits (contrairement au CELI) — sauf retrait admissible
+  // pour achat de 1re propriété, cas particulier non géré ici.
+  const cotise=getDepositsByAcct('CELIAPP').reduce((s,t)=>s+(t.amount||0),0);
+  const retraits=getWithdrawalsByAcct('CELIAPP').reduce((s,t)=>s+(t.amount||0),0);
   const annee=new Date().getFullYear();
-  const cotisAnnee=getCotisationsByAcct('CELIAPP').filter(t=>t.year===annee).reduce((s,t)=>s+(t.amount||0),0);
-  return{total:CELIAPP_LIFETIME,cotise,restant:Math.max(0,CELIAPP_LIFETIME-cotise),anneeMax:CELIAPP_MAX_ANNUAL,anneeCotise:cotisAnnee,anneeRestant:Math.max(0,CELIAPP_MAX_ANNUAL-cotisAnnee)};
+  const cotisAnnee=getDepositsByAcct('CELIAPP').filter(t=>t.year===annee).reduce((s,t)=>s+(t.amount||0),0);
+  return{total:CELIAPP_LIFETIME,cotise,retraits,restant:Math.max(0,CELIAPP_LIFETIME-cotise),anneeMax:CELIAPP_MAX_ANNUAL,anneeCotise:cotisAnnee,anneeRestant:Math.max(0,CELIAPP_MAX_ANNUAL-cotisAnnee)};
 }
 
 function getReerDroits(){
+  // REER : un retrait ne redonne pas de droits (sauf RAP/REEP, non géré ici) — juste informatif.
   const limit=reerLimit;
-  const cotise=getCotisationsByAcct('REER').reduce((s,t)=>s+(t.amount||0),0);
-  return{limit,cotise,restant:Math.max(0,limit-cotise)};
+  const cotise=getDepositsByAcct('REER').reduce((s,t)=>s+(t.amount||0),0);
+  const retraits=getWithdrawalsByAcct('REER').reduce((s,t)=>s+(t.amount||0),0);
+  return{limit,cotise,retraits,restant:Math.max(0,limit-cotise)};
 }
 
 function fmtCAD(n){return new Intl.NumberFormat('fr-CA',{style:'currency',currency:'CAD',maximumFractionDigits:0}).format(n);}
@@ -4475,7 +4490,7 @@ function renderContributions(){
       <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text);">${fmtCAD(celi.restant)}</div>
       <div style="font-size:10px;color:var(--text3);margin-top:2px;">restant / ${fmtCAD(celi.total)} total</div>
       ${bar(celi.cotise,celi.total,'var(--green)')}
-      <div style="font-size:9px;color:var(--text3);margin-top:4px;">Cotisé : ${fmtCAD(celi.cotise)}</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:4px;">Cotisé : ${fmtCAD(celi.cotise)}${celi.retraits>0?` · Retiré : ${fmtCAD(celi.retraits)}`:''}</div>
     </div>
     <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
@@ -4485,7 +4500,7 @@ function renderContributions(){
       <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text);">${fmtCAD(celiapp.restant)}</div>
       <div style="font-size:10px;color:var(--text3);margin-top:2px;">restant à vie · ${fmtCAD(celiapp.anneeRestant)} cette année</div>
       ${bar(celiapp.cotise,CELIAPP_LIFETIME,'var(--cyan)')}
-      <div style="font-size:9px;color:var(--text3);margin-top:4px;">Cotisé : ${fmtCAD(celiapp.cotise)}</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:4px;">Cotisé : ${fmtCAD(celiapp.cotise)}${celiapp.retraits>0?` · Retiré : ${fmtCAD(celiapp.retraits)} (aucun droit redonné)`:''}</div>
     </div>
     <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
@@ -4495,7 +4510,7 @@ function renderContributions(){
       <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text);">${reer.limit>0?fmtCAD(reer.restant):'—'}</div>
       <div style="font-size:10px;color:var(--text3);margin-top:2px;">${reer.limit>0?'restant / '+fmtCAD(reer.limit)+' plafond':'Plafond non configuré'}</div>
       ${reer.limit>0?bar(reer.cotise,reer.limit,'var(--amber)'):''}
-      <div style="font-size:9px;color:var(--text3);margin-top:4px;">${reer.limit>0?'Cotisé : '+fmtCAD(reer.cotise):''}</div>
+      <div style="font-size:9px;color:var(--text3);margin-top:4px;">${reer.limit>0?'Cotisé : '+fmtCAD(reer.cotise):''}${reer.retraits>0?` · Retiré : ${fmtCAD(reer.retraits)} (aucun droit redonné)`:''}</div>
     </div>`;
 
   const allCotis=getCotisations().sort((a,b)=>b.date.localeCompare(a.date));
@@ -4513,12 +4528,13 @@ function renderContributions(){
       </tr></thead>
       <tbody>${allCotis.map((t,i)=>{
         const col=ACCT_COLOR[t.account]||'var(--text2)';
+        const isRetrait=t.kind==='retrait';
         const globalIdx=trades.findIndex(tr=>tr===t);
         return`<tr style="border-bottom:0.5px solid var(--border);opacity:0.92;">
           <td style="padding:7px 8px;color:var(--text2);">${t.date||'—'}</td>
-          <td style="padding:7px 8px;"><span style="color:${col};font-weight:700;">${t.account||'—'}</span></td>
+          <td style="padding:7px 8px;"><span style="color:${col};font-weight:700;">${t.account||'—'}</span>${isRetrait?'<span class="badge-compte" style="margin-left:4px;background:rgba(246,200,67,0.12);color:var(--amber);border-color:rgba(246,200,67,0.3);">Retrait</span>':''}</td>
           <td style="padding:7px 8px;color:var(--text2);">${t.year||'—'}</td>
-          <td style="padding:7px 8px;text-align:right;color:var(--green);font-weight:600;">${fmtCAD(t.amount||0)}</td>
+          <td style="padding:7px 8px;text-align:right;color:${isRetrait?'var(--amber)':'var(--green)'};font-weight:600;">${isRetrait?'-':'+'}${fmtCAD(t.amount||0)}</td>
           <td style="padding:7px 8px;color:var(--text3);">${t.note||''}</td>
           <td style="padding:4px;"><button onclick="deleteCotisation(${globalIdx})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;" title="Supprimer">×</button></td>
         </tr>`;
@@ -4558,6 +4574,17 @@ function saveReerLimit(){
   if(!isNaN(v)&&v>=0){reerLimit=v;saveData();renderContributions();}
 }
 
+let cotisType='depot';
+function setCotisType(type){
+  cotisType=type;
+  const d=document.getElementById('cotis-type-depot'),r=document.getElementById('cotis-type-retrait');
+  if(type==='depot'){d.style.cssText='flex:1;padding:10px;background:rgba(45,212,160,0.15);border:1px solid rgba(45,212,160,0.4);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';r.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';}
+  else{d.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';r.style.cssText='flex:1;padding:10px;background:rgba(246,200,67,0.12);border:1px solid rgba(246,200,67,0.35);color:var(--amber);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';}
+  const titleEl=document.getElementById('cotis-modal-title');
+  if(titleEl)titleEl.textContent=type==='depot'?'Enregistrer une cotisation':'Enregistrer un retrait';
+  updateCotisPreview();
+}
+
 function openCotisationModal(){
   // Peupler les années
   const yearSel=document.getElementById('cotis-year');
@@ -4571,7 +4598,7 @@ function openCotisationModal(){
   if(amtEl)amtEl.value='';
   const noteEl=document.getElementById('cotis-note');
   if(noteEl)noteEl.value='';
-  updateCotisPreview();
+  setCotisType('depot');
   document.getElementById('cotisation-modal-overlay').style.display='flex';
 }
 
@@ -4585,31 +4612,43 @@ function updateCotisPreview(){
   const acct=document.getElementById('cotis-account')?.value||'CELI';
   const amount=parseFloat(document.getElementById('cotis-amount')?.value||'0')||0;
   const year=parseInt(document.getElementById('cotis-year')?.value||new Date().getFullYear());
+  const isRetrait=cotisType==='retrait';
+  const signedAmount=isRetrait?-amount:amount;
   const el=document.getElementById('cotis-preview');
   if(!el)return;
   let info='';
   if(acct==='CELI'){
     const joinYear=celiJoinYear;
     const celi=getCeliDroits(joinYear);
-    const afterCotis=celi.restant-amount;
     const limitThisYear=CELI_LIMITS[year]||7000;
-    const cotisThisYear=getCotisationsByAcct('CELI').filter(t=>t.year===year).reduce((s,t)=>s+(t.amount||0),0);
-    info=`Plafond ${year} : ${fmtCAD(limitThisYear)}<br>Déjà cotisé ${year} : ${fmtCAD(cotisThisYear)}<br>Droits restants actuels : ${fmtCAD(celi.restant)}<br>Droits restants après : <strong style="color:${afterCotis>=0?'var(--green)':'var(--red)'}">${fmtCAD(afterCotis)}</strong>${afterCotis<0?'  <span style="color:var(--red);">Surcontribution!</span>':''}`;
+    const cotisThisYear=getDepositsByAcct('CELI').filter(t=>t.year===year).reduce((s,t)=>s+(t.amount||0),0);
+    if(isRetrait){
+      info=`Droits restants actuels : ${fmtCAD(celi.restant)}<br>Ce retrait ne change pas tes droits immédiatement — il redonnera ${fmtCAD(amount)} d'espace de cotisation CELI à partir du <strong>1er janvier ${year+1}</strong> (règle ARC).`;
+    } else {
+      const afterCotis=celi.restant-amount;
+      info=`Plafond ${year} : ${fmtCAD(limitThisYear)}<br>Déjà cotisé ${year} : ${fmtCAD(cotisThisYear)}<br>Droits restants actuels : ${fmtCAD(celi.restant)}<br>Droits restants après : <strong style="color:${afterCotis>=0?'var(--green)':'var(--red)'}">${fmtCAD(afterCotis)}</strong>${afterCotis<0?'  <span style="color:var(--red);">Surcontribution!</span>':''}`;
+    }
   } else if(acct==='CELIAPP'){
     const celiapp=getCeliappDroits();
-    const afterLife=celiapp.restant-amount;
-    const afterYear=celiapp.anneeRestant-amount;
-    info=`Plafond vie : ${fmtCAD(CELIAPP_LIFETIME)} · Restant : ${fmtCAD(celiapp.restant)}<br>Plafond annuel : ${fmtCAD(CELIAPP_MAX_ANNUAL)} · Restant cette année : ${fmtCAD(celiapp.anneeRestant)}<br>Après cotisation : vie <strong style="color:${afterLife>=0?'var(--green)':'var(--red)'}">${fmtCAD(afterLife)}</strong> · année <strong style="color:${afterYear>=0?'var(--green)':'var(--red)'}">${fmtCAD(afterYear)}</strong>`;
+    if(isRetrait){
+      info=`Restant à vie : ${fmtCAD(celiapp.restant)}<br>Un retrait CELIAPP ne redonne <strong>pas</strong> de droits de cotisation (sauf retrait admissible pour achat de 1re propriété) — enregistré pour historique seulement.`;
+    } else {
+      const afterLife=celiapp.restant-amount;
+      const afterYear=celiapp.anneeRestant-amount;
+      info=`Plafond vie : ${fmtCAD(CELIAPP_LIFETIME)} · Restant : ${fmtCAD(celiapp.restant)}<br>Plafond annuel : ${fmtCAD(CELIAPP_MAX_ANNUAL)} · Restant cette année : ${fmtCAD(celiapp.anneeRestant)}<br>Après cotisation : vie <strong style="color:${afterLife>=0?'var(--green)':'var(--red)'}">${fmtCAD(afterLife)}</strong> · année <strong style="color:${afterYear>=0?'var(--green)':'var(--red)'}">${fmtCAD(afterYear)}</strong>`;
+    }
   } else if(acct==='REER'){
     const reer=getReerDroits();
-    if(reer.limit>0){
+    if(isRetrait){
+      info=reer.limit>0?`Restant actuel : ${fmtCAD(reer.restant)}<br>Un retrait REER ne redonne <strong>pas</strong> de droits de cotisation (sauf RAP/REEP) — enregistré pour historique seulement.`:'Plafond REER non configuré — retrait enregistré pour historique seulement.';
+    } else if(reer.limit>0){
       const after=reer.restant-amount;
       info=`Plafond configuré : ${fmtCAD(reer.limit)}<br>Déjà cotisé : ${fmtCAD(reer.cotise)}<br>Restant après : <strong style="color:${after>=0?'var(--green)':'var(--red)'}">${fmtCAD(after)}</strong>`;
     } else {
       info='Plafond REER non configuré — cliquez "Modifier plafond" dans la card Cotisations.';
     }
   } else {
-    info=`Cotisation ${acct} de ${fmtCAD(amount)} enregistrée.`;
+    info=`${isRetrait?'Retrait':'Cotisation'} ${acct} de ${fmtCAD(amount)} enregistré${isRetrait?'':'e'}.`;
   }
   el.innerHTML=info||'—';
 }
@@ -4621,7 +4660,8 @@ async function saveCotisation(){
   const date=document.getElementById('cotis-date')?.value||new Date().toISOString().split('T')[0];
   const note=document.getElementById('cotis-note')?.value||'';
   if(!acct||isNaN(amount)||amount<=0){alert('Montant invalide.');return;}
-  trades.push({type:'Cotisation',date,year,account:acct,amount:parseFloat(amount.toFixed(2)),note,symbol:'COTISATION',dir:'—',price:0,size:amount,profit:0});
+  const kind=cotisType==='retrait'?'retrait':'depot';
+  trades.push({type:'Cotisation',kind,date,year,account:acct,amount:parseFloat(amount.toFixed(2)),note,symbol:'COTISATION',dir:'—',price:0,size:amount,profit:0});
   await saveData();
   closeCotisationModal();
   renderContributions();
