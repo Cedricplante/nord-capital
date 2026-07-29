@@ -2711,6 +2711,42 @@ function toUSD(amount,posCur){
   // Fallback statique (1 USD = FX_FALLBACK[pc] → 1 pc = 1/FX_FALLBACK[pc] USD)
   return amount/(FX_FALLBACK[pc]||1);
 }
+// accountCurrency par unité de `cur`, calculé avec les taux actuellement en cache.
+// Figé sur chaque entrée d'achat au moment de la transaction (voir addPosition/import CSV)
+// pour que le coût de base (ACB $CA) ne dérive plus au fil des sessions avec le taux du
+// jour — un montant déjà dépensé dans le passé ne doit pas 'fluctuer' avec le FX d'aujourd'hui.
+function fxSnapshotFor(cur){
+  return toUSD(1,cur)*(fxRate||1);
+}
+// ACB stable en devise du compte : somme par entrée d'achat en utilisant le taux figé au
+// moment de CHAQUE transaction plutôt que le taux live d'aujourd'hui appliqué à l'agrégat.
+function getPositionAcbCAD(p){
+  const posCur=getPosCurrency(p);
+  if(!p.entries||!p.entries.length){
+    return parseFloat((toUSD((p.shares||0)*(p.avgEntry||0),posCur)*fxRate).toFixed(2));
+  }
+  const total=p.entries.reduce((sum,e)=>{
+    const rate=(e.fxSnapshot!=null&&e.fxSnapshot>0)?e.fxSnapshot:fxSnapshotFor(posCur);
+    return sum+(parseFloat(e.shares)||0)*(parseFloat(e.price)||0)*rate;
+  },0);
+  return parseFloat(total.toFixed(2));
+}
+// Backfill unique : les entrées créées avant ce fix (2026-07-28) n'ont pas de fxSnapshot.
+// On leur en fige un au premier chargement post-fix (taux du jour = nouvelle base stable
+// à partir de maintenant), puis on sauvegarde pour ne plus jamais avoir à recalculer.
+function backfillEntryFxSnapshots(){
+  let changed=false;
+  positions.forEach(p=>{
+    const posCur=getPosCurrency(p);
+    (p.entries||[]).forEach(e=>{
+      if(e.fxSnapshot==null||!(e.fxSnapshot>0)){
+        e.fxSnapshot=fxSnapshotFor(posCur);
+        changed=true;
+      }
+    });
+  });
+  return changed;
+}
 
 // Devise réelle d'un ticker .TO : toujours coté en CAD sur Yahoo, peu importe
 // le champ .currency stocké (qui peut être mal renseigné si le titre a été
@@ -3019,10 +3055,10 @@ async function confirmImportCsv(){
         existing.shares=(prevShares+r.qty);
         existing.totalSize=(existing.totalSize||0)+r.size;
         existing.entries=existing.entries||[];
-        existing.entries.push({price:r.price,shares:r.qty,size:r.size,date:r.date});
+        existing.entries.push({price:r.price,shares:r.qty,size:r.size,date:r.date,fxSnapshot:fxSnapshotFor(r.currency)});
         dcaPos++;
       } else {
-        positions.push({symbol:r.symbol,dir:'Long',avgEntry:r.price,current:r.price,totalSize:r.size,shares:r.qty,currency:r.currency,account:r.account,entries:[{price:r.price,shares:r.qty,size:r.size,date:r.date}]});
+        positions.push({symbol:r.symbol,dir:'Long',avgEntry:r.price,current:r.price,totalSize:r.size,shares:r.qty,currency:r.currency,account:r.account,entries:[{price:r.price,shares:r.qty,size:r.size,date:r.date,fxSnapshot:fxSnapshotFor(r.currency)}]});
         newPos++;
       }
     } else if(r.action==='SELL'){
@@ -3318,6 +3354,9 @@ async function startApp(){
   // Pré-cacher les taux des devises de positions non-USD et non-accountCurrency
   const posCurrencies=[...new Set(positions.map(p=>getPosCurrency(p)).filter(c=>c!=='USD'&&c!==accountCurrency))];
   await fetchAndCacheFxRates(posCurrencies);
+  // Figer le taux FX des entrées existantes qui n'en ont pas encore (voir fxSnapshotFor) —
+  // rend l'ACB $CA stable dans le temps au lieu de dériver avec le taux du jour à chaque login.
+  if(backfillEntryFxSnapshots())await saveData();
   renderAll();
   if(portfolioHistory.length===0&&positions.length>0){
     const firstTradeDate=trades.length>0?[...trades].sort((a,b)=>a.date.localeCompare(b.date))[0].date:new Date().toISOString().split('T')[0];
@@ -3464,7 +3503,7 @@ function posRow(p,idx,displayIdx){
   const pct=coutPnl>0?(pnl/coutPnl)*100:0,cls=pnl>=0?'pos':'neg';
   // Coût total affiché = somme réelle des achats (peut être en devise différente si DCA mixte)
   const coutTotal=p.entries&&p.entries.length?p.entries.reduce((s,e)=>s+(e.size||0),0):coutPnl;
-  const acbCAD=parseFloat((toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p))*fxRate).toFixed(2));
+  const acbCAD=getPositionAcbCAD(p);
   const isDca=p.entries&&p.entries.length>1,firstDate=p.entries&&p.entries[0]?p.entries[0].date:'—';
   // Le badge DCA×N se met à jour automatiquement via entries.length après FIFO
   const sharesStr=shares?shares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—';
@@ -3583,7 +3622,7 @@ function getFilteredSortedPositions(){
         case'value':return toUSD((p.shares||0)*p.current,getPosCurrency(p));
         case'pnl':return calcPnlUSD(p);
         case'pnlPct':{const c=(p.shares||0)*p.avgEntry;return c>0?(calcPnl(p)/c)*100:0;}
-        case'acb':return toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p))*fxRate;
+        case'acb':return getPositionAcbCAD(p);
         default:return 0;
       }
     };
@@ -3818,9 +3857,9 @@ async function addPosition(){
     if(targetVal)existing.target=targetVal;
     if(stopVal)existing.stop=stopVal;
     existing.entries=existing.entries||[];
-    existing.entries.push({price:e,shares,size:sz,date:dateVal});
+    existing.entries.push({price:e,shares,size:sz,date:dateVal,fxSnapshot:fxSnapshotFor(posCurrency)});
   }
-  else positions.push({symbol:s,dir:d,avgEntry:e,current:cur,totalSize:sz,shares,currency:posCurrency,account,target:targetVal,stop:stopVal,entries:[{price:e,shares,size:sz,date:dateVal}]});
+  else positions.push({symbol:s,dir:d,avgEntry:e,current:cur,totalSize:sz,shares,currency:posCurrency,account,target:targetVal,stop:stopVal,entries:[{price:e,shares,size:sz,date:dateVal,fxSnapshot:fxSnapshotFor(posCurrency)}]});
   ['f-symbol','f-entry','f-shares','f-current','f-size','f-target','f-stop'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-currency').value='USD';document.getElementById('f-account').value='';document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('symbol-dropdown').classList.remove('open');
