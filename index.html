@@ -1880,11 +1880,11 @@ function renderStratPerf(){
   if(!activeStrats.length&&!totalPaliers){body.innerHTML='';return;}
 
   body.innerHTML=`<div style="padding:2px 0 16px;">
-    <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:${typeChips||totalPaliers?'10px':'0'};">
+    <div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap;margin-bottom:${typeChips||totalPaliers?'12px':'0'};">
       <span style="font-size:11px;color:var(--text3);">${activeStrats.length} stratégie${activeStrats.length!==1?'s':''} active${activeStrats.length!==1?'s':''}</span>
-      <span style="display:flex;align-items:center;gap:5px;font-size:11px;"><span style="color:var(--text3);">Non déployé</span><span style="font-family:var(--mono);font-weight:600;">${fmtAmtRound(totalAlloc)}</span></span>
-      <span style="display:flex;align-items:center;gap:5px;font-size:11px;"><span style="color:var(--text3);">P&L ouvert</span><span style="font-family:var(--mono);font-weight:600;color:${clr(totalOpenPnl)};">${fmt(totalOpenPnl)}</span></span>
-      <span style="display:flex;align-items:center;gap:5px;font-size:11px;"><span style="color:var(--text3);">Réalisé</span><span style="font-family:var(--mono);font-weight:600;color:${clr(totalRealPnl)};">${fmt(totalRealPnl)}</span></span>
+      <span style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Non déployé</span><span style="font-family:var(--mono);font-weight:700;font-size:17px;letter-spacing:-0.3px;">${fmtAmtRound(totalAlloc)}</span></span>
+      <span style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">P&L ouvert</span><span style="font-family:var(--mono);font-weight:700;font-size:17px;letter-spacing:-0.3px;color:${clr(totalOpenPnl)};">${fmt(totalOpenPnl)}</span></span>
+      <span style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Réalisé</span><span style="font-family:var(--mono);font-weight:700;font-size:17px;letter-spacing:-0.3px;color:${clr(totalRealPnl)};">${fmt(totalRealPnl)}</span></span>
     </div>
     ${typeChips?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${typeChips}</div>`:''}
     ${totalPaliers>0?`<div style="display:flex;align-items:center;gap:10px;">
