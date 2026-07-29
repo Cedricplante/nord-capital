@@ -1716,25 +1716,56 @@ let _savePending=false;
 // appareil, ou modification directe Supabase) a changé la donnée entre-temps, le PATCH filtré
 // ne matche 0 ligne — on détecte ça et on recharge au lieu d'écraser silencieusement.
 // (cf. rapport de session 2026-07-23 : une session périmée a ré-écrasé un nettoyage de données)
+// Retourne true si la sauvegarde a été confirmée par le serveur, false sinon
+// (échec réseau, conflit résolu par rechargement, création échouée). Les appelants
+// critiques (ex: saveCotisation) doivent vérifier ce retour et annuler leur
+// changement local en mémoire si false, sinon l'UI affiche une donnée qui n'a
+// jamais été persistée et qui disparaît silencieusement au prochain rechargement.
 async function saveData(){
-  if(!currentUser||!accessToken)return;
-  if(_savePending){setTimeout(saveData,300);return;}
+  if(!currentUser||!accessToken)return false;
+  if(_savePending){
+    // Au lieu d'un fire-and-forget (perdait le résultat réel de la tentative retardée),
+    // on attend et on relaie le vrai résultat à l'appelant.
+    await new Promise(r=>setTimeout(r,300));
+    return saveData();
+  }
   _savePending=true;
   const nowIso=new Date().toISOString();
   const payload={user_id:currentUser.id,positions:JSON.stringify(positions),trades:JSON.stringify(trades),cash,currency:accountCurrency,watchlist:JSON.stringify(watchlist),reer_limit:reerLimit,celi_join_year:celiJoinYear,updated_at:nowIso};
   try{
     const guard=lastKnownUpdatedAt?`&updated_at=eq.${encodeURIComponent(lastKnownUpdatedAt)}`:'';
-    const res=await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}${guard}`,{method:'PATCH',headers:{...sbHeaders(),'Prefer':'return=representation'},body:JSON.stringify(payload)});
+    let res;
+    try{
+      res=await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}${guard}`,{method:'PATCH',headers:{...sbHeaders(),'Prefer':'return=representation'},body:JSON.stringify(payload)});
+    }catch(networkErr){
+      // Avant ce fix : une exception fetch ici remontait non-catchée hors de saveData(),
+      // empêchant le code appelant (ex: fermeture de modal) de s'exécuter, SANS AUCUN
+      // signal visible pour l'utilisateur — cause probable de cotisations 'perdues'.
+      console.error('[saveData] Échec réseau:',networkErr);
+      showSaveError();
+      return false;
+    }
     const rows=res.ok?await res.json().catch(()=>[]):[];
     if(res.ok&&rows.length>0){
       lastKnownUpdatedAt=nowIso;showSaving();
+      return true;
     }else if(lastKnownUpdatedAt){
       // Conflit détecté : quelqu'un d'autre a modifié la ligne depuis notre dernier chargement.
+      // Notre payload n'a PAS été écrit — l'état local va être remplacé par celui du serveur.
       await handleSaveConflict();
+      return false;
     }else{
       // Aucune ligne existante (nouvel utilisateur) : la créer.
-      await fetch(`${SB_URL}/rest/v1/user_data`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});
+      try{
+        const createRes=await fetch(`${SB_URL}/rest/v1/user_data`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});
+        if(!createRes.ok){console.error('[saveData] Création user_data échouée:',createRes.status);showSaveError();return false;}
+      }catch(networkErr){
+        console.error('[saveData] Échec réseau (création):',networkErr);
+        showSaveError();
+        return false;
+      }
       lastKnownUpdatedAt=nowIso;showSaving();
+      return true;
     }
   }finally{_savePending=false;}
 }
@@ -1751,6 +1782,14 @@ function showConflict(){
   el.style.color='#ffb020';
   el.classList.add('visible');
   setTimeout(()=>{el.classList.remove('visible');el.textContent='Sauvegardé';el.style.color='';},4000);
+}
+function showSaveError(){
+  const el=document.getElementById('saving-indicator');
+  if(!el)return;
+  el.textContent='✕ Échec de sauvegarde';
+  el.style.color='var(--red)';
+  el.classList.add('visible');
+  setTimeout(()=>{el.classList.remove('visible');el.textContent='Sauvegardé';el.style.color='';},6000);
 }
 async function loadData(){
   if(!currentUser||!accessToken)return;
@@ -4694,16 +4733,32 @@ async function saveCotisation(){
   const note=document.getElementById('cotis-note')?.value||'';
   if(!acct||isNaN(amount)||amount<=0){alert('Montant invalide.');return;}
   const kind=cotisType==='retrait'?'retrait':'depot';
-  trades.push({type:'Cotisation',kind,date,year,account:acct,amount:parseFloat(amount.toFixed(2)),note,symbol:'COTISATION',dir:'—',price:0,size:amount,profit:0});
-  await saveData();
+  const entry={type:'Cotisation',kind,date,year,account:acct,amount:parseFloat(amount.toFixed(2)),note,symbol:'COTISATION',dir:'—',price:0,size:amount,profit:0};
+  trades.push(entry);
+  const ok=await saveData();
+  if(!ok){
+    // Rollback : ne pas garder en mémoire une entrée que le serveur n'a jamais reçue —
+    // elle aurait semblé enregistrée dans l'UI puis disparu silencieusement au prochain
+    // rechargement (cause probable des cotisations CELI manquantes signalées le 2026-07-28).
+    const idx=trades.indexOf(entry);
+    if(idx!==-1)trades.splice(idx,1);
+    alert(`Échec de la sauvegarde (connexion ?). ${kind==='retrait'?'Le retrait n\'a':'La cotisation n\'a'} PAS été enregistré${kind==='retrait'?'':'e'} — réessaie.`);
+    renderContributions();
+    return;
+  }
   closeCotisationModal();
   renderContributions();
 }
 
 async function deleteCotisation(idx){
   if(!confirm('Supprimer cette cotisation ?'))return;
-  trades.splice(idx,1);
-  await saveData();
+  const removed=trades.splice(idx,1);
+  const ok=await saveData();
+  if(!ok){
+    // Rollback : réinsérer l'entrée si la suppression n'a pas pu être confirmée par le serveur.
+    if(removed.length)trades.splice(idx,0,removed[0]);
+    alert('Échec de la suppression (connexion ?). Réessaie.');
+  }
   renderContributions();
 }
 
