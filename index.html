@@ -1528,6 +1528,7 @@ function getTicker(s){if(TICKER_MAP[s])return TICKER_MAP[s];if(s.endsWith('/USD'
 // ─── STATE ───────────────────────────────────────────────────────
 let currentUser=null,accessToken=null;
 let cash=0,closeTarget=null,positions=[],trades=[],strategies=[];
+let lastKnownUpdatedAt=null; // updated_at connu de user_data — contrôle de concurrence optimiste dans saveData()
 // REER/CELI : synchronisés via Supabase (user_data.reer_limit / celi_join_year),
 // plus en localStorage — sinon reset silencieux à chaque nouvel appareil (même
 // bug de fond que l'ancienne migration cash USD→CAD).
@@ -1672,7 +1673,7 @@ function toggleHamburger(e){e.stopPropagation();const m=document.getElementById(
 document.addEventListener('click',e=>{if(!e.target.closest('#hamburger-btn')&&!e.target.closest('#hamburger-menu')){const m=document.getElementById('hamburger-menu');if(m)m.style.display='none';}});
 async function handleLogout(){
   localStorage.removeItem('nc_token');localStorage.removeItem('nc_user');
-  accessToken=null;currentUser=null;positions=[];trades=[];cash=0;portfolioHistory=[];strategies=[];
+  accessToken=null;currentUser=null;positions=[];trades=[];cash=0;portfolioHistory=[];strategies=[];lastKnownUpdatedAt=null;
   // Détruire toutes les instances Chart.js pour éviter les conflits à la reconnexion
   [perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart,sectorVarChart].forEach(c=>{try{if(c)c.destroy();}catch(e){}});
   perfChart=allocChart=allocSymChart=allocCatChart=allocCatDashChart=assetPerfChart=assetPerfDashChart=pnlBarChart=cashAllocChart=celiChart=celiappChart=cryptoAllocChart=sectorVarChart=null;
@@ -1686,16 +1687,46 @@ async function handleLogout(){
 function sbHeaders(){return{'Content-Type':'application/json','apikey':SB_KEY,'Authorization':`Bearer ${accessToken}`};}
 function showSaving(){const el=document.getElementById('saving-indicator');el.classList.add('visible');setTimeout(()=>el.classList.remove('visible'),2000);}
 let _savePending=false;
+// Contrôle de concurrence optimiste : on ne PATCH la ligne user_data que si son updated_at
+// correspond encore à celui qu'on a chargé/écrit en dernier. Si une autre session (autre
+// appareil, ou modification directe Supabase) a changé la donnée entre-temps, le PATCH filtré
+// ne matche 0 ligne — on détecte ça et on recharge au lieu d'écraser silencieusement.
+// (cf. rapport de session 2026-07-23 : une session périmée a ré-écrasé un nettoyage de données)
 async function saveData(){
   if(!currentUser||!accessToken)return;
   if(_savePending){setTimeout(saveData,300);return;}
   _savePending=true;
-  const payload={user_id:currentUser.id,positions:JSON.stringify(positions),trades:JSON.stringify(trades),cash,currency:accountCurrency,watchlist:JSON.stringify(watchlist),reer_limit:reerLimit,celi_join_year:celiJoinYear,updated_at:new Date().toISOString()};
-  const res=await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`,{method:'PATCH',headers:sbHeaders(),body:JSON.stringify(payload)});
+  const nowIso=new Date().toISOString();
+  const payload={user_id:currentUser.id,positions:JSON.stringify(positions),trades:JSON.stringify(trades),cash,currency:accountCurrency,watchlist:JSON.stringify(watchlist),reer_limit:reerLimit,celi_join_year:celiJoinYear,updated_at:nowIso};
   try{
-    if(res.ok)showSaving();
-    else{await fetch(`${SB_URL}/rest/v1/user_data`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});showSaving();}
+    const guard=lastKnownUpdatedAt?`&updated_at=eq.${encodeURIComponent(lastKnownUpdatedAt)}`:'';
+    const res=await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}${guard}`,{method:'PATCH',headers:{...sbHeaders(),'Prefer':'return=representation'},body:JSON.stringify(payload)});
+    const rows=res.ok?await res.json().catch(()=>[]):[];
+    if(res.ok&&rows.length>0){
+      lastKnownUpdatedAt=nowIso;showSaving();
+    }else if(lastKnownUpdatedAt){
+      // Conflit détecté : quelqu'un d'autre a modifié la ligne depuis notre dernier chargement.
+      await handleSaveConflict();
+    }else{
+      // Aucune ligne existante (nouvel utilisateur) : la créer.
+      await fetch(`${SB_URL}/rest/v1/user_data`,{method:'POST',headers:{...sbHeaders(),'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});
+      lastKnownUpdatedAt=nowIso;showSaving();
+    }
   }finally{_savePending=false;}
+}
+async function handleSaveConflict(){
+  console.warn('[saveData] Conflit détecté (données modifiées ailleurs depuis le dernier chargement) — rechargement au lieu d\'écraser.');
+  showConflict();
+  await loadData();
+  renderAll();
+}
+function showConflict(){
+  const el=document.getElementById('saving-indicator');
+  if(!el)return;
+  el.textContent='⚠ Modifié ailleurs — rechargé';
+  el.style.color='#ffb020';
+  el.classList.add('visible');
+  setTimeout(()=>{el.classList.remove('visible');el.textContent='Sauvegardé';el.style.color='';},4000);
 }
 async function loadData(){
   if(!currentUser||!accessToken)return;
@@ -1704,6 +1735,7 @@ async function loadData(){
   const data=await res.json();
   if(data&&data.length>0){
     const row=data[0];
+    lastKnownUpdatedAt=row.updated_at||null;
     try{positions=JSON.parse(row.positions)||[];}catch(e){positions=[];}
     try{trades=JSON.parse(row.trades)||[];}catch(e){trades=[];}
     cash=row.cash!==null?parseFloat(row.cash):0;
@@ -1752,10 +1784,12 @@ async function loadData(){
 async function saveWatchlistToSupabase(){
   if(!currentUser||!accessToken)return;
   try{
+    const nowIso=new Date().toISOString();
     await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`,{
       method:'PATCH',headers:sbHeaders(),
-      body:JSON.stringify({watchlist:JSON.stringify(watchlist),updated_at:new Date().toISOString()})
+      body:JSON.stringify({watchlist:JSON.stringify(watchlist),updated_at:nowIso})
     });
+    lastKnownUpdatedAt=nowIso; // garder le verrou optimiste de saveData() synchronisé
   }catch(e){console.warn('[watchlist] Supabase save failed, keeping in localStorage',e);}
 }
 
@@ -2581,7 +2615,7 @@ async function fetchFxRate(cur){if(cur==='USD')return 1;try{const res=await fetc
 async function setCurrency(cur){
   accountCurrency=cur;
   // Sauvegarder dans Supabase user_data si connecté
-  if(currentUser&&accessToken){try{await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`,{method:'PATCH',headers:sbHeaders(),body:JSON.stringify({currency:cur,updated_at:new Date().toISOString()})});}catch(e){}}
+  if(currentUser&&accessToken){try{const nowIso=new Date().toISOString();await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`,{method:'PATCH',headers:sbHeaders(),body:JSON.stringify({currency:cur,updated_at:nowIso})});lastKnownUpdatedAt=nowIso;}catch(e){}}
   localStorage.setItem('nc_currency',cur);
   fxRate=await fetchFxRate(cur);
   // Mettre à jour le cache live pour toutes les devises de positions
