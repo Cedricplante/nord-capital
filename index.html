@@ -727,7 +727,9 @@
 
       <!-- Transaction table -->
       <div class="card">
-        <div class="card-title">Registre des transactions</div>
+        <div class="card-title">
+          <span>Registre des transactions — <span id="hist-count-label" style="color:var(--text3);font-weight:500;font-size:11px;text-transform:none;letter-spacing:0;"></span></span>
+        </div>
         <div style="overflow-x:auto;">
           <table style="min-width:700px;">
             <thead><tr>
@@ -3692,6 +3694,8 @@ function renderHistory(){
   if(kpiPnl){kpiPnl.textContent=fmtPnl$(totalPnl);kpiPnl.style.color=totalPnl>=0?'var(--green)':'var(--red)';}
   if(kpiWin)kpiWin.textContent=winRate!==null?winRate+'%':'—';
   if(kpiBest)kpiBest.textContent=bestTrade!=null?(bestTrade>=0?'+':'')+fmtAmtRound(bestTrade):'—';
+  const countLbl=document.getElementById('hist-count-label');
+  if(countLbl)countLbl.textContent=`${filtered.length} transaction${filtered.length!==1?'s':''}`;
   renderAnnualPnl();
 }
 
