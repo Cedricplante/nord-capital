@@ -604,6 +604,17 @@
           <div class="donut-leg" id="cash-alloc-legend" style="max-height:80px;"></div>
         </div>
       </div>
+
+      <div class="card" id="cash-lots-debug-card" style="margin-top:16px;">
+        <div class="card-title" style="cursor:pointer;user-select:none;" onclick="toggleCashLotsDebug()">
+          <span>🔧 Debug — Reconstruction du cash (profit vs principal, temporaire)</span>
+          <button id="cash-lots-debug-toggle" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0 4px;transition:transform 0.2s;line-height:1;" title="Afficher/Masquer">▼</button>
+        </div>
+        <div id="cash-lots-debug-body" style="display:none;font-size:12px;color:var(--text2);">
+          <p style="margin:0 0 10px;color:var(--text3);">Reconstruit le cash à partir de l'historique complet des trades (Dépôts/Retraits/Achats/Ventes), en séparant capital déposé et profits réinvestis, par compte. Lecture seule — ne modifie rien. Sert à valider le futur système de tracking profit/principal avant de le rendre actif. <button onclick="renderCashLotsDebug()" style="background:none;border:none;cursor:pointer;color:var(--green);text-decoration:underline;padding:0;font-size:11px;">Recalculer</button></p>
+          <div id="cash-lots-debug-content">—</div>
+        </div>
+      </div>
     </div>
 
     <!-- POSITIONS -->
@@ -2810,6 +2821,160 @@ function renderAssetReturns(){
     </tr>`;}).join('')}</tbody></table>`;
 }
 function getStratCurrency(s){ return tickerCurrency(s.symbol) || s.currency || 'USD'; }
+
+// ── Reconstruction du cash en lots profit/principal, par compte (debug, 2026-07-30) ──
+// Lecture seule : ne modifie ni cash, ni trades, ni positions. Rejoue tout l'historique
+// (Dépôts/Retraits/Achats/Ventes) en ordre chronologique pour reconstituer, par compte, quelle
+// part du cash est du capital déposé ("principal") vs du profit réalisé et pas encore retiré
+// ("profit"). FIFO profit-d'abord pour les achats ET les retraits (demandé par Cédric). Chaque
+// lot garde une chaîne de provenance complète : si un profit de SOXL finance un achat de TSLA
+// qui génère lui-même un profit, la chaîne s'allonge (SOXL → TSLA → ...). Sert uniquement à
+// valider la logique avant de la rendre active (achats bloqués si cash insuffisant, etc.) —
+// voir demande de Cédric du 2026-07-30. Panneau d'affichage : renderCashLotsDebug() (Dashboard).
+function fxConvert(amount, fromCur, toCur){
+  if(!amount)return 0;
+  if(fromCur===toCur)return amount;
+  const usd=toUSD(amount, fromCur);
+  if(toCur==='USD')return usd;
+  if(toCur===accountCurrency&&fxRate&&fxRate!==1)return usd*fxRate;
+  if(liveFxRates[toCur])return usd/liveFxRates[toCur];
+  return usd*(FX_FALLBACK[toCur]||1);
+}
+function _clMakeAccount(){return{principal:[],profit:[]};}
+function _clAddLot(state,type,amount,currency,date,chain){
+  if(!(amount>0.0001))return;
+  state[type].push({amount,currency,date,chain:chain||[]});
+}
+function _clScaleFunding(funding,frac){return funding.map(f=>({...f,amount:f.amount*frac}));}
+function _clUniqueChains(funding){
+  const seen=new Set(),out=[];
+  funding.forEach(f=>(f.chain||[]).forEach(hop=>{
+    const k=hop.symbol+'|'+hop.date;
+    if(!seen.has(k)){seen.add(k);out.push(hop);}
+  }));
+  return out;
+}
+// Consomme amountNeeded (en `currency`) dans un compte : profit d'abord, plus ancien d'abord dans chaque type.
+function _clConsume(state,amountNeeded,currency){
+  let remaining=amountNeeded;
+  const consumed=[];
+  for(const type of['profit','principal']){
+    const queue=state[type];
+    while(remaining>0.005&&queue.length){
+      const lot=queue[0];
+      const lotValueInTarget=fxConvert(lot.amount,lot.currency,currency);
+      if(lotValueInTarget<=remaining+0.005){
+        consumed.push({type,amount:lot.amount,currency:lot.currency,date:lot.date,chain:lot.chain});
+        remaining-=lotValueInTarget;
+        queue.shift();
+      }else{
+        const fraction=remaining/lotValueInTarget;
+        const partAmount=lot.amount*fraction;
+        consumed.push({type,amount:partAmount,currency:lot.currency,date:lot.date,chain:lot.chain});
+        lot.amount-=partAmount;
+        remaining=0;
+      }
+    }
+    if(remaining<=0.005)break;
+  }
+  return{consumed,shortfall:Math.max(0,remaining)};
+}
+function reconstructCashLots(){
+  const chrono=trades.slice().reverse();
+  const accounts={};
+  const entryFunding={};
+  function acct(name){const k=name||'Non spécifié';return accounts[k]||(accounts[k]=_clMakeAccount());}
+  chrono.forEach(t=>{
+    const account=t.accountType||t.account||'Non spécifié';
+    if(t.type==='Dépôt'){
+      const amt=(t.originalAmt!=null&&t.originalCurrency)?t.originalAmt:t.size;
+      const cur=t.originalCurrency||t.currency||'CAD';
+      _clAddLot(acct(account),'principal',amt,cur,t.date,[]);
+    }else if(t.type==='Retrait'){
+      const amt=(t.originalAmt!=null&&t.originalCurrency)?t.originalAmt:t.size;
+      const cur=t.originalCurrency||t.currency||'CAD';
+      _clConsume(acct(account),amt,cur);
+    }else if(t.type==='Achat'){
+      const amt=t.size,cur=t.currency||'USD';
+      const{consumed}=_clConsume(acct(account),amt,cur);
+      (entryFunding[t.symbol]=entryFunding[t.symbol]||[]).push({shares:t.shares,funding:consumed,account,currency:cur});
+    }else if(t.type==='Vente'){
+      let sharesToClose=t.shares||0;
+      const list=entryFunding[t.symbol]||[];
+      let returningFunding=[];
+      while(sharesToClose>0.000001&&list.length){
+        const e=list[0];
+        if(e.shares<=sharesToClose+0.000001){
+          returningFunding.push(...e.funding);
+          sharesToClose-=e.shares;
+          list.shift();
+        }else{
+          const frac=sharesToClose/e.shares;
+          returningFunding.push(..._clScaleFunding(e.funding,frac));
+          e.funding=_clScaleFunding(e.funding,(e.shares-sharesToClose)/e.shares);
+          e.shares-=sharesToClose;
+          sharesToClose=0;
+        }
+      }
+      const cur=t.currency||'USD';
+      const chainHop={symbol:t.symbol,date:t.date};
+      returningFunding.forEach(f=>_clAddLot(acct(account),f.type,f.amount,f.currency,t.date,[...f.chain,chainHop]));
+      if(returningFunding.length===0){
+        _clAddLot(acct(account),'principal',t.size,cur,t.date,[]);
+      }
+      const parentChains=_clUniqueChains(returningFunding);
+      _clAddLot(acct(account),'profit',t.profit||0,cur,t.date,[...parentChains,chainHop]);
+    }
+  });
+  return accounts;
+}
+function renderCashLotsDebug(){
+  const el=document.getElementById('cash-lots-debug-content');if(!el)return;
+  const accounts=reconstructCashLots();
+  let grandTotalCAD=0;
+  const rows=Object.keys(accounts).sort().map(name=>{
+    const state=accounts[name];
+    const sumType=type=>state[type].reduce((s,l)=>s+fxConvert(l.amount,l.currency,'CAD'),0);
+    const principalCAD=sumType('principal'),profitCAD=sumType('profit');
+    grandTotalCAD+=principalCAD+profitCAD;
+    const byCur={};
+    ['principal','profit'].forEach(type=>state[type].forEach(l=>{
+      byCur[l.currency]=byCur[l.currency]||{principal:0,profit:0};
+      byCur[l.currency][type]+=l.amount;
+    }));
+    const nativeDetail=Object.keys(byCur).map(cur=>`${cur} : ${fmtAmtRound(byCur[cur].principal)} principal + ${fmtAmtRound(byCur[cur].profit)} profit`).join(' · ');
+    return{name,principalCAD,profitCAD,totalCAD:principalCAD+profitCAD,nativeDetail};
+  }).sort((a,b)=>b.totalCAD-a.totalCAD);
+  const currentCash=cash||0;
+  const delta=grandTotalCAD-currentCash;
+  const okColor=Math.abs(delta)<1;
+  el.innerHTML=`
+    <div style="margin-bottom:10px;padding:8px 10px;border-radius:6px;background:${okColor?'rgba(45,212,160,0.1)':'rgba(246,200,67,0.12)'};border:1px solid ${okColor?'rgba(45,212,160,0.3)':'rgba(246,200,67,0.35)'};">
+      <strong>Total reconstruit : ${fmtAmtRound(grandTotalCAD)} CAD</strong> vs cash actuel <strong>${fmtAmtRound(currentCash)} CAD</strong>
+      (écart : ${delta>=0?'+':''}${fmtAmtRound(delta)} CAD)
+    </div>
+    <table style="width:100%;border-collapse:collapse;"><thead><tr style="text-align:left;border-bottom:1px solid var(--border2);">
+      <th style="padding:4px 8px;">Compte</th><th style="padding:4px 8px;">Principal (CAD)</th><th style="padding:4px 8px;">Profit (CAD)</th><th style="padding:4px 8px;">Total (CAD)</th><th style="padding:4px 8px;">Détail devise native</th>
+    </tr></thead><tbody>${rows.map(r=>`<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:4px 8px;">${escapeHtml(r.name)}</td>
+      <td style="padding:4px 8px;">${fmtAmtRound(r.principalCAD)}</td>
+      <td style="padding:4px 8px;">${fmtAmtRound(r.profitCAD)}</td>
+      <td style="padding:4px 8px;font-weight:600;">${fmtAmtRound(r.totalCAD)}</td>
+      <td style="padding:4px 8px;color:var(--text3);">${escapeHtml(r.nativeDetail)}</td>
+    </tr>`).join('')}</tbody></table>
+    <p style="margin-top:10px;color:var(--text3);font-size:11px;">Comptes sans "compte" renseigné sur les vieux trades tombent dans "Non spécifié". Chaîne de provenance calculée mais pas encore affichée dans ce tableau — accessible en console : <code>reconstructCashLots()</code>.</p>
+  `;
+}
+function toggleCashLotsDebug(){
+  const body=document.getElementById('cash-lots-debug-body');
+  const btn=document.getElementById('cash-lots-debug-toggle');
+  if(!body)return;
+  const willOpen=body.style.display==='none';
+  body.style.display=willOpen?'block':'none';
+  if(btn)btn.textContent=willOpen?'▲':'▼';
+  if(willOpen)renderCashLotsDebug();
+}
+
 
 // ─── LIVE PRICES ─────────────────────────────────────────────────
 function setLiveStatus(status){
