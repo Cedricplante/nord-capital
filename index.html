@@ -2752,15 +2752,16 @@ function getTotalSizeUSD(posArr){ return (posArr||positions).reduce((s,p)=>s+toU
 function getTradeCurrency(t){ return tickerCurrency(t.symbol) || t.currency || 'USD'; }
 
 // ── Rendement par actif (actifs entièrement fermés) — demandé par Cédric 2026-07-29 ──
-// Cumulé   = Σ profit $ / Σ capital investi sur tous les trades fermés de l'actif (pondéré par taille)
-// Composé  = enchaîne les CAMPAGNES (cycle achat → position à plat) comme des rounds successifs :
-//            (1+r_campagne1)×(1+r_campagne2)×...−1. PAS chaque vente individuellement : plusieurs
-//            ventes partielles du même DCA le même jour ne sont pas des rounds séparés, sinon le
-//            résultat explose artificiellement (bug trouvé par Cédric sur SOXL : 5289% au lieu de
-//            ~756% réel — 6 ventes partielles de 3 campagnes chaînées comme 6 rounds au lieu de 3).
-// Ordre chronologique réel : trades[] est toujours construit par unshift() pour Achat/Vente (jamais
-// trié), donc le plus récent est toujours en tête — .reverse() donne l'ordre chronologique exact,
-// y compris pour des trades du même jour où un simple tri par date perdrait l'ordre.
+// Rendement = Σ profit $ / Σ capital investi sur TOUS les trades de vente fermés de l'actif
+//             (moyenne pondérée par la taille de chaque vente). PAS de compounding entre
+//             "campagnes" (cycle achat → position à plat) : le compounding suppose que le
+//             capital sorti d'un cycle est réinvesti dans le suivant, ce qui n'est pas le cas
+//             ici — Cédric confirme (2026-07-30) que les rachats SOXL ont été financés par un
+//             mélange de profits ET de cash dormant, pas une réinjection propre et traçable du
+//             capital précédent. Le compounding par campagne (fix du 2026-07-29, commit f98c8ac)
+//             avait fait passer SOXL de 5289% à 756,54%, mais restait injustifié pour la même
+//             raison. La moyenne pondérée globale est le seul chiffre défendable sans traçabilité
+//             explicite du réinvestissement.
 function getClosedAssetReturns(){
   const openSymbols=new Set(positions.map(p=>p.symbol));
   const bySymbol={};
@@ -2771,38 +2772,21 @@ function getClosedAssetReturns(){
   const rows=[];
   Object.keys(bySymbol).forEach(sym=>{
     if(openSymbols.has(sym))return; // encore une position ouverte → pas "entièrement fermé"
-    const list=bySymbol[sym].slice().reverse();
-    let balance=0,campaigns=[],current=null,sellCount=0;
-    list.forEach(t=>{
+    let sumProfitUSD=0,sumSizeUSD=0,sellCount=0;
+    bySymbol[sym].forEach(t=>{
+      if(t.type!=='Vente')return;
       const cur=getTradeCurrency(t);
-      if(t.type==='Achat'){
-        if(balance<=0.000001){current={profitUSD:0,sizeUSD:0};campaigns.push(current);}
-        balance+=t.shares||0;
-      }else{
-        sellCount++;
-        if(current){
-          current.profitUSD+=toUSD(t.profit||0,cur);
-          current.sizeUSD+=toUSD(t.size||0,cur);
-        }
-        balance-=t.shares||0;
-        if(balance<0.000001)balance=0;
-      }
+      sumProfitUSD+=toUSD(t.profit||0,cur);
+      sumSizeUSD+=toUSD(t.size||0,cur);
+      sellCount++;
     });
-    campaigns=campaigns.filter(c=>c.sizeUSD>0);
-    if(!campaigns.length)return;
-    let sumProfitUSD=0,sumSizeUSD=0,compound=1;
-    campaigns.forEach(c=>{
-      sumProfitUSD+=c.profitUSD;sumSizeUSD+=c.sizeUSD;
-      const r=c.sizeUSD>0?c.profitUSD/c.sizeUSD:0;
-      compound*=(1+r);
-    });
+    if(sumSizeUSD<=0)return;
     rows.push({
       symbol:sym,
       tradeCount:sellCount,
       capitalCAD:sumSizeUSD*fxRate,
       profitCAD:sumProfitUSD*fxRate,
-      cumulPct:sumSizeUSD>0?(sumProfitUSD/sumSizeUSD)*100:0,
-      compoundPct:(compound-1)*100,
+      pct:(sumProfitUSD/sumSizeUSD)*100,
     });
   });
   rows.sort((a,b)=>b.profitCAD-a.profitCAD);
@@ -2814,7 +2798,7 @@ function renderAssetReturns(){
   const rows=getClosedAssetReturns();
   if(!rows.length){el.innerHTML='<p style="padding:14px;color:var(--text3);font-size:12px;">Aucun actif entièrement fermé pour l\'instant — le rendement par actif appara\u00eet ici une fois qu\'une position est vendue à 100%.</p>';return;}
   el.innerHTML=`<table style="min-width:600px;"><thead><tr>
-    <th>Actif</th><th>Trades fermés</th><th>Capital investi</th><th>Profit $</th><th>Rendement cumulé</th><th>Rendement composé</th>
+    <th>Actif</th><th>Trades fermés</th><th>Capital investi</th><th>Profit $</th><th>Rendement</th>
   </tr></thead><tbody>${rows.map(r=>{
     const cls=r.profitCAD>=0?'pos':'neg';
     return`<tr>
@@ -2822,8 +2806,7 @@ function renderAssetReturns(){
       <td style="color:var(--text2);">${r.tradeCount}</td>
       <td style="color:var(--text2);" data-sensitive>${fmtAmtRound(r.capitalCAD)}</td>
       <td class="${cls}" data-sensitive>${fmtCpnl(r.profitCAD,'CAD')}</td>
-      <td class="${cls}">${fmtPct(r.cumulPct)}</td>
-      <td class="${cls}">${fmtPct(r.compoundPct)}</td>
+      <td class="${cls}">${fmtPct(r.pct)}</td>
     </tr>`;}).join('')}</tbody></table>`;
 }
 function getStratCurrency(s){ return tickerCurrency(s.symbol) || s.currency || 'USD'; }
