@@ -2932,10 +2932,16 @@ function reconstructCashLots(deductOnBuy){
     }else if(t.type==='Achat'){
       const amt=t.size,cur=t.currency||'USD';
       const consumed=deductOnBuy?_clConsume(acct(account),amt,cur).consumed:[];
-      (entryFunding[t.symbol]=entryFunding[t.symbol]||[]).push({shares:t.shares,funding:consumed,account,currency:cur});
+      // BUG CRITIQUE corrigé (audit 2026-07-30) : clé uniquement par symbole permettait à une
+      // vente d'un compte X de piger dans du funding tracké pour un achat du compte Y (même
+      // symbole, comptes différents) -- fuite de cash entre comptes. Clé maintenant par
+      // symbole+compte, cloisonnement strict.
+      const fundingKey=t.symbol+'|'+account;
+      (entryFunding[fundingKey]=entryFunding[fundingKey]||[]).push({shares:t.shares,funding:consumed,account,currency:cur});
     }else if(t.type==='Vente'){
       let sharesToClose=t.shares||0;
-      const list=entryFunding[t.symbol]||[];
+      const fundingKey=t.symbol+'|'+account;
+      const list=entryFunding[fundingKey]||[];
       let returningFunding=[];
       while(sharesToClose>0.000001&&list.length){
         const e=list[0];
@@ -2958,7 +2964,16 @@ function reconstructCashLots(deductOnBuy){
         _clAddLot(acct(account),'principal',t.size,cur,t.date,[]);
       }
       const parentChains=_clUniqueChains(returningFunding);
-      _clAddLot(acct(account),'profit',t.profit||0,cur,t.date,[...parentChains,chainHop]);
+      // BUG CRITIQUE corrigé (audit 2026-07-30) : _clAddLot ignore silencieusement les montants
+      // <=0, donc une vente PERDANTE (t.profit négatif) ne débitait jamais le cash -- le coût de
+      // base complet revenait quand même via returningFunding, créant du cash fantôme égal à la
+      // perte, à chaque trade perdant. Une perte doit CONSOMMER le pool (profit d'abord), pas
+      // juste sauter l'ajout.
+      if(t.profit>0.0001){
+        _clAddLot(acct(account),'profit',t.profit,cur,t.date,[...parentChains,chainHop]);
+      }else if(t.profit<-0.0001){
+        _clConsume(acct(account),-t.profit,cur);
+      }
     }
   });
   return{accounts,entryFunding};
@@ -3439,6 +3454,10 @@ async function confirmImportCsv(){
     }
   }
 
+  // Fix audit 2026-07-30 : l'import CSV ne resynchronisait jamais `cash` -- resté périmé
+  // (KPI, pie charts) jusqu'au prochain achat/vente/dépôt/retrait manuel. Pas de blocage ici
+  // (import en lot de données historiques, différent d'un achat live) mais on resynchronise.
+  syncCashFromLots();
   await saveData();
   renderAll();
   closeImportModal();
@@ -3849,7 +3868,8 @@ function renderTargetStop(p){
 // Note de provenance (demandée par Cédric, 2026-07-30) : indique si les shares encore ouvertes
 // d'une position ont été (en partie) financées par du profit réinvesti, et d'où ce profit vient.
 function getProvenanceBadge(p){
-  const list=_cashEntryFunding[p.symbol];
+  // Clé alignée sur reconstructCashLots() (symbole+compte, fix audit 2026-07-30).
+  const list=_cashEntryFunding[p.symbol+'|'+(p.account||'Non spécifié')];
   if(!list||!list.length)return '';
   let profitShares=0,totalShares=0;const chains=new Set();
   list.forEach(e=>{
@@ -4207,7 +4227,13 @@ async function addPosition(){
   const dateVal=document.getElementById('f-date').value||new Date().toISOString().split('T')[0];
   const e=parseFloat(document.getElementById('f-entry').value),shares=parseFloat(document.getElementById('f-shares').value);
   const posCurrency=tickerCurrency(s)||document.getElementById('f-currency').value||'USD',cur=parseFloat(document.getElementById('f-current').value),sz=parseFloat(document.getElementById('f-size').value);
-  const account=document.getElementById('f-account').value||'';
+  const existingBeforeSave=positions.find(p=>p.symbol===s&&p.dir===d);
+  // BUG CRITIQUE corrigé (audit 2026-07-30) : si le champ compte du formulaire est laissé vide
+  // lors d'un DCA (il n'est jamais pré-rempli), l'achat était tracké sous "Non spécifié" alors
+  // que la position restait sur son vrai compte -- désynchronisation qui pouvait faire fuiter du
+  // cash d'un compte à l'autre à la revente. On hérite du compte de la position existante par
+  // défaut si le formulaire est vide.
+  const account=document.getElementById('f-account').value||(existingBeforeSave?existingBeforeSave.account:'')||'';
   const targetVal=parseFloat(document.getElementById('f-target').value)||null;
   const stopVal=parseFloat(document.getElementById('f-stop').value)||null;
   if(!s||isNaN(e)||isNaN(shares)||isNaN(cur)||isNaN(sz)){alert('Remplis tous les champs (symbole, prix, shares, prix actuel).');return;}
