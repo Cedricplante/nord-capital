@@ -2753,32 +2753,57 @@ function getTradeCurrency(t){ return tickerCurrency(t.symbol) || t.currency || '
 
 // ── Rendement par actif (actifs entièrement fermés) — demandé par Cédric 2026-07-29 ──
 // Cumulé   = Σ profit $ / Σ capital investi sur tous les trades fermés de l'actif (pondéré par taille)
-// Composé  = enchaînement des trades comme des rounds successifs : (1+r1)×(1+r2)×...−1
+// Composé  = enchaîne les CAMPAGNES (cycle achat → position à plat) comme des rounds successifs :
+//            (1+r_campagne1)×(1+r_campagne2)×...−1. PAS chaque vente individuellement : plusieurs
+//            ventes partielles du même DCA le même jour ne sont pas des rounds séparés, sinon le
+//            résultat explose artificiellement (bug trouvé par Cédric sur SOXL : 5289% au lieu de
+//            ~756% réel — 6 ventes partielles de 3 campagnes chaînées comme 6 rounds au lieu de 3).
+// Ordre chronologique réel : trades[] est toujours construit par unshift() pour Achat/Vente (jamais
+// trié), donc le plus récent est toujours en tête — .reverse() donne l'ordre chronologique exact,
+// y compris pour des trades du même jour où un simple tri par date perdrait l'ordre.
 function getClosedAssetReturns(){
   const openSymbols=new Set(positions.map(p=>p.symbol));
-  const ventes=trades.filter(t=>t.type==='Vente'&&!openSymbols.has(t.symbol));
   const bySymbol={};
-  ventes.forEach(t=>{(bySymbol[t.symbol]=bySymbol[t.symbol]||[]).push(t);});
-  const rows=Object.keys(bySymbol).map(sym=>{
-    // Ordre chronologique (le plus ancien d'abord) pour que le rendement composé enchaîne les trades dans le bon sens
-    const list=bySymbol[sym].slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-    let sumProfitUSD=0,sumSizeUSD=0,compound=1;
+  trades.forEach(t=>{
+    if(t.type!=='Achat'&&t.type!=='Vente')return;
+    (bySymbol[t.symbol]=bySymbol[t.symbol]||[]).push(t);
+  });
+  const rows=[];
+  Object.keys(bySymbol).forEach(sym=>{
+    if(openSymbols.has(sym))return; // encore une position ouverte → pas "entièrement fermé"
+    const list=bySymbol[sym].slice().reverse();
+    let balance=0,campaigns=[],current=null,sellCount=0;
     list.forEach(t=>{
       const cur=getTradeCurrency(t);
-      const profitUSD=toUSD(t.profit||0,cur);
-      const sizeUSD=toUSD(t.size||0,cur);
-      sumProfitUSD+=profitUSD;sumSizeUSD+=sizeUSD;
-      const r=sizeUSD>0?profitUSD/sizeUSD:0;
+      if(t.type==='Achat'){
+        if(balance<=0.000001){current={profitUSD:0,sizeUSD:0};campaigns.push(current);}
+        balance+=t.shares||0;
+      }else{
+        sellCount++;
+        if(current){
+          current.profitUSD+=toUSD(t.profit||0,cur);
+          current.sizeUSD+=toUSD(t.size||0,cur);
+        }
+        balance-=t.shares||0;
+        if(balance<0.000001)balance=0;
+      }
+    });
+    campaigns=campaigns.filter(c=>c.sizeUSD>0);
+    if(!campaigns.length)return;
+    let sumProfitUSD=0,sumSizeUSD=0,compound=1;
+    campaigns.forEach(c=>{
+      sumProfitUSD+=c.profitUSD;sumSizeUSD+=c.sizeUSD;
+      const r=c.sizeUSD>0?c.profitUSD/c.sizeUSD:0;
       compound*=(1+r);
     });
-    return{
+    rows.push({
       symbol:sym,
-      tradeCount:list.length,
+      tradeCount:sellCount,
       capitalCAD:sumSizeUSD*fxRate,
       profitCAD:sumProfitUSD*fxRate,
       cumulPct:sumSizeUSD>0?(sumProfitUSD/sumSizeUSD)*100:0,
       compoundPct:(compound-1)*100,
-    };
+    });
   });
   rows.sort((a,b)=>b.profitCAD-a.profitCAD);
   return rows;
