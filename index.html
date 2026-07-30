@@ -644,7 +644,7 @@
               <div class="field"><label>Devise</label><select id="f-currency"><option value="USD">USD</option><option value="CAD">CAD</option><option value="EUR">EUR</option><option value="CHF">CHF</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="NZD">NZD</option></select></div>
               <div class="field"><label>Compte</label>
                 <select id="f-account">
-                  <option value="">—</option>
+                  <option value="">— Sélectionner (requis)</option>
                   <optgroup label="Enregistrés"><option value="CELI">CELI</option><option value="CELIAPP">CELIAPP</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
                   <optgroup label="Non-enregistrés"><option value="Comptant">Comptant</option><option value="Marge">Marge</option></optgroup>
                   <optgroup label="Crypto — Exchanges"><option value="Coinbase">Coinbase</option><option value="Binance">Binance</option><option value="Kraken">Kraken</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option><option value="Bybit">Bybit</option><option value="Kucoin">Kucoin</option></optgroup>
@@ -1057,7 +1057,7 @@
     <div id="cash-account-wrap" style="margin-bottom:16px;">
       <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Type de compte</div>
       <select id="cash-account-type" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
-        <option value="">— Non spécifié</option>
+        <option value="">— Sélectionner (requis)</option>
         <option value="CELI">CELI</option>
         <option value="CELIAPP">CELIAPP</option>
         <option value="REER">REER</option>
@@ -4237,11 +4237,14 @@ async function addPosition(){
   const targetVal=parseFloat(document.getElementById('f-target').value)||null;
   const stopVal=parseFloat(document.getElementById('f-stop').value)||null;
   if(!s||isNaN(e)||isNaN(shares)||isNaN(cur)||isNaN(sz)){alert('Remplis tous les champs (symbole, prix, shares, prix actuel).');return;}
+  // Compte réel requis (durci le 2026-07-30, sur demande de Cédric) -- plus de "Non spécifié"
+  // silencieux : sans compte, impossible de savoir dans quel cash piger, donc on bloque.
+  if(!account){alert('Sélectionne un compte pour cet achat — requis pour vérifier le cash disponible (plus de "Non spécifié" automatique).');return;}
   // Blocage si cash insuffisant dans le compte visé (demandé par Cédric, 2026-07-30).
   // reconstructCashLots() est toujours recalculé à la volée depuis trades + CASH_LOTS_SEED,
   // jamais une valeur stockée qui pourrait dériver de la réalité.
   {
-    const acctKey=account||'Non spécifié';
+    const acctKey=account;
     const{accounts}=reconstructCashLots(true);
     const state=accounts[acctKey]||_clMakeAccount();
     const clone={principal:state.principal.map(l=>({...l})),profit:state.profit.map(l=>({...l}))};
@@ -4314,11 +4317,26 @@ async function updateCash(){
   // dans quel compte ajouter/retirer le lot de cash.
   const accountType=document.getElementById('cash-account-type')?.value||'';
   const note=document.getElementById('cash-note')?.value.trim()||'';
+  // Compte réel requis (durci le 2026-07-30, sur demande de Cédric) -- plus de "Non spécifié"
+  // silencieux, pour Dépôt ET Retrait.
+  if(!accountType){alert('Sélectionne un compte — requis pour le suivi du cash par compte (plus de "Non spécifié" automatique).');return;}
+  // Blocage si retrait insuffisant dans le compte visé (durci le 2026-07-30, sur demande de
+  // Cédric -- même règle que pour un achat). reconstructCashLots() recalculé à la volée.
+  if(type==='Retrait'){
+    const{accounts}=reconstructCashLots(true);
+    const state=accounts[accountType]||_clMakeAccount();
+    const clone={principal:state.principal.map(l=>({...l})),profit:state.profit.map(l=>({...l}))};
+    const{shortfall}=_clConsume(clone,inputAmt,inputCur);
+    if(shortfall>0.01){
+      const availCAD=_clAccountTotalCAD(state);
+      alert(`Retrait bloqué : cash insuffisant dans "${accountType}".\nDisponible : ${fmtAmtRound(availCAD)} CAD\nMontant demandé : ${fmtAmtRound(fxConvert(inputAmt,inputCur,'CAD'))} CAD (manque ${fmtAmtRound(fxConvert(shortfall,inputCur,'CAD'))} CAD)`);
+      return;
+    }
+  }
   // Convertir le montant en devise du compte (CAD) -- gardé pour affichage/rétrocompat, mais
   // originalAmt/originalCurrency (natif) sont la source de vérité pour reconstructCashLots().
   const amtCAD=parseFloat((toUSD(inputAmt,inputCur)*fxRate).toFixed(2));
-  const tradeEntry={date,symbol:'CASH',dir:'—',type,price:0,size:amtCAD,profit:0,currency:accountCurrency,originalAmt:inputAmt,originalCurrency:inputCur};
-  if(accountType)tradeEntry.accountType=accountType;
+  const tradeEntry={date,symbol:'CASH',dir:'—',type,price:0,size:amtCAD,profit:0,currency:accountCurrency,originalAmt:inputAmt,originalCurrency:inputCur,accountType};
   if(note)tradeEntry.note=note;
   trades.unshift(tradeEntry);
   // Cash resynchronisé depuis les lots (trades + CASH_LOTS_SEED), jamais une valeur qui dérive.
