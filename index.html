@@ -605,13 +605,19 @@
         </div>
       </div>
 
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title">Cash par compte &amp; type (principal vs profit réinvesti)</div>
+        <div class="chart-wrap" style="flex:1;min-height:160px;"><canvas id="cashLotsChart"></canvas></div>
+        <div class="donut-leg" id="cash-lots-chart-legend" style="max-height:110px;"></div>
+      </div>
+
       <div class="card" id="cash-lots-debug-card" style="margin-top:16px;">
         <div class="card-title" style="cursor:pointer;user-select:none;" onclick="toggleCashLotsDebug()">
-          <span>🔧 Debug — Reconstruction du cash (profit vs principal, temporaire)</span>
+          <span>🔍 Détail &amp; audit du cash (calcul, ligne de départ, mouvements bruts)</span>
           <button id="cash-lots-debug-toggle" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0 4px;transition:transform 0.2s;line-height:1;" title="Afficher/Masquer">▼</button>
         </div>
         <div id="cash-lots-debug-body" style="display:none;font-size:12px;color:var(--text2);">
-          <p style="margin:0 0 10px;color:var(--text3);">Reconstruit le cash à partir de l'historique complet des trades (Dépôts/Retraits/Achats/Ventes), en séparant capital déposé et profits réinvestis, par compte. Lecture seule — ne modifie rien. Sert à valider le futur système de tracking profit/principal avant de le rendre actif. <button onclick="renderCashLotsDebug()" style="background:none;border:none;cursor:pointer;color:var(--green);text-decoration:underline;padding:0;font-size:11px;">Recalculer</button></p>
+          <p style="margin:0 0 10px;color:var(--text3);">Détail du calcul utilisé partout dans l'app depuis le 2026-07-30 (achats/retraits, pie chart) : ligne de départ + tous les mouvements depuis. Lecture seule ici — ne modifie rien. <button onclick="renderCashLotsDebug()" style="background:none;border:none;cursor:pointer;color:var(--green);text-decoration:underline;padding:0;font-size:11px;">Recalculer</button></p>
           <div id="cash-lots-debug-content">—</div>
         </div>
       </div>
@@ -1556,7 +1562,7 @@ let lastKnownUpdatedAt=null; // updated_at connu de user_data — contrôle de c
 // plus en localStorage — sinon reset silencieux à chaque nouvel appareil (même
 // bug de fond que l'ancienne migration cash USD→CAD).
 let reerLimit=0,celiJoinYear=2009;
-let perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart,sectorVarChart;
+let perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart,sectorVarChart,cashLotsChart;
 let chartsInitialized=false;
 let accountCurrency='USD',fxRate=1;
 let activePeriod='ALL'; // défaut ALL demandé par Cédric (2026-07-28) — chaque connexion doit repartir sur ALL/$/CAD
@@ -1700,8 +1706,8 @@ async function handleLogout(){
   localStorage.removeItem('nc_token');localStorage.removeItem('nc_user');
   accessToken=null;currentUser=null;positions=[];trades=[];cash=0;portfolioHistory=[];strategies=[];lastKnownUpdatedAt=null;
   // Détruire toutes les instances Chart.js pour éviter les conflits à la reconnexion
-  [perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart,sectorVarChart].forEach(c=>{try{if(c)c.destroy();}catch(e){}});
-  perfChart=allocChart=allocSymChart=allocCatChart=allocCatDashChart=assetPerfChart=assetPerfDashChart=pnlBarChart=cashAllocChart=celiChart=celiappChart=cryptoAllocChart=sectorVarChart=null;
+  [perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart,sectorVarChart,cashLotsChart].forEach(c=>{try{if(c)c.destroy();}catch(e){}});
+  perfChart=allocChart=allocSymChart=allocCatChart=allocCatDashChart=assetPerfChart=assetPerfDashChart=pnlBarChart=cashAllocChart=celiChart=celiappChart=cryptoAllocChart=sectorVarChart=cashLotsChart=null;
   chartsInitialized=false;
   // Reset devise
   accountCurrency='USD';fxRate=1;Object.keys(liveFxRates).forEach(k=>delete liveFxRates[k]);
@@ -2888,11 +2894,25 @@ function _clConsume(state,amountNeeded,currency){
 // système PROSPECTIF demandé pour la Phase 2 : les achats déduisent vraiment le cash, donc le
 // total redescend du montant englouti dans les positions encore ouvertes (normal, à ne comparer
 // à rien d'existant tant que ce n'est pas activé pour de vrai).
+// Ligne de départ du 2026-07-30 : avant cette date, le cash de l'app contenait des faux
+// dépôts/retraits de test et au moins un ajustement manuel pour "atterrir" sur le bon chiffre
+// (confirmé par Cédric) -- l'historique n'est pas fiable pour retracer profit vs principal.
+// On repart d'une base propre, 100% "principal" faute de pouvoir distinguer le profit déjà
+// accumulé avant cette date. Vérifié contre le solde réel (Disnat + exchanges) le 2026-07-30 :
+// 19116$ CAD (CELI 42$ CAD + 22,05$ USD ; CELIAPP 15415,43$ CAD [dont 15300$ CASH-C] + 2516,18$ USD).
+const CASH_LOTS_BASELINE_DATE='2026-07-30';
+const CASH_LOTS_SEED=[
+  {account:'CELI',currency:'CAD',amount:42},
+  {account:'CELI',currency:'USD',amount:22.05},
+  {account:'CELIAPP',currency:'CAD',amount:15415.43},
+  {account:'CELIAPP',currency:'USD',amount:2516.18},
+];
 function reconstructCashLots(deductOnBuy){
-  const chrono=trades.slice().reverse();
   const accounts={};
   const entryFunding={};
   function acct(name){const k=name||'Non spécifié';return accounts[k]||(accounts[k]=_clMakeAccount());}
+  CASH_LOTS_SEED.forEach(s=>_clAddLot(acct(s.account),'principal',s.amount,s.currency,CASH_LOTS_BASELINE_DATE,[]));
+  const chrono=trades.slice().reverse().filter(t=>t.date>=CASH_LOTS_BASELINE_DATE);
   chrono.forEach(t=>{
     const account=t.accountType||t.account||'Non spécifié';
     if(t.type==='Dépôt'){
@@ -2941,10 +2961,23 @@ function reconstructCashLots(deductOnBuy){
       _clAddLot(acct(account),'profit',t.profit||0,cur,t.date,[...parentChains,chainHop]);
     }
   });
-  return accounts;
+  return{accounts,entryFunding};
+}
+function _clAccountTotalCAD(state){
+  const sumType=type=>state[type].reduce((s,l)=>s+fxConvert(l.amount,l.currency,'CAD'),0);
+  return sumType('principal')+sumType('profit');
+}
+// Recalcule le `cash` global legacy (utilisé par les KPI existants) depuis les lots reconstruits.
+// Source unique de vérité = trades + CASH_LOTS_SEED, jamais une valeur qui dérive toute seule.
+function syncCashFromLots(){
+  const{accounts}=reconstructCashLots(true);
+  let total=0;
+  Object.values(accounts).forEach(state=>{total+=_clAccountTotalCAD(state);});
+  cash=parseFloat(total.toFixed(2));
+  return cash;
 }
 function _clSummarize(deductOnBuy){
-  const accounts=reconstructCashLots(deductOnBuy);
+  const{accounts}=reconstructCashLots(deductOnBuy);
   let grandTotalCAD=0;
   const byCurrencyTotals={}; // devise -> {principal,profit} en montant natif, tous comptes confondus
   const rows=Object.keys(accounts).sort().map(name=>{
@@ -2965,8 +2998,11 @@ function _clSummarize(deductOnBuy){
   return{rows,grandTotalCAD,byCurrencyTotals};
 }
 function _clRawMovements(){
-  const chrono=trades.slice().reverse();
+  // Ne montre que depuis la ligne de départ (2026-07-30) -- avant, l'historique n'est pas fiable
+  // (voir CASH_LOTS_BASELINE_DATE). Une ligne "Ligne de départ" synthétique résume le seed.
+  const chrono=trades.slice().reverse().filter(t=>t.date>=CASH_LOTS_BASELINE_DATE);
   const moves=[];
+  CASH_LOTS_SEED.forEach(s=>moves.push({date:CASH_LOTS_BASELINE_DATE,type:'Ligne de départ',account:s.account,amt:s.amount,cur:s.currency,hasOriginal:true,amtCAD:fxConvert(s.amount,s.currency,'CAD')}));
   let totalAchatsCAD=0,totalVentesCAD=0;
   chrono.forEach(t=>{
     const account=t.accountType||t.account||'Non spécifié';
@@ -3810,6 +3846,28 @@ function renderTargetStop(p){
   html+='</div>';
   return html;
 }
+// Note de provenance (demandée par Cédric, 2026-07-30) : indique si les shares encore ouvertes
+// d'une position ont été (en partie) financées par du profit réinvesti, et d'où ce profit vient.
+function getProvenanceBadge(p){
+  const list=_cashEntryFunding[p.symbol];
+  if(!list||!list.length)return '';
+  let profitShares=0,totalShares=0;const chains=new Set();
+  list.forEach(e=>{
+    totalShares+=e.shares||0;
+    const profitFunding=(e.funding||[]).filter(f=>f.type==='profit');
+    if(profitFunding.length){
+      const profitAmt=profitFunding.reduce((s,f)=>s+f.amount,0);
+      const totalAmt=(e.funding||[]).reduce((s,f)=>s+f.amount,0);
+      const frac=totalAmt>0?profitAmt/totalAmt:0;
+      profitShares+=(e.shares||0)*frac;
+      profitFunding.forEach(f=>(f.chain||[]).forEach(hop=>chains.add(hop.symbol)));
+    }
+  });
+  if(profitShares<0.0001)return '';
+  const pct=totalShares>0?Math.round(profitShares/totalShares*100):0;
+  const chainStr=[...chains].join(' → ')||'inconnue';
+  return `<span style="display:inline-block;width:5px;height:5px;background:var(--amber);border-radius:50%;margin-left:5px;vertical-align:middle;" title="Financé à ${pct}% par du profit réinvesti (origine : ${escapeHtml(chainStr)})"></span>`;
+}
 function posRow(p,idx,displayIdx){
   const shares=p.shares||0,valeurMarche=shares*p.current;
   // P&L calculé en devise de la position (prix courant × shares vs avgEntry × shares)
@@ -3831,7 +3889,7 @@ function posRow(p,idx,displayIdx){
   const dcaToggle=isDca?`<span onclick="toggleDcaExpand(${idx},event)" style="cursor:pointer;color:var(--purple);font-size:10px;margin-left:4px;user-select:none;">${isExpanded?'▲':'▼'}</span>`:'';
   let html=`<tr class="${rowClass}" onclick="selectPosRow(${idx})" style="cursor:pointer;">
     <td style="color:var(--text3);font-size:10px;">#${displayIdx+1}</td>
-    <td class="sym">${p.symbol}${isDca?`<span class="badge-dca">DCA×${p.entries.length}</span>`:''}${dcaToggle}${curBadge}${p.note?'<span style="display:inline-block;width:5px;height:5px;background:var(--cyan);border-radius:50%;margin-left:5px;vertical-align:middle;" title="'+escapeHtml(p.note)+'"></span>':''}</td>
+    <td class="sym">${p.symbol}${isDca?`<span class="badge-dca">DCA×${p.entries.length}</span>`:''}${dcaToggle}${curBadge}${p.note?'<span style="display:inline-block;width:5px;height:5px;background:var(--cyan);border-radius:50%;margin-left:5px;vertical-align:middle;" title="'+escapeHtml(p.note)+'"></span>':''}${getProvenanceBadge(p)}</td>
     <td>${acctBadge}</td>
     <td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td>
     <td style="color:var(--text3);">${firstDate}</td>
@@ -3956,8 +4014,11 @@ function updateSortArrows(){
   }
 }
 
+let _cashEntryFunding={};
 function renderPosTable(){
   const t=document.getElementById('pos-body');if(!t)return;
+  // Provenance (profit réinvesti) -- calculée une fois par rendu, pas par ligne.
+  try{_cashEntryFunding=reconstructCashLots(true).entryFunding;}catch(e){_cashEntryFunding={};}
   updateSortArrows();
   const filtered=getFilteredSortedPositions();
   const countEl=document.getElementById('pos-count-label');
@@ -4028,7 +4089,9 @@ async function confirmClose(){
   const profitUSD=toUSD(profit,getPosCurrency(p)),montantUSD=toUSD(montantFinal,getPosCurrency(p));
   const montantCAD=parseFloat((montantUSD*fxRate).toFixed(2));
   trades.unshift({date,symbol:p.symbol,dir:p.dir,type:'Vente',price:exitPrice,avgEntry:p.avgEntry,size:sizeToClose,profit,profitUSD,montantFinal,montantUSD,shares:sharesToSell,dcaCount:p.entries?p.entries.length:1,currency:getPosCurrency(p),account:p.account||''});
-  cash+=montantCAD;
+  // Cash resynchronisé depuis les lots (trades + CASH_LOTS_SEED) plutôt qu'un incrément manuel --
+  // reflète correctement le split principal/profit et la chaîne de provenance côté compte vendeur.
+  syncCashFromLots();
   if(pctToSell>=0.9999){
     positions.splice(closeTarget,1);
   }else{
@@ -4148,6 +4211,21 @@ async function addPosition(){
   const targetVal=parseFloat(document.getElementById('f-target').value)||null;
   const stopVal=parseFloat(document.getElementById('f-stop').value)||null;
   if(!s||isNaN(e)||isNaN(shares)||isNaN(cur)||isNaN(sz)){alert('Remplis tous les champs (symbole, prix, shares, prix actuel).');return;}
+  // Blocage si cash insuffisant dans le compte visé (demandé par Cédric, 2026-07-30).
+  // reconstructCashLots() est toujours recalculé à la volée depuis trades + CASH_LOTS_SEED,
+  // jamais une valeur stockée qui pourrait dériver de la réalité.
+  {
+    const acctKey=account||'Non spécifié';
+    const{accounts}=reconstructCashLots(true);
+    const state=accounts[acctKey]||_clMakeAccount();
+    const clone={principal:state.principal.map(l=>({...l})),profit:state.profit.map(l=>({...l}))};
+    const{shortfall}=_clConsume(clone,sz,posCurrency);
+    if(shortfall>0.01){
+      const availCAD=_clAccountTotalCAD(state);
+      alert(`Achat bloqué : cash insuffisant dans "${acctKey}".\nDisponible : ${fmtAmtRound(availCAD)} CAD\nBesoin pour cet achat : ${fmtAmtRound(fxConvert(sz,posCurrency,'CAD'))} CAD (manque ${fmtAmtRound(fxConvert(shortfall,posCurrency,'CAD'))} CAD)`);
+      return;
+    }
+  }
   trades.unshift({date:dateVal,symbol:s,dir:d,type:'Achat',price:e,shares,size:sz,currency:posCurrency,account});
   const existing=positions.find(p=>p.symbol===s&&p.dir===d);
   if(existing){
@@ -4168,6 +4246,7 @@ async function addPosition(){
   ['f-symbol','f-entry','f-shares','f-current','f-size','f-target','f-stop'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-currency').value='USD';document.getElementById('f-account').value='';document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('symbol-dropdown').classList.remove('open');
+  syncCashFromLots();
   await saveData();renderAll();
 }
 
@@ -4177,10 +4256,11 @@ function setCashType(type){
   const d=document.getElementById('cash-type-depot'),r=document.getElementById('cash-type-retrait');
   if(type==='depot'){d.style.cssText='flex:1;padding:10px;background:rgba(45,212,160,0.15);border:1px solid rgba(45,212,160,0.4);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';r.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';}
   else{d.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';r.style.cssText='flex:1;padding:10px;background:rgba(246,200,67,0.12);border:1px solid rgba(246,200,67,0.35);color:var(--amber);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';}
-  // F3: afficher type de compte pour dépôt, justificatif pour retrait
+  // Compte visible pour Dépôt ET Retrait depuis le 2026-07-30 (Phase 2 -- requis pour savoir
+  // dans quel compte ajouter/retirer le lot de cash). Justificatif toujours retrait seulement.
   const acctWrap=document.getElementById('cash-account-wrap');
   const noteWrap=document.getElementById('cash-note-wrap');
-  if(acctWrap)acctWrap.style.display=type==='depot'?'block':'none';
+  if(acctWrap)acctWrap.style.display='block';
   if(noteWrap)noteWrap.style.display=type==='retrait'?'block':'none';
   updateCashPreview();
 }
@@ -4204,17 +4284,21 @@ function closeCashPopup(){
 async function updateCash(){
   const inputAmt=parseFloat(document.getElementById('cash-input').value);if(isNaN(inputAmt)||inputAmt<=0){alert('Entre un montant valide.');return;}
   const inputCur=document.getElementById('cash-currency-input')?.value||'USD',date=new Date().toISOString().split('T')[0],type=cashType==='depot'?'Dépôt':'Retrait';
-  // F3/F4: récupérer type de compte et justificatif
+  // Compte requis pour les deux types depuis le 2026-07-30 (Phase 2) -- nécessaire pour savoir
+  // dans quel compte ajouter/retirer le lot de cash.
   const accountType=document.getElementById('cash-account-type')?.value||'';
   const note=document.getElementById('cash-note')?.value.trim()||'';
-  // Convertir le montant en devise du compte (CAD)
+  // Convertir le montant en devise du compte (CAD) -- gardé pour affichage/rétrocompat, mais
+  // originalAmt/originalCurrency (natif) sont la source de vérité pour reconstructCashLots().
   const amtCAD=parseFloat((toUSD(inputAmt,inputCur)*fxRate).toFixed(2));
-  const newCash=cashType==='depot'?cash+amtCAD:Math.max(0,cash-amtCAD);
-  const tradeEntry={date,symbol:'CASH',dir:'—',type,price:0,size:amtCAD,profit:0,montantFinal:newCash,cashBalance:newCash,currency:accountCurrency,originalAmt:inputAmt,originalCurrency:inputCur};
+  const tradeEntry={date,symbol:'CASH',dir:'—',type,price:0,size:amtCAD,profit:0,currency:accountCurrency,originalAmt:inputAmt,originalCurrency:inputCur};
   if(accountType)tradeEntry.accountType=accountType;
   if(note)tradeEntry.note=note;
   trades.unshift(tradeEntry);
-  cash=newCash;closeCashPopup();await saveData();renderAll();updatePerfChart();
+  // Cash resynchronisé depuis les lots (trades + CASH_LOTS_SEED), jamais une valeur qui dérive.
+  const newCash=syncCashFromLots();
+  tradeEntry.montantFinal=newCash;tradeEntry.cashBalance=newCash;
+  closeCashPopup();await saveData();renderAll();updatePerfChart();
 }
 
 function switchTab(name,el){
@@ -4457,8 +4541,29 @@ function updateDonut(chart,labels,values,colors){
   if(!chart)return;chart.data.labels=labels;chart.data.datasets[0].data=values;chart.data.datasets[0].backgroundColor=colors;chart.update();
 }
 
+// Pie chart 2 niveaux (compte + type) demandé par Cédric le 2026-07-30 : chaque compte a 2
+// tranches (Principal / Profit réinvesti), même couleur de base mais teinte différente pour
+// les regrouper visuellement dans la légende.
+function renderCashLotsChart(){
+  if(!cashLotsChart)return;
+  const{accounts}=reconstructCashLots(true);
+  const acctNames=Object.keys(accounts).filter(name=>_clAccountTotalCAD(accounts[name])>0.01).sort((a,b)=>_clAccountTotalCAD(accounts[b])-_clAccountTotalCAD(accounts[a]));
+  const total=acctNames.reduce((s,name)=>s+_clAccountTotalCAD(accounts[name]),0);
+  const labels=[],values=[],colors=[];
+  acctNames.forEach((name,i)=>{
+    const state=accounts[name];
+    const principalCAD=state.principal.reduce((s,l)=>s+fxConvert(l.amount,l.currency,'CAD'),0);
+    const profitCAD=state.profit.reduce((s,l)=>s+fxConvert(l.amount,l.currency,'CAD'),0);
+    const baseColor=COLORS[i%COLORS.length];
+    if(principalCAD>0.01){labels.push(`${name} — Principal`);values.push(total>0?parseFloat((principalCAD/total*100).toFixed(1)):0);colors.push(baseColor);}
+    if(profitCAD>0.01){labels.push(`${name} — Profit`);values.push(total>0?parseFloat((profitCAD/total*100).toFixed(1)):0);colors.push(baseColor+'70');}
+  });
+  updateDonut(cashLotsChart,labels,values,colors);
+  buildLegend('cash-lots-chart-legend',labels,values,colors);
+}
 function renderAllocDashboard(){
   if(!cashAllocChart)return;
+  renderCashLotsChart();
   const totalSizeUSD=getTotalSizeUSD();
 
   // Par symbole
@@ -5138,6 +5243,7 @@ function initCharts(){
   celiChart=mkDonut('celiChart',[],[],[]);
   celiappChart=mkDonut('celiappChart',[],[],[]);
   cryptoAllocChart=mkDonut('cryptoAllocChart',[],[],[]);
+  cashLotsChart=mkDonut('cashLotsChart',[],[],[]);
 }
 
 document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelClose();});
