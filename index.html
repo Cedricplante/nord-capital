@@ -2896,12 +2896,18 @@ function reconstructCashLots(deductOnBuy){
   chrono.forEach(t=>{
     const account=t.accountType||t.account||'Non spécifié';
     if(t.type==='Dépôt'){
-      const amt=(t.originalAmt!=null&&t.originalCurrency)?t.originalAmt:t.size;
-      const cur=t.originalCurrency||t.currency||'CAD';
+      // t.size est TOUJOURS en CAD (amtCAD dans updateCash()) -- t.currency est la devise
+      // d'AFFICHAGE préférée au moment du dépôt (accountCurrency), pas la devise réelle du
+      // montant. Sans originalAmt/originalCurrency (dépôts créés avant ce champ), le seul
+      // fallback fiable est donc CAD, jamais t.currency (bug corrigé le 2026-07-30).
+      const hasOriginal=t.originalAmt!=null&&t.originalCurrency;
+      const amt=hasOriginal?t.originalAmt:t.size;
+      const cur=hasOriginal?t.originalCurrency:'CAD';
       _clAddLot(acct(account),'principal',amt,cur,t.date,[]);
     }else if(t.type==='Retrait'){
-      const amt=(t.originalAmt!=null&&t.originalCurrency)?t.originalAmt:t.size;
-      const cur=t.originalCurrency||t.currency||'CAD';
+      const hasOriginal=t.originalAmt!=null&&t.originalCurrency;
+      const amt=hasOriginal?t.originalAmt:t.size;
+      const cur=hasOriginal?t.originalCurrency:'CAD';
       _clConsume(acct(account),amt,cur);
     }else if(t.type==='Achat'){
       const amt=t.size,cur=t.currency||'USD';
@@ -2958,6 +2964,25 @@ function _clSummarize(deductOnBuy){
   }).sort((a,b)=>b.totalCAD-a.totalCAD);
   return{rows,grandTotalCAD,byCurrencyTotals};
 }
+function _clRawMovements(){
+  const chrono=trades.slice().reverse();
+  const moves=[];
+  let totalAchatsCAD=0,totalVentesCAD=0;
+  chrono.forEach(t=>{
+    const account=t.accountType||t.account||'Non spécifié';
+    if(t.type==='Dépôt'||t.type==='Retrait'){
+      const hasOriginal=t.originalAmt!=null&&t.originalCurrency;
+      const amt=hasOriginal?t.originalAmt:t.size;
+      const cur=hasOriginal?t.originalCurrency:'CAD';
+      moves.push({date:t.date,type:t.type,account,amt,cur,hasOriginal,amtCAD:fxConvert(amt,cur,'CAD')});
+    }else if(t.type==='Achat'){
+      totalAchatsCAD+=fxConvert(t.size,t.currency||'USD','CAD');
+    }else if(t.type==='Vente'){
+      totalVentesCAD+=fxConvert((t.size||0)+(t.profit||0),t.currency||'USD','CAD');
+    }
+  });
+  return{moves,totalAchatsCAD,totalVentesCAD};
+}
 function renderCashLotsDebug(){
   const el=document.getElementById('cash-lots-debug-content');if(!el)return;
   const deductOnBuy=document.getElementById('cash-lots-deduct-toggle')?.checked||false;
@@ -2995,6 +3020,35 @@ function renderCashLotsDebug(){
       <td style="padding:4px 8px;color:var(--text3);">${escapeHtml(r.nativeDetail)}</td>
     </tr>`).join('')}</tbody></table>
     <p style="margin-top:10px;color:var(--text3);font-size:11px;">Comptes sans "compte" renseigné sur les vieux trades tombent dans "Non spécifié". Chaîne de provenance calculée mais pas encore affichée dans ce tableau — accessible en console : <code>reconstructCashLots(false)</code>.</p>
+    ${_clRenderAudit()}
+  `;
+}
+function _clRenderAudit(){
+  const{moves,totalAchatsCAD,totalVentesCAD}=_clRawMovements();
+  const totalDepots=moves.filter(m=>m.type==='Dépôt').reduce((s,m)=>s+m.amtCAD,0);
+  const totalRetraits=moves.filter(m=>m.type==='Retrait').reduce((s,m)=>s+m.amtCAD,0);
+  const sansOriginal=moves.filter(m=>!m.hasOriginal).length;
+  return `
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border2);">
+      <div style="font-weight:600;margin-bottom:8px;">Audit brut — à comparer avec ta mémoire des transactions réelles</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;color:var(--text2);">
+        <span>Σ Dépôts : <strong>${fmtAmtRound(totalDepots)}</strong> CAD</span>
+        <span>Σ Retraits : <strong>${fmtAmtRound(totalRetraits)}</strong> CAD</span>
+        <span>Σ Achats : <strong>${fmtAmtRound(totalAchatsCAD)}</strong> CAD</span>
+        <span>Σ Ventes (proceeds complets) : <strong>${fmtAmtRound(totalVentesCAD)}</strong> CAD</span>
+        ${sansOriginal ? `<span style="color:var(--amber);">⚠ ${sansOriginal} dépôt(s)/retrait(s) sans devise native connue (fallback CAD utilisé)</span>` : ''}
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="text-align:left;border-bottom:1px solid var(--border2);">
+        <th style="padding:3px 6px;">Date</th><th style="padding:3px 6px;">Type</th><th style="padding:3px 6px;">Compte</th><th style="padding:3px 6px;">Montant natif</th><th style="padding:3px 6px;">≈ CAD</th><th style="padding:3px 6px;"></th>
+      </tr></thead><tbody>${moves.map(m=>`<tr style="border-bottom:1px solid var(--border);${m.hasOriginal?'':'background:rgba(246,200,67,0.08);'}">
+        <td style="padding:3px 6px;">${escapeHtml(m.date)}</td>
+        <td style="padding:3px 6px;">${m.type}</td>
+        <td style="padding:3px 6px;">${escapeHtml(m.account)}</td>
+        <td style="padding:3px 6px;">${fmtAmtRound(m.amt)} ${m.cur}</td>
+        <td style="padding:3px 6px;">${fmtAmtRound(m.amtCAD)}</td>
+        <td style="padding:3px 6px;">${m.hasOriginal?'':'⚠ fallback'}</td>
+      </tr>`).join('')}</tbody></table>
+    </div>
   `;
 }
 function toggleCashLotsDebug(){
