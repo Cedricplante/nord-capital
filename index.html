@@ -62,6 +62,8 @@
 
   .body { padding: 1.5rem 2rem; flex: 1; }
   .section { display: none; } .section.active { display: block; }
+  #tab-positions.section.active { display: flex; flex-direction: column; height: calc(100vh - 96px); overflow: hidden; }
+  .pos-tab-wrap { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 
   /* KPI GRID */
   .kpi-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
@@ -127,14 +129,17 @@
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   th { color: var(--text3); font-weight: 600; text-align: left; padding: 7px 10px; border-bottom: 0.5px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--sans); user-select: none; }
   /* Sticky header pour la table positions */
-  .pos-table-scroll { overflow: visible; }
+  .pos-table-scroll { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
   #pos-form-body { overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease; max-height: 500px; opacity: 1; }
   #pos-form-body.collapsed { max-height: 0; opacity: 0; pointer-events: none; }
   #pos-form-toggle.collapsed { transform: rotate(180deg); }
   #contributions-history-body { overflow: hidden; transition: max-height 0.3s ease, opacity 0.2s ease; max-height: 2000px; opacity: 1; }
   #contributions-history-body.collapsed { max-height: 0; opacity: 0; pointer-events: none; }
   #cotis-hist-toggle.collapsed { transform: rotate(180deg); }
-  .pos-table-inner { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 340px); border-radius: 0 0 var(--r) var(--r); }
+  .pos-table-inner { overflow-x: auto; overflow-y: auto; border-radius: 0 0 var(--r) var(--r); }
+  .pos-table-scroll .pos-table-inner { flex: 1; min-height: 0; max-height: none; }
+  .pos-table-scroll > .card { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+  .pos-table-scroll > .card > .card-title { flex-shrink: 0; }
   .pos-table-inner thead th { position: sticky; top: 0; z-index: 10; background: var(--bg2); box-shadow: 0 1px 0 var(--border); }
   th.sortable { cursor: pointer; transition: color 0.15s; }
   th.sortable:hover { color: var(--text); }
@@ -264,7 +269,7 @@
   .live-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
 
   /* POSITIONS TAB LAYOUT */
-  .pos-form-sticky { position: sticky; top: 60px; z-index: 90; background: var(--bg); padding: 8px 0 12px 0; }
+  .pos-form-sticky { flex-shrink: 0; background: var(--bg); padding: 8px 0 12px 0; }
   /* Selected row */
   tr.row-selected td { background: rgba(0,255,136,0.10) !important; border-color: var(--green); }
   tr.row-selected:hover td { background: rgba(0,255,136,0.14) !important; }
@@ -365,8 +370,7 @@
     /* Analytics grid → 2 cols */
     #analytics-grid { grid-template-columns: 1fr 1fr !important; }
 
-    /* Positions table → page fixe, seule la liste scrolle (demandé par Cédric 2026-07-28) */
-    .pos-table-inner { max-height: calc(100vh - 380px); min-height: 240px; overflow-x: auto; overflow-y: auto; }
+    /* Positions table → hauteur gérée par flexbox sur #tab-positions (voir POSITIONS TAB LAYOUT), plus besoin de calc() ici */
     .pos-table-inner table { min-width: 700px; }
 
     /* Historique KPI bar → 2 cols */
