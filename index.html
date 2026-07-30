@@ -1570,6 +1570,7 @@ let portfolioHistory=[];
 
 // ─── FORMAT ──────────────────────────────────────────────────────
 // Espaces comme séparateurs de milliers (1 234,56 $)
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function fmtAmt(n){if(!isFinite(n)||isNaN(n))return '—';return n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';}
 function fmtAmtRound(n){if(!isFinite(n)||isNaN(n))return '—';return Math.round(n).toLocaleString('fr-FR')+' $';}
 function fmt$(n){return fmtAmt(Math.abs(n)*fxRate);}
@@ -2759,6 +2760,9 @@ function tickerCurrency(symbol){
   return (symbol||'').toUpperCase().endsWith('.TO') ? 'CAD' : null;
 }
 function getPosCurrency(p){ return tickerCurrency(p.symbol) || p.currency || 'USD'; }
+// Valeur totale des positions en USD — source unique (fix audit 2026-07-29 : cette formule
+// était copiée-collée identique dans 5 fonctions, risque de drift si elle change un jour.
+function getTotalSizeUSD(posArr){ return (posArr||positions).reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0); }
 function getTradeCurrency(t){ return tickerCurrency(t.symbol) || t.currency || 'USD'; }
 function getStratCurrency(s){ return tickerCurrency(s.symbol) || s.currency || 'USD'; }
 
@@ -3074,8 +3078,11 @@ async function confirmImportCsv(){
         tradeEntry.avgEntry=p.avgEntry;
         tradeEntry.montantFinal=parseFloat((p.avgEntry*r.qty+profit).toFixed(2));
         tradeEntry.dcaCount=p.entries?p.entries.length:1;
+        // totalSize réduit au prorata du COÛT D'ACQUISITION (avgEntry×qty), pas du produit de
+        // vente (r.size) — sinon ça casse l'invariant totalSize=avgEntry×shares (même logique
+        // que confirmClose() pour une vente manuelle ; fix audit 2026-07-29).
+        p.totalSize=Math.max(0,parseFloat(((p.totalSize||0)-p.avgEntry*r.qty).toFixed(2)));
         p.shares=parseFloat(((p.shares||0)-r.qty).toFixed(6));
-        p.totalSize=Math.max(0,parseFloat(((p.totalSize||0)-r.size).toFixed(2)));
         if(p.entries&&p.entries.length>0){
           // Retirer des entries les plus anciennes (FIFO)
           let toRemove=r.qty;
@@ -3083,6 +3090,11 @@ async function confirmImportCsv(){
             const e=p.entries[0];
             if(e.shares<=toRemove){toRemove-=e.shares;p.entries.shift();}
             else{e.shares-=toRemove;e.size=e.shares*e.price;toRemove=0;}
+          }
+          // Recalculer avgEntry à partir des entries restantes (cohérent avec confirmClose())
+          if(p.entries.length>0){
+            const totalShR=p.entries.reduce((s,e)=>s+(e.shares||0),0);
+            p.avgEntry=totalShR>0?p.entries.reduce((s,e)=>s+(e.price*(e.shares||0)),0)/totalShR:p.avgEntry;
           }
         }
         if(p.shares<=0.000001)positions.splice(posIdx,1);
@@ -3197,7 +3209,7 @@ function renderWatchlist(){
         </div>
       </div>
       <div style="margin-top:8px;">
-        <input type="text" class="wl-alert-input" style="width:100%;" value="${(w.note||'').replace(/"/g,'&quot;')}" placeholder="Note (raison, thesis, attente…)" onchange="updateWlNote('${w.symbol}',this.value)" />
+        <input type="text" class="wl-alert-input" style="width:100%;" value="${escapeHtml(w.note||'')}" placeholder="Note (raison, thesis, attente…)" onchange="updateWlNote('${w.symbol}',this.value)" />
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
         <span style="font-size:9px;color:var(--text3);">Ajouté ${w.addedAt?new Date(w.addedAt).toLocaleDateString('fr-CA',{month:'short',day:'numeric'}):'—'}</span>
@@ -3424,7 +3436,7 @@ function getAcctClass(acct){if(!acct)return'acc-default';if(acct==='CELI')return
 
 function updateKPIs(){
   const totalPnlOpenUSD=positions.reduce((s,p)=>s+calcPnlUSD(p),0);
-  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0);
+  const totalSizeUSD=getTotalSizeUSD();
   const totalInvestedUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p)),0);
   const closedTrades=trades.filter(t=>t.type==='Vente');
   const totalPnlRealUSD=closedTrades.reduce((s,t)=>s+toUSD(t.profit||0,getTradeCurrency(t)),0);
@@ -3518,7 +3530,7 @@ function posRow(p,idx,displayIdx){
   const dcaToggle=isDca?`<span onclick="toggleDcaExpand(${idx},event)" style="cursor:pointer;color:var(--purple);font-size:10px;margin-left:4px;user-select:none;">${isExpanded?'▲':'▼'}</span>`:'';
   let html=`<tr class="${rowClass}" onclick="selectPosRow(${idx})" style="cursor:pointer;">
     <td style="color:var(--text3);font-size:10px;">#${displayIdx+1}</td>
-    <td class="sym">${p.symbol}${isDca?`<span class="badge-dca">DCA×${p.entries.length}</span>`:''}${dcaToggle}${curBadge}${p.note?'<span style="display:inline-block;width:5px;height:5px;background:var(--cyan);border-radius:50%;margin-left:5px;vertical-align:middle;" title="'+p.note.replace(/"/g,'&quot;')+'"></span>':''}</td>
+    <td class="sym">${p.symbol}${isDca?`<span class="badge-dca">DCA×${p.entries.length}</span>`:''}${dcaToggle}${curBadge}${p.note?'<span style="display:inline-block;width:5px;height:5px;background:var(--cyan);border-radius:50%;margin-left:5px;vertical-align:middle;" title="'+escapeHtml(p.note)+'"></span>':''}</td>
     <td>${acctBadge}</td>
     <td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td>
     <td style="color:var(--text3);">${firstDate}</td>
@@ -3538,7 +3550,7 @@ function posRow(p,idx,displayIdx){
   </tr>`;
   // Note row — appears when row is selected
   if(isSelected){
-    const noteVal=(p.note||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    const noteVal=escapeHtml(p.note||'');
     html+=`<tr class="pos-note-row">
       <td colspan="15" style="padding:6px 12px 10px 12px;background:rgba(0,255,136,0.04);border-top:none;">
         <div style="display:flex;align-items:center;gap:10px;">
@@ -3772,7 +3784,7 @@ function renderHistory(){
       const isDeposit=t.type==='Dépôt',color=isDeposit?'var(--green)':'var(--amber)';
       const bs=isDeposit?'background:rgba(45,212,160,0.1);color:var(--green);border:0.5px solid rgba(45,212,160,0.25);':'background:rgba(246,200,67,0.1);color:var(--amber);border:0.5px solid rgba(246,200,67,0.25);';
       const acctBadge=t.accountType?`<span class="badge-compte" style="margin-left:4px;">${t.accountType}</span>`:'';
-      const noteTip=t.note?`<span style="font-size:10px;color:var(--text3);margin-left:4px;" title="${t.note}">note</span>`:'';
+      const noteTip=t.note?`<span style="font-size:10px;color:var(--text3);margin-left:4px;" title="${escapeHtml(t.note)}">note</span>`:'';
       // cash déjà en CAD depuis migration v2
       return`<tr style="opacity:0.85;"><td>${t.date}</td><td class="sym" style="color:var(--text3);">—</td><td><span class="badge" style="${bs}">${t.type}</span>${acctBadge}${noteTip}</td><td style="color:var(--text3);">—</td><td style="color:${color};">${isDeposit?'+':'-'}${fmtAmt(t.size)}</td><td style="color:var(--text2);">${fmtAmtRound(t.montantFinal)} cash</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
     }else if(t.type==='Vente'){
@@ -4033,7 +4045,7 @@ function updatePerfChart(){
       if(sp){spyPriceStart=sp;portStart=allHistory[i].value;break;}
     }
     // Inject live value as last point so chart matches KPI (must be before portStart fallback)
-    const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0);
+    const totalSizeUSD=getTotalSizeUSD();
     const liveVal=parseFloat((totalSizeUSD*fxRate+cash).toFixed(2));
     const todayStr2=new Date().toISOString().slice(0,10);
     const sampledWithLive=sampled.map((h,i)=>i===sampled.length-1?{...h,value:liveVal,date:todayStr2}:h);
@@ -4157,7 +4169,7 @@ function updateDonut(chart,labels,values,colors){
 
 function renderAllocDashboard(){
   if(!cashAllocChart)return;
-  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0);
+  const totalSizeUSD=getTotalSizeUSD();
 
   // Par symbole
   if(totalSizeUSD>0){
@@ -4295,7 +4307,7 @@ function renderAccountsPanels(totalSizeUSD){
 }
 
 function renderAllocCharts(){
-  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0);
+  const totalSizeUSD=getTotalSizeUSD();
   const totalCAD=totalSizeUSD*fxRate+cash; // cash déjà en CAD
 
   // Hero header
@@ -4391,7 +4403,7 @@ function renderMilestones(){
   const body=document.getElementById('milestones-body');
   if(!body)return;
   const MILESTONES=[10000,25000,50000,75000,100000,150000,250000,500000,1000000];
-  const totalSizeUSD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0);
+  const totalSizeUSD=getTotalSizeUSD();
   const totalCAD=totalSizeUSD*fxRate+cash;
 
   // Calcul CAGR depuis le premier snapshot
@@ -4649,7 +4661,7 @@ function renderContributions(){
           <td style="padding:7px 8px;"><span style="color:${col};font-weight:700;">${t.account||'—'}</span>${isRetrait?'<span class="badge-compte" style="margin-left:4px;background:rgba(246,200,67,0.12);color:var(--amber);border-color:rgba(246,200,67,0.3);">Retrait</span>':''}</td>
           <td style="padding:7px 8px;color:var(--text2);">${t.year||'—'}</td>
           <td style="padding:7px 8px;text-align:right;color:${isRetrait?'var(--amber)':'var(--green)'};font-weight:600;">${isRetrait?'-':'+'}${fmtCAD(t.amount||0)}</td>
-          <td style="padding:7px 8px;color:var(--text3);">${t.note||''}</td>
+          <td style="padding:7px 8px;color:var(--text3);">${escapeHtml(t.note||'')}</td>
           <td style="padding:4px;"><button onclick="deleteCotisation(${globalIdx})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;" title="Supprimer">×</button></td>
         </tr>`;
       }).join('')}</tbody>

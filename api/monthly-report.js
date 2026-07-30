@@ -27,7 +27,7 @@ const SUPA_KEY     = process.env.SUPABASE_SERVICE_KEY || '';
 const SUPA_USER_ID = process.env.SUPABASE_USER_ID || '871afd38-3c0b-4554-9ed1-a38a2ca966ff';
 const RESEND_KEY   = process.env.RESEND_API_KEY || '';
 const TO_EMAIL     = process.env.REPORT_EMAIL || 'cedric.plante@outlook.com';
-const APP_URL      = 'https://nord-capital-cedricplantes-projects.vercel.app';
+const APP_URL      = 'https://nord-capital.vercel.app';
 
 function sbHeaders() {
   return { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` };
