@@ -373,8 +373,6 @@
     /* Positions table → hauteur gérée par flexbox sur #tab-positions (voir POSITIONS TAB LAYOUT), plus besoin de calc() ici */
     .pos-table-inner table { min-width: 700px; }
 
-    /* Historique KPI bar → 2 cols */
-    #hist-kpi-bar { grid-template-columns: 1fr 1fr !important; }
 
     /* Watchlist cards → 1 col */
     .wl-cards-grid { grid-template-columns: 1fr; }
@@ -416,7 +414,6 @@
     .kpi-grid > .kpi:first-child { grid-column: span 1; }
     .kpi-grid-2 { grid-template-columns: 1fr; }
     #analytics-grid { grid-template-columns: 1fr !important; }
-    #hist-kpi-bar { grid-template-columns: 1fr 1fr !important; }
     .nav-tab { font-size: 10px; padding: 4px 8px; }
   }
   /* ─────────────────────────────────────────────────────────────────────── */
@@ -682,24 +679,13 @@
 
     <!-- HISTORIQUE -->
     <div id="tab-historique" class="section">
-      <!-- KPI Summary bar -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;" id="hist-kpi-bar">
-        <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:12px 16px;">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px;">Transactions</div>
-          <div style="font-family:var(--mono);font-size:20px;font-weight:700;" id="hist-kpi-count">—</div>
+      <!-- Rendement par actif (remplace l'ancien KPI bar — demandé par Cédric 2026-07-29) -->
+      <div class="card" style="margin-bottom:14px;" id="asset-returns-card">
+        <div class="card-title">
+          <span>Rendement par actif</span>
+          <span style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;">actifs entièrement fermés uniquement</span>
         </div>
-        <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:12px 16px;">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px;">P&L réalisé</div>
-          <div style="font-family:var(--mono);font-size:20px;font-weight:700;" id="hist-kpi-pnl" data-sensitive>—</div>
-        </div>
-        <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:12px 16px;">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px;">Win rate</div>
-          <div style="font-family:var(--mono);font-size:20px;font-weight:700;" id="hist-kpi-winrate">—</div>
-        </div>
-        <div style="background:var(--bg2);border:0.5px solid var(--border);border-radius:10px;padding:12px 16px;">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:4px;">Best trade</div>
-          <div style="font-family:var(--mono);font-size:20px;font-weight:700;color:var(--green);" id="hist-kpi-best" data-sensitive>—</div>
-        </div>
+        <div id="asset-returns-body" style="overflow-x:auto;"></div>
       </div>
 
       <!-- Toolbar -->
@@ -2764,6 +2750,57 @@ function getPosCurrency(p){ return tickerCurrency(p.symbol) || p.currency || 'US
 // était copiée-collée identique dans 5 fonctions, risque de drift si elle change un jour.
 function getTotalSizeUSD(posArr){ return (posArr||positions).reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0); }
 function getTradeCurrency(t){ return tickerCurrency(t.symbol) || t.currency || 'USD'; }
+
+// ── Rendement par actif (actifs entièrement fermés) — demandé par Cédric 2026-07-29 ──
+// Cumulé   = Σ profit $ / Σ capital investi sur tous les trades fermés de l'actif (pondéré par taille)
+// Composé  = enchaînement des trades comme des rounds successifs : (1+r1)×(1+r2)×...−1
+function getClosedAssetReturns(){
+  const openSymbols=new Set(positions.map(p=>p.symbol));
+  const ventes=trades.filter(t=>t.type==='Vente'&&!openSymbols.has(t.symbol));
+  const bySymbol={};
+  ventes.forEach(t=>{(bySymbol[t.symbol]=bySymbol[t.symbol]||[]).push(t);});
+  const rows=Object.keys(bySymbol).map(sym=>{
+    // Ordre chronologique (le plus ancien d'abord) pour que le rendement composé enchaîne les trades dans le bon sens
+    const list=bySymbol[sym].slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    let sumProfitUSD=0,sumSizeUSD=0,compound=1;
+    list.forEach(t=>{
+      const cur=getTradeCurrency(t);
+      const profitUSD=toUSD(t.profit||0,cur);
+      const sizeUSD=toUSD(t.size||0,cur);
+      sumProfitUSD+=profitUSD;sumSizeUSD+=sizeUSD;
+      const r=sizeUSD>0?profitUSD/sizeUSD:0;
+      compound*=(1+r);
+    });
+    return{
+      symbol:sym,
+      tradeCount:list.length,
+      capitalCAD:sumSizeUSD*fxRate,
+      profitCAD:sumProfitUSD*fxRate,
+      cumulPct:sumSizeUSD>0?(sumProfitUSD/sumSizeUSD)*100:0,
+      compoundPct:(compound-1)*100,
+    };
+  });
+  rows.sort((a,b)=>b.profitCAD-a.profitCAD);
+  return rows;
+}
+
+function renderAssetReturns(){
+  const el=document.getElementById('asset-returns-body');if(!el)return;
+  const rows=getClosedAssetReturns();
+  if(!rows.length){el.innerHTML='<p style="padding:14px;color:var(--text3);font-size:12px;">Aucun actif entièrement fermé pour l\'instant — le rendement par actif appara\u00eet ici une fois qu\'une position est vendue à 100%.</p>';return;}
+  el.innerHTML=`<table style="min-width:600px;"><thead><tr>
+    <th>Actif</th><th>Trades fermés</th><th>Capital investi</th><th>Profit $</th><th>Rendement cumulé</th><th>Rendement composé</th>
+  </tr></thead><tbody>${rows.map(r=>{
+    const cls=r.profitCAD>=0?'pos':'neg';
+    return`<tr>
+      <td class="sym">${escapeHtml(r.symbol)}</td>
+      <td style="color:var(--text2);">${r.tradeCount}</td>
+      <td style="color:var(--text2);" data-sensitive>${fmtAmtRound(r.capitalCAD)}</td>
+      <td class="${cls}" data-sensitive>${fmtCpnl(r.profitCAD,'CAD')}</td>
+      <td class="${cls}">${fmtPct(r.cumulPct)}</td>
+      <td class="${cls}">${fmtPct(r.compoundPct)}</td>
+    </tr>`;}).join('')}</tbody></table>`;
+}
 function getStratCurrency(s){ return tickerCurrency(s.symbol) || s.currency || 'USD'; }
 
 // ─── LIVE PRICES ─────────────────────────────────────────────────
@@ -3078,6 +3115,11 @@ async function confirmImportCsv(){
         tradeEntry.avgEntry=p.avgEntry;
         tradeEntry.montantFinal=parseFloat((p.avgEntry*r.qty+profit).toFixed(2));
         tradeEntry.dcaCount=p.entries?p.entries.length:1;
+        // tradeEntry.size (initialisé à r.size = proceeds de vente) redéfini ici au coût
+        // d'acquisition de la portion vendue (avgEntry×qty) — cohérent avec confirmClose()
+        // où size=sizeToClose (coût, pas produit). Sans ça, la colonne ROI% de l'historique
+        // et le rendement par actif étaient faux pour toute vente importée par CSV.
+        tradeEntry.size=parseFloat((p.avgEntry*r.qty).toFixed(2));
         // totalSize réduit au prorata du COÛT D'ACQUISITION (avgEntry×qty), pas du produit de
         // vente (r.size) — sinon ça casse l'invariant totalSize=avgEntry×shares (même logique
         // que confirmClose() pour une vente manuelle ; fix audit 2026-07-29).
@@ -3797,21 +3839,10 @@ function renderHistory(){
   const sumEl=document.getElementById('hist-summary-inline');
   if(sumEl)sumEl.innerHTML=`<span class="${cls}">${wins+losses} trades filtrés</span>`;
 
-  // Update KPI cards
-  const ventes=filtered.filter(t=>t.type==='Vente');
-  const bestTrade=ventes.reduce((best,t)=>{const p=toUSD(t.profit||0,getTradeCurrency(t))*fxRate;return p>(best||0)?p:best;},null);
-  const winRate=ventes.length>0?Math.round(wins/(wins+losses)*100):null;
-  const kpiCount=document.getElementById('hist-kpi-count');
-  const kpiPnl=document.getElementById('hist-kpi-pnl');
-  const kpiWin=document.getElementById('hist-kpi-winrate');
-  const kpiBest=document.getElementById('hist-kpi-best');
-  if(kpiCount)kpiCount.textContent=filtered.length;
-  if(kpiPnl){kpiPnl.textContent=fmtPnl$(totalPnl);kpiPnl.style.color=totalPnl>=0?'var(--green)':'var(--red)';}
-  if(kpiWin)kpiWin.textContent=winRate!==null?winRate+'%':'—';
-  if(kpiBest)kpiBest.textContent=bestTrade!=null?(bestTrade>=0?'+':'')+fmtAmtRound(bestTrade):'—';
   const countLbl=document.getElementById('hist-count-label');
   if(countLbl)countLbl.textContent=`${filtered.length} transaction${filtered.length!==1?'s':''}`;
   renderAnnualPnl();
+  renderAssetReturns();
 }
 
 function renderAnnualPnl(){
