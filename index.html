@@ -67,7 +67,7 @@
 
   /* KPI GRID */
   .kpi-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-  .kpi-grid-2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
+  .kpi-grid-2 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
   .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.1rem 1.5rem; position: relative; overflow: hidden; display: flex; flex-direction: column; height: 110px; transition: all 0.25s ease; }
   .kpi:hover { border-color: var(--border2); }
   /* Hover vert intense uniquement sur KPIs Dashboard et Cards Allocation */
@@ -188,6 +188,11 @@
   .donut-leg-row:hover { background: var(--bg3); }
   .donut-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
   .donut-pct { margin-left: auto; color: var(--text3); font-size: 11px; font-family: var(--mono); }
+  .info-badge { display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; border-radius:50%; background:var(--bg4); border:0.5px solid var(--border2); color:var(--text3); font-size:10px; font-family:var(--mono); font-weight:700; font-style:normal; cursor:help; position:relative; flex-shrink:0; line-height:1; }
+  .info-badge:hover { color:var(--green); border-color:var(--green); }
+  .info-badge::after { content: attr(data-tip); position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); width:260px; background:var(--bg2); border:0.5px solid var(--border2); border-radius:8px; padding:10px 12px; font-size:11px; font-weight:400; line-height:1.5; color:var(--text2); font-family:var(--sans); box-shadow:0 12px 30px rgba(0,0,0,0.4); z-index:60; white-space:normal; text-align:left; opacity:0; visibility:hidden; transition:opacity 0.15s; pointer-events:none; }
+  .info-badge::before { content:''; position:absolute; bottom:calc(100% + 3px); left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:var(--bg2); z-index:61; opacity:0; visibility:hidden; transition:opacity 0.15s; }
+  .info-badge:hover::after, .info-badge:hover::before { opacity:1; visibility:visible; }
 
   /* MODAL */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
@@ -355,6 +360,7 @@
     .kpi-grid { grid-template-columns: 1fr 1fr; }
     .kpi-grid > .kpi:first-child { grid-column: span 2; }
     .kpi-grid-2 { grid-template-columns: 1fr 1fr; }
+    .kpi-grid-2 > .kpi:first-child { grid-column: span 2; }
     .kpi { height: auto; min-height: 80px; padding: 0.9rem 1rem; }
     .kpi-val-hero { font-size: 26px !important; }
 
@@ -556,13 +562,23 @@
         <div class="kpi"><div class="kpi-label">P&amp;L réalisé</div><div class="kpi-val" id="kpi-pnl-real" data-sensitive>—</div><div class="kpi-sub neu" id="kpi-trades-count">—</div></div>
       </div>
       <div class="kpi-grid-2">
-        <div class="kpi">
-          <div class="kpi-label">Cash disponible</div>
-          <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex:1;">
-            <div class="kpi-val" id="kpi-cash" style="flex:unset;">—</div>
-            <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">Modifier</button>
+        <div class="kpi" style="height:auto;min-height:110px;flex-direction:row;align-items:stretch;gap:16px;">
+          <div style="flex:1;min-width:120px;display:flex;flex-direction:column;justify-content:center;">
+            <div class="kpi-label" style="display:flex;align-items:center;gap:6px;">
+              <span>Cash disponible</span>
+              <span class="info-badge" data-tip="Calculé à partir d'une ligne de départ vérifiée le 2026-07-30 (solde réel Disnat + exchanges), puis de tous les dépôts, retraits, achats et ventes depuis cette date. Le profit réalisé et réinvesti (ex. SOXL → TSLA) est tracké séparément du capital déposé et consommé en premier au rachat. Achats et retraits sont bloqués si le cash disponible du compte visé est insuffisant.">i</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div class="kpi-val" id="kpi-cash" style="flex:unset;">—</div>
+              <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">Modifier</button>
+            </div>
+            <div class="kpi-sub neu" id="kpi-cash-pct">—% du portefeuille</div>
           </div>
-          <div class="kpi-sub neu" id="kpi-cash-pct">—% du portefeuille</div>
+          <div style="width:1px;background:var(--border);flex-shrink:0;"></div>
+          <div style="flex:1.6;display:flex;align-items:center;gap:10px;min-width:0;">
+            <div style="position:relative;width:90px;height:90px;flex-shrink:0;"><canvas id="cashLotsChart"></canvas></div>
+            <div class="donut-leg" id="cash-lots-chart-legend" style="max-height:90px;overflow-y:auto;flex:1;min-width:0;margin-top:0;"></div>
+          </div>
         </div>
         <div class="kpi"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div><div class="kpi-sub neu">actives</div></div>
         <div class="kpi"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
@@ -602,23 +618,6 @@
           <div class="card-title">Cash vs Positions</div>
           <div class="chart-wrap" style="flex:1;min-height:140px;"><canvas id="cashAllocChart"></canvas></div>
           <div class="donut-leg" id="cash-alloc-legend" style="max-height:80px;"></div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-top:16px;">
-        <div class="card-title">Cash par compte &amp; type (principal vs profit réinvesti)</div>
-        <div class="chart-wrap" style="flex:1;min-height:160px;"><canvas id="cashLotsChart"></canvas></div>
-        <div class="donut-leg" id="cash-lots-chart-legend" style="max-height:110px;"></div>
-      </div>
-
-      <div class="card" id="cash-lots-debug-card" style="margin-top:16px;">
-        <div class="card-title" style="cursor:pointer;user-select:none;" onclick="toggleCashLotsDebug()">
-          <span>🔍 Détail &amp; audit du cash (calcul, ligne de départ, mouvements bruts)</span>
-          <button id="cash-lots-debug-toggle" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0 4px;transition:transform 0.2s;line-height:1;" title="Afficher/Masquer">▼</button>
-        </div>
-        <div id="cash-lots-debug-body" style="display:none;font-size:12px;color:var(--text2);">
-          <p style="margin:0 0 10px;color:var(--text3);">Détail du calcul utilisé partout dans l'app depuis le 2026-07-30 (achats/retraits, pie chart) : ligne de départ + tous les mouvements depuis. Lecture seule ici — ne modifie rien. <button onclick="renderCashLotsDebug()" style="background:none;border:none;cursor:pointer;color:var(--green);text-decoration:underline;padding:0;font-size:11px;">Recalculer</button></p>
-          <div id="cash-lots-debug-content">—</div>
         </div>
       </div>
     </div>
@@ -2836,7 +2835,7 @@ function getStratCurrency(s){ return tickerCurrency(s.symbol) || s.currency || '
 // lot garde une chaîne de provenance complète : si un profit de SOXL finance un achat de TSLA
 // qui génère lui-même un profit, la chaîne s'allonge (SOXL → TSLA → ...). Sert uniquement à
 // valider la logique avant de la rendre active (achats bloqués si cash insuffisant, etc.) —
-// voir demande de Cédric du 2026-07-30. Panneau d'affichage : renderCashLotsDebug() (Dashboard).
+// voir demande de Cédric du 2026-07-30. Résultat affiché via le pie chart « Cash disponible » (Dashboard).
 function fxConvert(amount, fromCur, toCur){
   if(!amount)return 0;
   if(fromCur===toCur)return amount;
@@ -2991,127 +2990,6 @@ function syncCashFromLots(){
   cash=parseFloat(total.toFixed(2));
   return cash;
 }
-function _clSummarize(deductOnBuy){
-  const{accounts}=reconstructCashLots(deductOnBuy);
-  let grandTotalCAD=0;
-  const byCurrencyTotals={}; // devise -> {principal,profit} en montant natif, tous comptes confondus
-  const rows=Object.keys(accounts).sort().map(name=>{
-    const state=accounts[name];
-    const sumType=type=>state[type].reduce((s,l)=>s+fxConvert(l.amount,l.currency,'CAD'),0);
-    const principalCAD=sumType('principal'),profitCAD=sumType('profit');
-    grandTotalCAD+=principalCAD+profitCAD;
-    const byCur={};
-    ['principal','profit'].forEach(type=>state[type].forEach(l=>{
-      byCur[l.currency]=byCur[l.currency]||{principal:0,profit:0};
-      byCur[l.currency][type]+=l.amount;
-      byCurrencyTotals[l.currency]=byCurrencyTotals[l.currency]||{principal:0,profit:0};
-      byCurrencyTotals[l.currency][type]+=l.amount;
-    }));
-    const nativeDetail=Object.keys(byCur).map(cur=>`${cur} : ${fmtAmtRound(byCur[cur].principal)} principal + ${fmtAmtRound(byCur[cur].profit)} profit`).join(' · ');
-    return{name,principalCAD,profitCAD,totalCAD:principalCAD+profitCAD,nativeDetail};
-  }).sort((a,b)=>b.totalCAD-a.totalCAD);
-  return{rows,grandTotalCAD,byCurrencyTotals};
-}
-function _clRawMovements(){
-  // Ne montre que depuis la ligne de départ (2026-07-30) -- avant, l'historique n'est pas fiable
-  // (voir CASH_LOTS_BASELINE_DATE). Une ligne "Ligne de départ" synthétique résume le seed.
-  const chrono=trades.slice().reverse().filter(t=>t.date>=CASH_LOTS_BASELINE_DATE);
-  const moves=[];
-  CASH_LOTS_SEED.forEach(s=>moves.push({date:CASH_LOTS_BASELINE_DATE,type:'Ligne de départ',account:s.account,amt:s.amount,cur:s.currency,hasOriginal:true,amtCAD:fxConvert(s.amount,s.currency,'CAD')}));
-  let totalAchatsCAD=0,totalVentesCAD=0;
-  chrono.forEach(t=>{
-    const account=t.accountType||t.account||'Non spécifié';
-    if(t.type==='Dépôt'||t.type==='Retrait'){
-      const hasOriginal=t.originalAmt!=null&&t.originalCurrency;
-      const amt=hasOriginal?t.originalAmt:t.size;
-      const cur=hasOriginal?t.originalCurrency:'CAD';
-      moves.push({date:t.date,type:t.type,account,amt,cur,hasOriginal,amtCAD:fxConvert(amt,cur,'CAD')});
-    }else if(t.type==='Achat'){
-      totalAchatsCAD+=fxConvert(t.size,t.currency||'USD','CAD');
-    }else if(t.type==='Vente'){
-      totalVentesCAD+=fxConvert((t.size||0)+(t.profit||0),t.currency||'USD','CAD');
-    }
-  });
-  return{moves,totalAchatsCAD,totalVentesCAD};
-}
-function renderCashLotsDebug(){
-  const el=document.getElementById('cash-lots-debug-content');if(!el)return;
-  const deductOnBuy=document.getElementById('cash-lots-deduct-toggle')?.checked||false;
-  const{rows,grandTotalCAD,byCurrencyTotals}=_clSummarize(deductOnBuy);
-  const currentCash=cash||0;
-  const delta=grandTotalCAD-currentCash;
-  const okColor=Math.abs(delta)<1;
-  const nonCadCurrencies=Object.keys(byCurrencyTotals).filter(c=>c!=='CAD');
-  const foreignBlock=nonCadCurrencies.length?`
-    <div style="margin-bottom:10px;padding:8px 10px;border-radius:6px;background:rgba(0,217,255,0.08);border:1px solid rgba(0,217,255,0.25);">
-      <strong>Cash en devise étrangère (revalorisé au taux live, pas figé au taux du dépôt)</strong><br>
-      ${nonCadCurrencies.map(cur=>{
-        const t=byCurrencyTotals[cur],total=t.principal+t.profit;
-        return `${cur} : ${fmtAmtRound(total)} (${fmtAmtRound(t.principal)} principal + ${fmtAmtRound(t.profit)} profit) ≈ ${fmtAmtRound(fxConvert(total,cur,'CAD'))} CAD au taux d'aujourd'hui`;
-      }).join('<br>')}
-    </div>`:'';
-  el.innerHTML=`
-    <label style="display:flex;align-items:center;gap:6px;margin-bottom:10px;cursor:pointer;">
-      <input type="checkbox" id="cash-lots-deduct-toggle" onchange="renderCashLotsDebug()" ${deductOnBuy?'checked':''}/>
-      <span>Simuler la Phase 2 (les achats déduisent le cash — total prospectif, net des positions ouvertes, à ne PAS comparer au cash actuel)</span>
-    </label>
-    <div style="margin-bottom:10px;padding:8px 10px;border-radius:6px;background:${okColor?'rgba(45,212,160,0.1)':'rgba(246,200,67,0.12)'};border:1px solid ${okColor?'rgba(45,212,160,0.3)':'rgba(246,200,67,0.35)'};">
-      <strong>Total reconstruit : ${fmtAmtRound(grandTotalCAD)} CAD</strong> vs cash stocké (app) <strong>${fmtAmtRound(currentCash)} CAD</strong>
-      (écart : ${delta>=0?'+':''}${fmtAmtRound(delta)} CAD)${deductOnBuy?' — écart normal ici, ce modèle exclut l\'argent englouti dans les positions ouvertes.':''}
-      <br><span style="color:var(--text3);font-size:11px;">Le cash stocké fige chaque dépôt en CAD au taux du jour du dépôt et ne se revalorise jamais — compare plutôt le bloc devise étrangère ci-dessous à ton calcul manuel.</span>
-    </div>
-    ${foreignBlock}
-    <table style="width:100%;border-collapse:collapse;"><thead><tr style="text-align:left;border-bottom:1px solid var(--border2);">
-      <th style="padding:4px 8px;">Compte</th><th style="padding:4px 8px;">Principal (CAD)</th><th style="padding:4px 8px;">Profit (CAD)</th><th style="padding:4px 8px;">Total (CAD)</th><th style="padding:4px 8px;">Détail devise native</th>
-    </tr></thead><tbody>${rows.map(r=>`<tr style="border-bottom:1px solid var(--border);">
-      <td style="padding:4px 8px;">${escapeHtml(r.name)}</td>
-      <td style="padding:4px 8px;">${fmtAmtRound(r.principalCAD)}</td>
-      <td style="padding:4px 8px;">${fmtAmtRound(r.profitCAD)}</td>
-      <td style="padding:4px 8px;font-weight:600;">${fmtAmtRound(r.totalCAD)}</td>
-      <td style="padding:4px 8px;color:var(--text3);">${escapeHtml(r.nativeDetail)}</td>
-    </tr>`).join('')}</tbody></table>
-    <p style="margin-top:10px;color:var(--text3);font-size:11px;">Comptes sans "compte" renseigné sur les vieux trades tombent dans "Non spécifié". Chaîne de provenance calculée mais pas encore affichée dans ce tableau — accessible en console : <code>reconstructCashLots(false)</code>.</p>
-    ${_clRenderAudit()}
-  `;
-}
-function _clRenderAudit(){
-  const{moves,totalAchatsCAD,totalVentesCAD}=_clRawMovements();
-  const totalDepots=moves.filter(m=>m.type==='Dépôt').reduce((s,m)=>s+m.amtCAD,0);
-  const totalRetraits=moves.filter(m=>m.type==='Retrait').reduce((s,m)=>s+m.amtCAD,0);
-  const sansOriginal=moves.filter(m=>!m.hasOriginal).length;
-  return `
-    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border2);">
-      <div style="font-weight:600;margin-bottom:8px;">Audit brut — à comparer avec ta mémoire des transactions réelles</div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;color:var(--text2);">
-        <span>Σ Dépôts : <strong>${fmtAmtRound(totalDepots)}</strong> CAD</span>
-        <span>Σ Retraits : <strong>${fmtAmtRound(totalRetraits)}</strong> CAD</span>
-        <span>Σ Achats : <strong>${fmtAmtRound(totalAchatsCAD)}</strong> CAD</span>
-        <span>Σ Ventes (proceeds complets) : <strong>${fmtAmtRound(totalVentesCAD)}</strong> CAD</span>
-        ${sansOriginal ? `<span style="color:var(--amber);">⚠ ${sansOriginal} dépôt(s)/retrait(s) sans devise native connue (fallback CAD utilisé)</span>` : ''}
-      </div>
-      <table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="text-align:left;border-bottom:1px solid var(--border2);">
-        <th style="padding:3px 6px;">Date</th><th style="padding:3px 6px;">Type</th><th style="padding:3px 6px;">Compte</th><th style="padding:3px 6px;">Montant natif</th><th style="padding:3px 6px;">≈ CAD</th><th style="padding:3px 6px;"></th>
-      </tr></thead><tbody>${moves.map(m=>`<tr style="border-bottom:1px solid var(--border);${m.hasOriginal?'':'background:rgba(246,200,67,0.08);'}">
-        <td style="padding:3px 6px;">${escapeHtml(m.date)}</td>
-        <td style="padding:3px 6px;">${m.type}</td>
-        <td style="padding:3px 6px;">${escapeHtml(m.account)}</td>
-        <td style="padding:3px 6px;">${fmtAmtRound(m.amt)} ${m.cur}</td>
-        <td style="padding:3px 6px;">${fmtAmtRound(m.amtCAD)}</td>
-        <td style="padding:3px 6px;">${m.hasOriginal?'':'⚠ fallback'}</td>
-      </tr>`).join('')}</tbody></table>
-    </div>
-  `;
-}
-function toggleCashLotsDebug(){
-  const body=document.getElementById('cash-lots-debug-body');
-  const btn=document.getElementById('cash-lots-debug-toggle');
-  if(!body)return;
-  const willOpen=body.style.display==='none';
-  body.style.display=willOpen?'block':'none';
-  if(btn)btn.textContent=willOpen?'▲':'▼';
-  if(willOpen)renderCashLotsDebug();
-}
-
 
 // ─── LIVE PRICES ─────────────────────────────────────────────────
 function setLiveStatus(status){
