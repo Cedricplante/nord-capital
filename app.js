@@ -3399,9 +3399,12 @@ function mkDonutData(items,totalUSD){
   const values=items.map(i=>totalUSD>0?parseFloat((toUSD(i.val,i.cur||'USD')/totalUSD*100).toFixed(1)):0);
   return{labels,values};
 }
-function buildLegend(containerId,labels,values,colors){
+function buildLegend(containerId,labels,values,colors,amounts){
   const el=document.getElementById(containerId);if(!el)return;
-  el.innerHTML=labels.map((l,i)=>`<div class="donut-leg-row"><span class="donut-dot" style="background:${colors[i]||'#fff'};"></span>${l}<span class="donut-pct">${values[i]}%</span></div>`).join('');
+  // amounts (optionnel, ex: ["42,43 $ CAD"]) -- ajouté 2026-08-03 pour la légende Cash
+  // disponible (demande de Cédric : voir le montant, pas juste le %). Rétrocompatible :
+  // les autres appelants qui ne passent pas amounts gardent l'affichage % seul.
+  el.innerHTML=labels.map((l,i)=>`<div class="donut-leg-row"><span class="donut-dot" style="background:${colors[i]||'#fff'};"></span>${l}<span class="donut-pct">${amounts&&amounts[i]?amounts[i]+' · ':''}${values[i]}%</span></div>`).join('');
 }
 function updateDonut(chart,labels,values,colors){
   if(!chart)return;chart.data.labels=labels;chart.data.datasets[0].data=values;chart.data.datasets[0].backgroundColor=colors;chart.update();
@@ -3410,22 +3413,31 @@ function updateDonut(chart,labels,values,colors){
 // Pie chart 2 niveaux (compte + type) demandé par Cédric le 2026-07-30 : chaque compte a 2
 // tranches (Principal / Profit réinvesti), même couleur de base mais teinte différente pour
 // les regrouper visuellement dans la légende.
+// Formate les lots d'un groupe (principal OU profit) d'un compte en montant natif, groupé
+// par devise -- ex: "42,43 $ CAD" ou, cas rare d'un compte pas encore scindé CAD/USD,
+// "15 $ CAD + 3 $ USD". Jamais converti en CAD ici : Cédric veut voir le vrai montant détenu.
+function fmtLotsNative(lots){
+  const byCur={};
+  lots.forEach(l=>{byCur[l.currency]=(byCur[l.currency]||0)+l.amount;});
+  return Object.entries(byCur).filter(([,amt])=>Math.abs(amt)>0.01)
+    .map(([cur,amt])=>fmtAmtRound(amt)+' '+cur).join(' + ')||'—';
+}
 function renderCashLotsChart(){
   if(!cashLotsChart)return;
   const{accounts}=reconstructCashLots(true);
   const acctNames=Object.keys(accounts).filter(name=>_clAccountTotalCAD(accounts[name])>0.01).sort((a,b)=>_clAccountTotalCAD(accounts[b])-_clAccountTotalCAD(accounts[a]));
   const total=acctNames.reduce((s,name)=>s+_clAccountTotalCAD(accounts[name]),0);
-  const labels=[],values=[],colors=[];
+  const labels=[],values=[],colors=[],amounts=[];
   acctNames.forEach((name,i)=>{
     const state=accounts[name];
     const principalCAD=state.principal.reduce((s,l)=>s+fxConvert(l.amount,l.currency,'CAD'),0);
     const profitCAD=state.profit.reduce((s,l)=>s+fxConvert(l.amount,l.currency,'CAD'),0);
     const baseColor=COLORS[i%COLORS.length];
-    if(principalCAD>0.01){labels.push(`${name} — Principal`);values.push(total>0?parseFloat((principalCAD/total*100).toFixed(1)):0);colors.push(baseColor);}
-    if(profitCAD>0.01){labels.push(`${name} — Profit`);values.push(total>0?parseFloat((profitCAD/total*100).toFixed(1)):0);colors.push(baseColor+'70');}
+    if(principalCAD>0.01){labels.push(`${name} — Principal`);values.push(total>0?parseFloat((principalCAD/total*100).toFixed(1)):0);colors.push(baseColor);amounts.push(fmtLotsNative(state.principal));}
+    if(profitCAD>0.01){labels.push(`${name} — Profit`);values.push(total>0?parseFloat((profitCAD/total*100).toFixed(1)):0);colors.push(baseColor+'70');amounts.push(fmtLotsNative(state.profit));}
   });
   updateDonut(cashLotsChart,labels,values,colors);
-  buildLegend('cash-lots-chart-legend',labels,values,colors);
+  buildLegend('cash-lots-chart-legend',labels,values,colors,amounts);
   // Ventilation par devise native (pas convertie) — demandé par Cédric 2026-08-03.
   const splitEl=document.getElementById('kpi-cash-currency-split');
   if(splitEl){
