@@ -3392,7 +3392,12 @@ document.addEventListener('mouseout',e=>{
 });
 function mkDonut(id,labels,data,colors){
   const el=document.getElementById(id);if(!el)return null;
-  return new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{enabled:false,external:externalDonutTooltip,callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed.toFixed(1)+'%'}}}}});
+  // layout.padding ajouté 2026-08-03 (bug signalé par Cédric) : hoverOffset:6 fait "sortir"
+  // la tranche survolée de 6px vers l'extérieur, mais le canvas dessine le donut collé à ses
+  // propres bords -- sans marge, le cercle survolé se fait couper net par le bord du canvas
+  // (surtout visible sur cashLotsChart, 90x90px). Le padding réserve la marge nécessaire à
+  // l'intérieur du canvas, sans changer la taille du conteneur ni la taille apparente du cercle.
+  return new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',layout:{padding:8},plugins:{legend:{display:false},tooltip:{enabled:false,external:externalDonutTooltip,callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed.toFixed(1)+'%'}}}}});
 }
 function mkDonutData(items,totalUSD){
   const labels=items.map(i=>i.label);
