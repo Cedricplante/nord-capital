@@ -201,5 +201,32 @@ function addDays(dateStr, n) {
   }
 })();
 
+(function scenario5() {
+  console.log('Scénario 5 — un achat en USD consomme le lot USD, pas le lot CAD (cas réel Cédric)');
+  const d0 = runScenario([], {}).CASH_LOTS_BASELINE_DATE;
+  const trades = [
+    { type: 'Achat', symbol: 'TQQQ', shares: 4, size: 271.60, currency: 'USD', accountType: 'TEST_ACCT_5', date: addDays(d0, 2) },
+    // Dépôt CAD ajouté AVANT le dépôt USD (même ordre que CASH_LOTS_SEED réel : CAD avant USD)
+    // pour reproduire exactement le bug -- le pool CAD était consommé en premier juste parce
+    // qu'il était plus ancien dans la file, peu importe la devise réellement dépensée.
+    { type: 'Dépôt', size: 15000, originalAmt: 15000, originalCurrency: 'CAD', accountType: 'TEST_ACCT_5', date: addDays(d0, 1) },
+    { type: 'Dépôt', size: 2500, originalAmt: 2500, originalCurrency: 'USD', accountType: 'TEST_ACCT_5', date: d0 },
+  ];
+  const { reconstructCashLots } = runScenario(trades, {});
+  const { accounts } = reconstructCashLots(true);
+  const acc = accounts['TEST_ACCT_5'];
+  check('compte TEST_ACCT_5 existe', !!acc);
+  if (acc) {
+    const cadPrincipal = acc.principal.filter(l => l.currency === 'CAD').reduce((s, l) => s + l.amount, 0);
+    const usdPrincipal = acc.principal.filter(l => l.currency === 'USD').reduce((s, l) => s + l.amount, 0);
+    check('le lot CAD (15000) reste intact -- pas touché par un achat en USD',
+      approx(cadPrincipal, 15000, 0.5),
+      `CAD restant=${cadPrincipal.toFixed(2)}`);
+    check('le lot USD (2500) est réduit du montant de l\'achat (271.60) -> ~2228.40',
+      approx(usdPrincipal, 2500 - 271.60, 0.5),
+      `USD restant=${usdPrincipal.toFixed(2)}`);
+  }
+})();
+
 console.log(`\n${pass} passés, ${fail} échoués.`);
 process.exit(fail > 0 ? 1 : 0);

@@ -1632,12 +1632,21 @@ function _clConsume(state,amountNeeded,currency){
   for(const type of['profit','principal']){
     const queue=state[type];
     while(remaining>0.005&&queue.length){
-      const lot=queue[0];
+      // Priorise un lot de la MÊME devise que le besoin (FIFO à l'intérieur de cette devise)
+      // plutôt que de piger dans le premier lot peu importe sa devise -- BUG CRITIQUE corrigé
+      // le 2026-08-04, signalé par Cédric après un achat TQQQ payé en USD qui vidait le pool
+      // CAD de CELIAPP au lieu du pool USD : le solde USD affiché restait inchangé alors que
+      // l'argent avait bel et bien été dépensé en USD, et le solde CAD baissait à tort. Ne
+      // convertit d'une autre devise qu'en tout dernier recours, si aucun lot de la devise
+      // cible n'est disponible dans ce type (profit/principal).
+      let idx=queue.findIndex(l=>l.currency===currency);
+      if(idx===-1)idx=0;
+      const lot=queue[idx];
       const lotValueInTarget=fxConvert(lot.amount,lot.currency,currency);
       if(lotValueInTarget<=remaining+0.005){
         consumed.push({type,amount:lot.amount,currency:lot.currency,date:lot.date,chain:lot.chain});
         remaining-=lotValueInTarget;
-        queue.shift();
+        queue.splice(idx,1);
       }else{
         const fraction=remaining/lotValueInTarget;
         const partAmount=lot.amount*fraction;
