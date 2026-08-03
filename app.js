@@ -12,7 +12,7 @@ const SYMBOLS=[
   {s:'FAS',n:'Direxion Financial Bull 3x',inst:'Direxion',cat:'ETF Levier',cur:'USD'},{s:'TECL',n:'Direxion Technology Bull 3x',inst:'Direxion',cat:'ETF Levier',cur:'USD'},
   {s:'WEBL',n:'Direxion Internet Bull 3x',inst:'Direxion',cat:'ETF Levier',cur:'USD'},
   {s:'TQQQ.TO',n:'BMO Ultra NASDAQ ETF (CAD)',inst:'BMO',cat:'ETF Levier',cur:'CAD'},{s:'HMAX.TO',n:'Hamilton Canadian Financials Yield Maximizer',inst:'Hamilton',cat:'ETF',cur:'CAD'},
-  {s:'ZMMK.TO',n:'BMO Money Market ETF',inst:'BMO',cat:'ETF',cur:'CAD'},{s:'VFV.TO',n:'Vanguard S&P 500 Index ETF (CAD)',inst:'Vanguard',cat:'ETF',cur:'CAD'},
+  {s:'ZMMK.TO',n:'BMO Money Market ETF',inst:'BMO',cat:'ETF',cur:'CAD'},{s:'CASH.TO',n:'Global X High Interest Savings ETF (CASH-C chez Disnat)',inst:'Global X',cat:'ETF',cur:'CAD'},{s:'VFV.TO',n:'Vanguard S&P 500 Index ETF (CAD)',inst:'Vanguard',cat:'ETF',cur:'CAD'},
   {s:'XQQ.TO',n:'iShares NASDAQ 100 Index ETF (CAD)',inst:'iShares',cat:'ETF',cur:'CAD'},{s:'ZSP.TO',n:'BMO S&P 500 Index ETF (CAD)',inst:'BMO',cat:'ETF',cur:'CAD'},
   {s:'QQQ',n:'Invesco QQQ Trust',inst:'Invesco',cat:'ETF',cur:'USD'},{s:'SPY',n:'SPDR S&P 500 ETF Trust',inst:'State Street',cat:'ETF',cur:'USD'},
   {s:'VOO',n:'Vanguard S&P 500 ETF',inst:'Vanguard',cat:'ETF',cur:'USD'},{s:'VTI',n:'Vanguard Total Stock Market ETF',inst:'Vanguard',cat:'ETF',cur:'USD'},
