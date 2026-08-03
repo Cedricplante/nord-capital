@@ -1576,6 +1576,18 @@ let portfolioHistory=[];
 // ─── FORMAT ──────────────────────────────────────────────────────
 // Espaces comme séparateurs de milliers (1 234,56 $)
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+// Fix audit 2026-08-03 : w.symbol (watchlist) venait d'un <input> utilisateur et était
+// interpolé BRUT (pas escapeHtml, contrairement à w.note) dans du HTML texte, un attribut id,
+// et plusieurs onclick/onchange inline. Une apostrophe ou un guillemet dans le champ cassait
+// le rendu ou l'attribut JS inline -- self-XSS potentiel, mais surtout un bug de robustesse
+// concret. escapeJsAttr() échappe pour un littéral JS entre quotes simples PUIS pour
+// l'attribut HTML qui le contient (ordre important : le navigateur HTML-décode l'attribut
+// avant de l'exécuter comme JS). wlDomId() sanitize pour un usage sûr en id/CSS.
+function escapeJsAttr(v){
+  const jsEscaped=String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  return escapeHtml(jsEscaped);
+}
+function wlDomId(symbol){return String(symbol??'').replace(/[^A-Za-z0-9_-]/g,'_');}
 function fmtAmt(n){if(!isFinite(n)||isNaN(n))return '—';return n.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';}
 function fmtAmtRound(n){if(!isFinite(n)||isNaN(n))return '—';return Math.round(n).toLocaleString('fr-FR')+' $';}
 function fmt$(n){return fmtAmt(Math.abs(n)*fxRate);}
@@ -3434,33 +3446,33 @@ function renderWatchlist(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div>
           <div style="display:flex;align-items:center;gap:4px;">
-            <span class="wl-sym-big">${w.symbol}</span>${portBadge}${alertDot}
+            <span class="wl-sym-big">${escapeHtml(w.symbol)}</span>${portBadge}${alertDot}
           </div>
-          <div class="wl-name">${name}</div>
+          <div class="wl-name">${escapeHtml(name)}</div>
         </div>
         <div style="text-align:right;">
           <div style="font-family:var(--mono);font-size:15px;font-weight:700;">${priceStr}</div>
           <div style="font-size:12px;margin-top:1px;">${chgStr}</div>
         </div>
       </div>
-      <div class="wl-sparkline"><canvas id="sparkline-${w.symbol.replace('/','_')}"></canvas></div>
+      <div class="wl-sparkline"><canvas id="sparkline-${wlDomId(w.symbol)}"></canvas></div>
       ${vol52Range}${volStr}
       <div class="wl-alert-row">
         <div style="flex:1;">
           <div class="wl-alert-label" style="color:var(--green);"> Target</div>
-          <input class="wl-alert-input" type="number" step="any" placeholder="Prix cible" value="${target}" onchange="updateWlAlert('${w.symbol}','target',this.value)" />
+          <input class="wl-alert-input" type="number" step="any" placeholder="Prix cible" value="${target}" onchange="updateWlAlert('${escapeJsAttr(w.symbol)}','target',this.value)" />
         </div>
         <div style="flex:1;">
           <div class="wl-alert-label" style="color:var(--red);">Stop</div>
-          <input class="wl-alert-input" type="number" step="any" placeholder="Stop loss" value="${stop}" onchange="updateWlAlert('${w.symbol}','stop',this.value)" />
+          <input class="wl-alert-input" type="number" step="any" placeholder="Stop loss" value="${stop}" onchange="updateWlAlert('${escapeJsAttr(w.symbol)}','stop',this.value)" />
         </div>
       </div>
       <div style="margin-top:8px;">
-        <input type="text" class="wl-alert-input" style="width:100%;" value="${escapeHtml(w.note||'')}" placeholder="Note (raison, thesis, attente…)" onchange="updateWlNote('${w.symbol}',this.value)" />
+        <input type="text" class="wl-alert-input" style="width:100%;" value="${escapeHtml(w.note||'')}" placeholder="Note (raison, thesis, attente…)" onchange="updateWlNote('${escapeJsAttr(w.symbol)}',this.value)" />
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
         <span style="font-size:9px;color:var(--text3);">Ajouté ${w.addedAt?new Date(w.addedAt).toLocaleDateString('fr-CA',{month:'short',day:'numeric'}):'—'}</span>
-        <button class="btn-danger" onclick="removeFromWatchlist('${w.symbol}')" style="padding:3px 8px;font-size:10px;">Retirer</button>
+        <button class="btn-danger" onclick="removeFromWatchlist('${escapeJsAttr(w.symbol)}')" style="padding:3px 8px;font-size:10px;">Retirer</button>
       </div>
     </div>`;
   }).join('');
@@ -3475,7 +3487,7 @@ function renderWatchlist(){
   // Render sparklines after DOM update
   requestAnimationFrame(()=>{
     watchlist.forEach(w=>{
-      const canvasId='sparkline-'+w.symbol.replace('/','_');
+      const canvasId='sparkline-'+wlDomId(w.symbol);
       const canvas=document.getElementById(canvasId);
       if(!canvas)return;
       const sparkData=w._spark||[];
