@@ -3596,73 +3596,6 @@ function renderAccountsPanels(totalSizeUSD){
   }).join('');
 }
 
-// ── Concentration & risque (demandé par Cédric 2026-08-03) ─────────────────────────────
-// Signale une position trop lourde, soit sur le portefeuille total soit sur un compte en
-// particulier. Volontairement simple (2 seuils, pas de score composite) -- l'objectif est un
-// rappel visuel, pas un système de scoring qui prétendrait savoir mieux que Cédric quoi faire.
-const CONCENTRATION_THRESHOLDS={warning:20,danger:40};
-function computeConcentrationRisk(){
-  const rows=[];
-  if(!positions.length)return rows;
-  const totalSizeUSD=getTotalSizeUSD();
-  const totalCAD=totalSizeUSD*fxRate+cash;
-  if(!(totalCAD>0))return rows;
-
-  // 1) Concentration par symbole, % du portefeuille total (positions + cash)
-  const bySymbol={};
-  positions.forEach(p=>{
-    const valCAD=toUSD((p.shares||0)*p.current,getPosCurrency(p))*fxRate;
-    bySymbol[p.symbol]=(bySymbol[p.symbol]||0)+valCAD;
-  });
-  Object.entries(bySymbol).forEach(([sym,valCAD])=>{
-    const pct=valCAD/totalCAD*100;
-    if(pct>=CONCENTRATION_THRESHOLDS.warning){
-      rows.push({level:pct>=CONCENTRATION_THRESHOLDS.danger?'danger':'warning',pct,text:`${sym} — ${pct.toFixed(0)}% du portefeuille total`});
-    }
-  });
-
-  // 2) Concentration par compte : position dominante d'un compte, % de CE compte (pas du
-  //    portefeuille global) -- ex. SOXL peut être 8% du portefeuille total mais 40% du CELI.
-  const byAccount=new Map();
-  positions.forEach(p=>{
-    const acct=p.account||'Sans compte';
-    if(!byAccount.has(acct))byAccount.set(acct,{total:0,bySym:{}});
-    const g=byAccount.get(acct);
-    const valCAD=toUSD((p.shares||0)*p.current,getPosCurrency(p))*fxRate;
-    g.total+=valCAD;
-    g.bySym[p.symbol]=(g.bySym[p.symbol]||0)+valCAD;
-  });
-  byAccount.forEach((g,acct)=>{
-    if(!(g.total>0))return;
-    Object.entries(g.bySym).forEach(([sym,valCAD])=>{
-      const pct=valCAD/g.total*100;
-      if(pct>=CONCENTRATION_THRESHOLDS.warning){
-        rows.push({level:pct>=CONCENTRATION_THRESHOLDS.danger?'danger':'warning',pct,text:`${sym} — ${pct.toFixed(0)}% du compte ${acct}`});
-      }
-    });
-  });
-
-  rows.sort((a,b)=>(b.level==='danger')-(a.level==='danger')||b.pct-a.pct);
-  return rows;
-}
-function renderConcentrationRisk(){
-  const el=document.getElementById('concentration-body');
-  if(!el)return;
-  const rows=computeConcentrationRisk();
-  if(!rows.length){
-    el.innerHTML=`<div style="color:var(--text3);font-size:12px;padding:4px 2px;">Aucune concentration excessive détectée (seuil ${CONCENTRATION_THRESHOLDS.warning}%+).</div>`;
-    return;
-  }
-  el.innerHTML=rows.map(r=>{
-    const color=r.level==='danger'?'var(--red)':'var(--amber)';
-    const bg=r.level==='danger'?'rgba(255,77,109,0.08)':'rgba(255,181,71,0.08)';
-    const badge=r.level==='danger'?'RISQUE ÉLEVÉ':'À SURVEILLER';
-    return`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:${bg};border:0.5px solid ${color};border-radius:6px;margin-bottom:6px;font-size:11px;">
-      <span style="color:var(--text2);">${escapeHtml(r.text)}</span>
-      <span style="color:${color};font-weight:700;font-size:9px;letter-spacing:0.5px;">${badge}</span>
-    </div>`;
-  }).join('');
-}
 function renderAllocCharts(){
   const totalSizeUSD=getTotalSizeUSD();
   const totalCAD=totalSizeUSD*fxRate+cash; // cash déjà en CAD
@@ -3692,7 +3625,6 @@ function renderAllocCharts(){
     ['alloc-sym-legend','alloc-cat-legend','celi-legend','celiapp-legend','crypto-legend'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<div class="alloc-empty-state">Aucune position</div>';});
     ['alloc-sym-count','alloc-cat-count'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—';});
     const acctGrid=document.getElementById('accounts-grid');if(acctGrid)acctGrid.innerHTML='<div style="color:var(--text3);font-size:12px;padding:1rem;">Aucune position avec compte assigné.</div>';
-    const concEl=document.getElementById('concentration-body');if(concEl)concEl.innerHTML='<div style="color:var(--text3);font-size:12px;padding:4px 2px;">Aucune position.</div>';
     return;
   }
 
@@ -3715,8 +3647,6 @@ function renderAllocCharts(){
   // Comptes dynamiques
   renderAccountsPanels(totalSizeUSD);
 
-  // Concentration & risque
-  renderConcentrationRisk();
 
   // P&L par classe
   const catPnl={};positions.forEach(p=>{const c=getCat(p.symbol);catPnl[c]=(catPnl[c]||0)+calcPnlUSD(p)*fxRate;});
