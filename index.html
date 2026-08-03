@@ -68,6 +68,7 @@
   /* KPI GRID */
   .kpi-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
   .kpi-grid-2 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
+  .kpi-grid-2 .kpi { height: 190px; }
   .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.1rem 1.5rem; position: relative; overflow: hidden; display: flex; flex-direction: column; height: 110px; transition: all 0.25s ease; }
   .kpi:hover { border-color: var(--border2); }
   /* Hover vert intense uniquement sur KPIs Dashboard et Cards Allocation */
@@ -562,7 +563,7 @@
         <div class="kpi"><div class="kpi-label">P&amp;L réalisé</div><div class="kpi-val" id="kpi-pnl-real" data-sensitive>—</div><div class="kpi-sub neu" id="kpi-trades-count">—</div></div>
       </div>
       <div class="kpi-grid-2">
-        <div class="kpi" style="height:auto;min-height:110px;flex-direction:row;align-items:stretch;gap:16px;">
+        <div class="kpi" style="flex-direction:row;align-items:stretch;gap:16px;">
           <div style="flex:1;min-width:120px;display:flex;flex-direction:column;justify-content:center;">
             <div class="kpi-label" style="display:flex;align-items:center;gap:6px;">
               <span>Cash disponible</span>
@@ -573,11 +574,12 @@
               <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">Modifier</button>
             </div>
             <div class="kpi-sub neu" id="kpi-cash-pct">—% du portefeuille</div>
+            <div class="kpi-sub neu" id="kpi-cash-currency-split" style="margin-top:4px;">—</div>
           </div>
           <div style="width:1px;background:var(--border);flex-shrink:0;"></div>
           <div style="flex:1.6;display:flex;align-items:center;gap:10px;min-width:0;">
             <div style="position:relative;width:90px;height:90px;flex-shrink:0;"><canvas id="cashLotsChart"></canvas></div>
-            <div class="donut-leg" id="cash-lots-chart-legend" style="max-height:90px;overflow-y:auto;flex:1;min-width:0;margin-top:0;"></div>
+            <div class="donut-leg" id="cash-lots-chart-legend" style="max-height:160px;overflow-y:auto;flex:1;min-width:0;margin-top:0;"></div>
           </div>
         </div>
         <div class="kpi"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div><div class="kpi-sub neu">actives</div></div>
@@ -4482,6 +4484,23 @@ function renderCashLotsChart(){
   });
   updateDonut(cashLotsChart,labels,values,colors);
   buildLegend('cash-lots-chart-legend',labels,values,colors);
+  // Ventilation par devise native (pas convertie) — demandé par Cédric 2026-08-03.
+  const splitEl=document.getElementById('kpi-cash-currency-split');
+  if(splitEl){
+    let cad=0,usd=0,other=0;
+    acctNames.forEach(name=>{
+      const state=accounts[name];
+      ['principal','profit'].forEach(type=>{
+        state[type].forEach(l=>{
+          if(l.currency==='CAD')cad+=l.amount;
+          else if(l.currency==='USD')usd+=l.amount;
+          else other+=fxConvert(l.amount,l.currency,'CAD');
+        });
+      });
+    });
+    const fmt=n=>n.toLocaleString('fr-CA',{minimumFractionDigits:0,maximumFractionDigits:0});
+    splitEl.textContent=`${fmt(cad)} $ CAD · ${fmt(usd)} $ USD`+(other>0.5?` · ${fmt(other)} $ autre`:'');
+  }
 }
 function renderAllocDashboard(){
   if(!cashAllocChart)return;
