@@ -10,11 +10,12 @@
  * Ce script rejoue quelques scénarios connus et vérifie le résultat numérique, pour attraper
  * une régression AVANT un commit plutôt qu'après.
  *
- * Comment ça marche : les fonctions testées vivent dans le gros <script> inline de index.html
- * (pas de module séparé). Plutôt que de dupliquer une copie figée ici (qui se périmerait dès
- * qu'on touche à index.html sans y penser), ce script EXTRAIT le code source actuel des
- * fonctions/consts nécessaires directement depuis index.html à chaque exécution, et l'exécute
- * dans un petit bac à sable Node. Ça teste donc toujours le code réel, pas une copie.
+ * Comment ça marche : les fonctions testées vivent dans app.js (extrait de l'ancien <script> inline de
+ * index.html le 2026-08-03, voir commit de split du monolithe). Plutôt que de dupliquer une
+ * copie figée ici (qui se périmerait dès qu'on touche à app.js sans y penser), ce script
+ * EXTRAIT le code source actuel des fonctions/consts nécessaires directement depuis app.js à
+ * chaque exécution, et l'exécute dans un petit bac à sable Node. Ça teste donc toujours le
+ * code réel, pas une copie.
  *
  * Usage : node scripts/test-cash-logic.js   (exit code 0 = tout passe, 1 = au moins un échec)
  */
@@ -22,8 +23,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const INDEX_PATH = path.join(__dirname, '..', 'index.html');
-const src = fs.readFileSync(INDEX_PATH, 'utf8');
+const APP_JS_PATH = path.join(__dirname, '..', 'app.js');
+const src = fs.readFileSync(APP_JS_PATH, 'utf8');
 
 // ── Extraction par appariement d'accolades, en ignorant chaînes/commentaires ──────────────
 function findDeclStart(source, name, kind) {
