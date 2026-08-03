@@ -2935,13 +2935,19 @@ async function addPosition(){
   const dateVal=document.getElementById('f-date').value||new Date().toISOString().split('T')[0];
   const e=parseFloat(document.getElementById('f-entry').value),shares=parseFloat(document.getElementById('f-shares').value);
   const posCurrency=tickerCurrency(s)||document.getElementById('f-currency').value||'USD',cur=parseFloat(document.getElementById('f-current').value),sz=parseFloat(document.getElementById('f-size').value);
-  const existingBeforeSave=positions.find(p=>p.symbol===s&&p.dir===d);
-  // BUG CRITIQUE corrigé (audit 2026-07-30) : si le champ compte du formulaire est laissé vide
-  // lors d'un DCA (il n'est jamais pré-rempli), l'achat était tracké sous "Non spécifié" alors
-  // que la position restait sur son vrai compte -- désynchronisation qui pouvait faire fuiter du
-  // cash d'un compte à l'autre à la revente. On hérite du compte de la position existante par
-  // défaut si le formulaire est vide.
-  const account=document.getElementById('f-account').value||(existingBeforeSave?existingBeforeSave.account:'')||'';
+  // BUG CRITIQUE corrigé (audit 2026-08-04, signalé par Cédric après un achat TQQQ réel mal
+  // attribué) : la version précédente cherchait une position existante par symbole+dir SEUL,
+  // en ignorant le compte -- à la fois pour hériter du compte quand le champ est vide, ET pour
+  // choisir dans quelle position fusionner ce nouvel achat. Si le même symbole existe dans
+  // PLUSIEURS comptes (ex: TQQQ détenu à la fois en CELIAPP et en Comptant), le code piochait
+  // silencieusement le premier trouvé -- un achat visant "Comptant" pouvait finir débité du
+  // mauvais compte ET fusionné dans la position d'un AUTRE compte, gonflant sa valeur et
+  // laissant le compte visé intact. On ne devine plus jamais entre plusieurs comptes candidats :
+  // hérite seulement s'il n'existe qu'UN SEUL compte déjà porteur de ce symbole+dir, sinon la
+  // sélection explicite est requise (bloqué plus bas si le compte reste vide).
+  const matchingPositions=positions.filter(p=>p.symbol===s&&p.dir===d);
+  const distinctAccounts=[...new Set(matchingPositions.map(p=>p.account||''))].filter(Boolean);
+  const account=document.getElementById('f-account').value||(distinctAccounts.length===1?distinctAccounts[0]:'')||'';
   const targetVal=parseFloat(document.getElementById('f-target').value)||null;
   const stopVal=parseFloat(document.getElementById('f-stop').value)||null;
   if(!s||isNaN(e)||isNaN(shares)||isNaN(cur)||isNaN(sz)){alert('Remplis tous les champs (symbole, prix, shares, prix actuel).');return;}
@@ -2964,7 +2970,10 @@ async function addPosition(){
     }
   }
   trades.unshift({date:dateVal,symbol:s,dir:d,type:'Achat',price:e,shares,size:sz,currency:posCurrency,account});
-  const existing=positions.find(p=>p.symbol===s&&p.dir===d);
+  // Fusion UNIQUEMENT dans une position du MÊME compte (jamais par symbole+dir seul, cf.
+  // fix ci-dessus) -- si le symbole existe déjà mais dans un autre compte, on crée une
+  // nouvelle position distincte pour ce compte, comme prévu par la fonctionnalité "par compte".
+  const existing=positions.find(p=>p.symbol===s&&p.dir===d&&(p.account||'')===account);
   if(existing){
     const newTotal=existing.totalSize+sz;
     const existingShares=existing.shares||0;
