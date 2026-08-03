@@ -709,7 +709,7 @@
           <span style="font-size:12px;color:var(--text);font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">P&amp;L réalisé par trade</span>
           <span id="hist-summary-inline" style="font-size:11px;color:var(--text3);font-weight:500;"></span>
         </div>
-        <div class="chart-wrap" style="height:110px;"><canvas id="pnlBarChart"></canvas></div>
+        <div class="chart-wrap" style="height:170px;"><canvas id="pnlBarChart"></canvas></div>
       </div>
 
       <!-- Toolbar -->
@@ -4110,9 +4110,19 @@ function renderAnnualPnl(){
 
 function updatePnlBar(){
   if(!pnlBarChart)return;
-  const ventes=[...trades].filter(t=>t.type==='Vente').reverse();
-  pnlBarChart.data.labels=ventes.map(t=>t.symbol);
-  const data=ventes.map(t=>parseFloat((toUSD(t.profit||0,getTradeCurrency(t))*fxRate).toFixed(2)));
+  // Condensé par actif (somme des P&L de tous les trades de vente du symbole) plutôt qu'une
+  // barre par trade individuel -- axe des x illisible avec les tickers répétés (demandé par
+  // Cédric 2026-08-03). Trié par magnitude absolue décroissante pour mettre les gros
+  // contributeurs (positifs et négatifs) en premier.
+  const ventes=trades.filter(t=>t.type==='Vente');
+  const bySymbol={};
+  ventes.forEach(t=>{
+    const usd=toUSD(t.profit||0,getTradeCurrency(t))*fxRate;
+    bySymbol[t.symbol]=(bySymbol[t.symbol]||0)+usd;
+  });
+  const rows=Object.entries(bySymbol).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
+  pnlBarChart.data.labels=rows.map(r=>r[0]);
+  const data=rows.map(r=>parseFloat(r[1].toFixed(2)));
   pnlBarChart.data.datasets[0].data=data;pnlBarChart.data.datasets[0].backgroundColor=data.map(v=>v>=0?'#00ff88':'#ff4d6d');pnlBarChart.update();
 }
 
