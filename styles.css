@@ -13,14 +13,19 @@
     --card-glow: 0 0 0 0.5px var(--border);
   }
   [data-theme="light"] {
+    /* Palette resserrée le 2026-08-03 (demande de Cédric : thème clair trop "fade", plus de
+       contraste + couleurs plus concentrées). Texte assombri d'un cran (text2/text3),
+       bordures un peu plus marquées, et les 4 couleurs d'accent remplacées par des teintes
+       Tailwind ~600 (plus saturées/profondes que les ~500 précédentes) tout en gardant les
+       mêmes teintes (vert/rouge/ambre/cyan) pour ne pas changer le langage visuel. */
     --bg: #fafafa; --bg2: #ffffff; --bg3: #f4f4f4; --bg4: #ececec;
-    --border: #e5e5e5; --border2: #d4d4d4;
-    --green: #00b87c; --green-dim: #e6f9f1; --green-glow: rgba(0,184,124,0.12);
-    --blue: #00b87c; --blue-dim: #e6f9f1; --blue-glow: rgba(0,184,124,0.12);
-    --pos: #00b87c; --neg: #e63946; --amber: #f59e0b; --purple: #0891b2; --cyan: #0891b2;
-    --red: #e63946;
-    --text: #0a0a0a; --text2: #404040; --text3: #737373;
-    --shadow: 0 2px 8px rgba(0,0,0,0.06); --card-glow: 0 0 0 0.5px var(--border);
+    --border: #e0e0e0; --border2: #bfbfbf;
+    --green: #059669; --green-dim: #e6f9f1; --green-glow: rgba(5,150,105,0.14);
+    --blue: #059669; --blue-dim: #e6f9f1; --blue-glow: rgba(5,150,105,0.14);
+    --pos: #059669; --neg: #dc2626; --amber: #d97706; --purple: #0e7490; --cyan: #0e7490;
+    --red: #dc2626;
+    --text: #0a0a0a; --text2: #262626; --text3: #525252;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08); --card-glow: 0 0 0 0.5px var(--border);
   }
   html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 12px; -webkit-font-smoothing: antialiased; }
   ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; } ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
