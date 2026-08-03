@@ -279,6 +279,7 @@
           <select id="filter-month" onchange="renderHistory()" class="filter-select"><option value="">Tous les mois</option></select>
           <select id="filter-asset" onchange="renderHistory()" class="filter-select"><option value="">Tous les actifs</option></select>
           <button class="btn-ghost" onclick="resetFilters()" style="padding:5px 12px;font-size:11px;">Reset</button>
+          <button onclick="openDividendModal()" style="background:rgba(0,255,136,0.1);border:0.5px solid rgba(0,255,136,0.3);color:var(--green);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:600;font-family:var(--mono);">+ Dividende</button>
         </div>
         <div style="display:flex;gap:8px;">
           <button class="btn-export" onclick="openImportModal()">Importer CSV</button>
@@ -286,6 +287,15 @@
           <button class="btn-export" onclick="exportPdf()" style="color:var(--cyan);border-color:rgba(0,217,255,0.3);">Exporter PDF</button>
           <button class="btn-export" style="color:var(--red);border-color:rgba(245,101,101,0.3);" onclick="clearHistory()">Effacer</button>
         </div>
+      </div>
+
+      <!-- Dividendes reçus (demandé par Cédric 2026-08-03) -->
+      <div class="card" style="margin-bottom:12px;" id="dividends-card">
+        <div class="card-title">
+          <span>Dividendes reçus</span>
+          <span id="dividends-total-inline" style="font-size:11px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;"></span>
+        </div>
+        <div id="dividends-body" style="overflow-x:auto;"></div>
       </div>
 
       <!-- P&L annuel -->
@@ -602,6 +612,54 @@
     <div style="display:flex;gap:10px;">
       <button class="btn" style="flex:1;padding:10px;" onclick="saveCotisation()">Enregistrer</button>
       <button class="btn-ghost" style="padding:10px 16px;" onclick="closeCotisationModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL : DIVIDENDE (demandé par Cédric 2026-08-03) -->
+<div class="modal-overlay" id="dividend-modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Enregistrer un dividende</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Symbole</div>
+        <input type="text" id="div-symbol" placeholder="ex: QYLD" style="width:100%;padding:10px 12px;font-size:12px;text-transform:uppercase;" />
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Compte</div>
+        <select id="div-account" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
+          <option value="CELI">CELI</option>
+          <option value="CELIAPP">CELIAPP</option>
+          <option value="REER">REER</option>
+          <option value="REEE">REEE</option>
+          <option value="Non enregistré">Non enregistré</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Montant</div>
+        <input type="number" id="div-amount" placeholder="0.00" step="0.01" style="font-size:15px;padding:10px 12px;width:100%;" />
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Devise</div>
+        <select id="div-currency" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
+          <option value="USD">USD</option>
+          <option value="CAD">CAD</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Date</div>
+      <input type="date" id="div-date" style="width:100%;padding:10px 12px;font-size:12px;" />
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Note (optionnel)</div>
+      <input type="text" id="div-note" placeholder="Ex: distribution mensuelle…" style="width:100%;padding:10px 12px;font-size:12px;" />
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn" style="flex:1;padding:10px;" onclick="saveDividend()">Enregistrer</button>
+      <button class="btn-ghost" style="padding:10px 16px;" onclick="closeDividendModal()">Annuler</button>
     </div>
   </div>
 </div>

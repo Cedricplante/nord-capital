@@ -178,5 +178,28 @@ function addDays(dateStr, n) {
   }
 })();
 
+(function scenario4() {
+  console.log('Scénario 4 — dividende traité comme profit, ne gonfle pas le principal');
+  const d0 = runScenario([], {}).CASH_LOTS_BASELINE_DATE;
+  const trades = [
+    { type: 'Dividende', symbol: 'QYLD', accountType: 'TEST_ACCT_4', originalAmt: 50, originalCurrency: 'USD', currency: 'USD', size: 50, date: addDays(d0, 2) },
+    { type: 'Dépôt', size: 685, originalAmt: 685, originalCurrency: 'USD', accountType: 'TEST_ACCT_4', date: addDays(d0, 1) },
+  ];
+  const { reconstructCashLots, _clAccountTotalCAD } = runScenario(trades, {});
+  const { accounts } = reconstructCashLots(true);
+  const acc = accounts['TEST_ACCT_4'];
+  check('compte TEST_ACCT_4 existe', !!acc);
+  if (acc) {
+    const profitUSD = acc.profit.filter(l => l.currency === 'USD').reduce((s, l) => s + l.amount, 0);
+    const principalUSD = acc.principal.filter(l => l.currency === 'USD').reduce((s, l) => s + l.amount, 0);
+    check('le dividende (50 USD) est tracké en "profit", pas en "principal"',
+      approx(profitUSD, 50, 0.5) && approx(principalUSD, 685, 0.5),
+      `profit=${profitUSD.toFixed(2)}, principal=${principalUSD.toFixed(2)}`);
+    check('le total du compte = dépôt + dividende (735 USD ≈ 1007 CAD)',
+      approx(_clAccountTotalCAD(acc), 735 * 1.37, 2),
+      `total=${_clAccountTotalCAD(acc).toFixed(2)} CAD`);
+  }
+})();
+
 console.log(`\n${pass} passés, ${fail} échoués.`);
 process.exit(fail > 0 ? 1 : 0);

@@ -1522,6 +1522,77 @@ function renderAssetReturns(){
 }
 function getStratCurrency(s){ return tickerCurrency(s.symbol) || s.currency || 'USD'; }
 
+// ── Dividendes (demandé par Cédric 2026-08-03) ──────────────────────────────────────────
+// Trade type 'Dividende' : traité comme un dépôt de "profit" (pas "principal") dans
+// reconstructCashLots() -- un dividende est un revenu de placement, pas une cotisation, donc
+// il ne doit jamais compter dans les droits REER/CELI (ces droits ne suivent que le type
+// 'Cotisation', jamais 'Dividende'). Consommé en premier au même titre qu'un profit de vente
+// (cohérent avec la règle FIFO profit-d'abord déjà en place pour les achats/retraits).
+function getDividendCurrency(t){ return tickerCurrency(t.symbol) || t.currency || 'USD'; }
+function renderDividends(){
+  const el=document.getElementById('dividends-body');if(!el)return;
+  const divs=trades.filter(t=>t.type==='Dividende');
+  const totalEl=document.getElementById('dividends-total-inline');
+  if(!divs.length){
+    el.innerHTML='<p style="padding:14px;color:var(--text3);font-size:12px;">Aucun dividende enregistré — utilise le bouton "+ Dividende" ci-dessous.</p>';
+    if(totalEl)totalEl.textContent='';
+    return;
+  }
+  const bySymbol={};
+  let totalCAD=0;
+  divs.forEach(t=>{
+    const cad=toUSD(t.size||0,getDividendCurrency(t))*fxRate;
+    totalCAD+=cad;
+    (bySymbol[t.symbol]=bySymbol[t.symbol]||{count:0,cad:0}).count++;
+    bySymbol[t.symbol].cad+=cad;
+  });
+  if(totalEl)totalEl.textContent=`${fmtAmtRound(totalCAD)} au total, ${divs.length} versement${divs.length!==1?'s':''}`;
+  const rows=Object.entries(bySymbol).sort((a,b)=>b[1].cad-a[1].cad);
+  el.innerHTML=`<table style="min-width:500px;"><thead><tr>
+    <th>Actif</th><th>Versements</th><th>Total reçu (CAD)</th>
+  </tr></thead><tbody>${rows.map(([sym,d])=>`<tr>
+      <td class="sym">${escapeHtml(sym)}</td>
+      <td style="color:var(--text2);">${d.count}</td>
+      <td class="pos" data-sensitive>${fmtAmtRound(d.cad)}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+function openDividendModal(){
+  const dateEl=document.getElementById('div-date');if(dateEl)dateEl.value=new Date().toISOString().split('T')[0];
+  const symEl=document.getElementById('div-symbol');if(symEl)symEl.value='';
+  const amtEl=document.getElementById('div-amount');if(amtEl)amtEl.value='';
+  const noteEl=document.getElementById('div-note');if(noteEl)noteEl.value='';
+  document.getElementById('dividend-modal-overlay').style.display='flex';
+}
+function closeDividendModal(){
+  document.getElementById('dividend-modal-overlay').style.display='none';
+}
+async function saveDividend(){
+  const symbol=(document.getElementById('div-symbol')?.value||'').trim().toUpperCase();
+  const account=document.getElementById('div-account')?.value||'CELI';
+  const amount=parseFloat(document.getElementById('div-amount')?.value||'0');
+  const currency=document.getElementById('div-currency')?.value||'USD';
+  const date=document.getElementById('div-date')?.value||new Date().toISOString().split('T')[0];
+  const note=document.getElementById('div-note')?.value||'';
+  if(!symbol){alert('Entre un symbole.');return;}
+  if(isNaN(amount)||amount<=0){alert('Montant invalide.');return;}
+  const entry={type:'Dividende',date,symbol,accountType:account,originalAmt:parseFloat(amount.toFixed(2)),originalCurrency:currency,currency,size:parseFloat(amount.toFixed(2)),note};
+  trades.unshift(entry);
+  const ok=await saveData();
+  if(!ok){
+    // Même pattern de rollback que saveCotisation() (fix 2026-07-28) : ne pas garder en
+    // mémoire une entrée que le serveur n'a jamais reçue, sinon elle semble enregistrée dans
+    // l'UI puis disparaît silencieusement au prochain rechargement.
+    const idx=trades.indexOf(entry);
+    if(idx!==-1)trades.splice(idx,1);
+    alert('Échec de la sauvegarde (connexion ?). Le dividende n\'a PAS été enregistré — réessaie.');
+    return;
+  }
+  closeDividendModal();
+  renderAll();
+}
+document.addEventListener('click',function(e){if(e.target===document.getElementById('dividend-modal-overlay'))closeDividendModal();});
+
+
 // ── Reconstruction du cash en lots profit/principal, par compte (debug, 2026-07-30) ──
 // Lecture seule : ne modifie ni cash, ni trades, ni positions. Rejoue tout l'historique
 // (Dépôts/Retraits/Achats/Ventes) en ordre chronologique pour reconstituer, par compte, quelle
@@ -1623,6 +1694,14 @@ function reconstructCashLots(deductOnBuy){
       const amt=hasOriginal?t.originalAmt:t.size;
       const cur=hasOriginal?t.originalCurrency:'CAD';
       _clConsume(acct(account),amt,cur);
+    }else if(t.type==='Dividende'){
+      // Revenu de placement, pas une cotisation -- tracké comme "profit" (consommé en
+      // premier, comme un gain de vente), jamais comme "principal". Ne touche jamais aux
+      // droits REER/CELI (ces droits ne suivent que le type 'Cotisation').
+      const hasOriginal=t.originalAmt!=null&&t.originalCurrency;
+      const amt=hasOriginal?t.originalAmt:t.size;
+      const cur=hasOriginal?t.originalCurrency:'USD';
+      _clAddLot(acct(account),'profit',amt,cur,t.date,[]);
     }else if(t.type==='Achat'){
       const amt=t.size,cur=t.currency||'USD';
       const consumed=deductOnBuy?_clConsume(acct(account),amt,cur).consumed:[];
@@ -2755,6 +2834,10 @@ function renderHistory(){
       const profit=t.profit||0;const profitDisp=toUSD(profit,getTradeCurrency(t));totalPnl+=profitDisp;profitDisp>0?wins++:losses++;
       const cls=profitDisp>=0?'pos':'neg',roi=t.size>0?(profit/t.size)*100:0,isDca=t.dcaCount&&t.dcaCount>1;
       return`<tr><td>${t.date}</td><td class="sym">${t.symbol}${isDca?'<span class="badge-dca">DCA×'+t.dcaCount+'</span>':''}</td><td><span class="badge badge-vente">Vente</span></td><td style="color:var(--text3);">${fmtPrice(t.avgEntry||t.price)} → ${fmtPrice(t.price)}</td><td>${fmtC(t.size,t.currency)}</td><td class="${cls}">${fmtC(t.montantFinal||t.size+profit,t.currency)}</td><td class="${cls}">${fmtCpnl(profit,t.currency)}</td><td class="${cls}">${fmtPct(roi)}</td></tr>`;
+    }else if(t.type==='Dividende'){
+      const acctBadge=t.accountType?`<span class="badge-compte" style="margin-left:4px;">${escapeHtml(t.accountType)}</span>`:'';
+      const noteTip=t.note?`<span style="font-size:10px;color:var(--text3);margin-left:4px;" title="${escapeHtml(t.note)}">note</span>`:'';
+      return`<tr style="opacity:0.85;"><td>${t.date}</td><td class="sym">${escapeHtml(t.symbol||'—')}</td><td><span class="badge" style="background:rgba(96,165,250,0.1);color:var(--blue);border:0.5px solid rgba(96,165,250,0.25);">Dividende</span>${acctBadge}${noteTip}</td><td style="color:var(--text3);">—</td><td style="color:var(--text2);">${fmtC(t.size,t.currency)}</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
     }else{return`<tr><td>${t.date}</td><td class="sym">${t.symbol}</td><td><span class="badge badge-achat">Achat</span></td><td>${fmtPrice(t.price)}</td><td>${fmtC(t.size,t.currency)}</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;}
   }).join('')||'<tr><td colspan="8" class="empty">Aucune transaction</td></tr>';
   const cls=totalPnl>=0?'pos':'neg';
@@ -2765,6 +2848,7 @@ function renderHistory(){
   if(countLbl)countLbl.textContent=`${filtered.length} transaction${filtered.length!==1?'s':''}`;
   renderAnnualPnl();
   renderAssetReturns();
+  renderDividends();
 }
 
 function renderAnnualPnl(){
@@ -3545,7 +3629,13 @@ function closeShortcutsModal(){
 
 function exportCSV(){
   const rows=[['Date','Symbole','Direction','Type','Compte','Prix','Prix moy. entrée','Montant initial','Montant final','Profit','ROI (%)']];
-  trades.forEach(t=>{if(t.type==='Vente'){const roi=t.size>0?((t.profit||0)/t.size*100).toFixed(2):'0';rows.push([t.date,t.symbol,t.dir,'Vente',t.account||'',t.price,t.avgEntry||'',t.size,(t.montantFinal||(t.size+(t.profit||0))).toFixed(2),(t.profit||0).toFixed(2),roi]);}else rows.push([t.date,t.symbol,t.dir,'Achat',t.account||'',t.price,'',t.size,'','','']);});
+  trades.forEach(t=>{
+    if(t.type==='Vente'){const roi=t.size>0?((t.profit||0)/t.size*100).toFixed(2):'0';rows.push([t.date,t.symbol,t.dir,'Vente',t.account||'',t.price,t.avgEntry||'',t.size,(t.montantFinal||(t.size+(t.profit||0))).toFixed(2),(t.profit||0).toFixed(2),roi]);}
+    else if(t.type==='Dividende'){rows.push([t.date,t.symbol||'',t.dir||'',t.type,t.accountType||t.account||'','','',t.size,'','','']);}
+    else if(t.type==='Achat'){rows.push([t.date,t.symbol,t.dir,'Achat',t.account||'',t.price,'',t.size,'','','']);}
+    // Autres types (Dépôt, Retrait, Cotisation) -- déjà non gérés avant ce changement,
+    // hors scope de cet ajout (limitation préexistante de exportCSV, à corriger séparément).
+  });
   const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='nord_capital_transactions.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
