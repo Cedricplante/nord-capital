@@ -2401,6 +2401,40 @@ async function startApp(){
   fetchLivePrices();
   setInterval(fetchLivePrices,900000);
   showOnboardingIfNeeded();
+  checkNewDividends();
+}
+// ─── DIVIDENDES AUTO-IMPORTÉS : popup au login (demandé par Cédric 2026-08-03) ─────────
+// Le cron api/dividends-sync.js ajoute les dividendes détectés avec seen:false. Au login,
+// on liste tout ce qui est encore non-vu et on le marque vu après affichage (pas au chargement
+// silencieux -- seulement une fois que Cédric a effectivement vu le popup, pour ne rien
+// perdre si le navigateur se ferme avant qu'il clique "Compris").
+function checkNewDividends(){
+  const unseen=trades.filter(t=>t.type==='Dividende'&&t.autoImported&&t.seen===false);
+  if(!unseen.length)return;
+  const listEl=document.getElementById('new-dividends-list');
+  if(listEl){
+    const bySymbol={};
+    unseen.forEach(t=>{
+      const cad=toUSD(t.size||0,getDividendCurrency(t))*fxRate;
+      (bySymbol[t.symbol]=bySymbol[t.symbol]||[]).push({date:t.date,account:t.accountType||'—',cad});
+    });
+    listEl.innerHTML=Object.entries(bySymbol).map(([sym,rows])=>{
+      const total=rows.reduce((s,r)=>s+r.cad,0);
+      const detail=rows.map(r=>`<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);padding:2px 0;"><span>${r.date} · ${escapeHtml(r.account)}</span><span>${fmtAmtRound(r.cad)}</span></div>`).join('');
+      return`<div style="padding:10px 12px;background:var(--bg3);border-radius:8px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text1);"><span>${escapeHtml(sym)}</span><span class="pos">${fmtAmtRound(total)}</span></div>
+        <div style="margin-top:4px;">${detail}</div>
+      </div>`;
+    }).join('');
+  }
+  const overlay=document.getElementById('new-dividends-modal-overlay');
+  if(overlay)overlay.style.display='flex';
+}
+async function dismissNewDividends(){
+  trades.forEach(t=>{if(t.type==='Dividende'&&t.autoImported&&t.seen===false)t.seen=true;});
+  const overlay=document.getElementById('new-dividends-modal-overlay');
+  if(overlay)overlay.style.display='none';
+  await saveData();
 }
 // ─── ONBOARDING (popup "comment ça marche" à la 1re connexion) ────
 function showOnboardingIfNeeded(){
