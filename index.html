@@ -4472,9 +4472,43 @@ function updatePerfChart(){
 
 // ─── ALLOCATION ───────────────────────────────────────────────────
 const COLORS=['#00ff88','#00d9ff','#ffb547','#ff4d6d','#a78bfa','#fb923c','#4ade80','#e879f9','#f43f5e','#6ee7b7','#fcd34d','#94a3b8'];
+// Tooltip externe en HTML pour les petits donuts (ex. cashLotsChart 90x90px) — demandé par
+// Cédric 2026-08-03 : le tooltip natif de Chart.js est dessiné DANS le canvas, donc
+// physiquement coupé quand le canvas est petit ou logé dans une carte overflow:hidden.
+// Un div HTML positionné en fixed, ajouté à <body>, n'est jamais borné par un parent.
+let _donutTooltipEl=null;
+function getDonutTooltipEl(){
+  if(_donutTooltipEl)return _donutTooltipEl;
+  const el=document.createElement('div');
+  el.id='donut-ext-tooltip';
+  el.style.cssText='position:fixed;pointer-events:none;z-index:9999;background:var(--bg2);border:0.5px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:11px;font-family:var(--sans);color:var(--text2);box-shadow:0 8px 24px rgba(0,0,0,0.4);opacity:0;transition:opacity 0.1s;white-space:nowrap;line-height:1.6;';
+  document.body.appendChild(el);
+  _donutTooltipEl=el;
+  return el;
+}
+function externalDonutTooltip(context){
+  const{chart,tooltip}=context;
+  const el=getDonutTooltipEl();
+  if(tooltip.opacity===0){el.style.opacity=0;return;}
+  if(tooltip.body){
+    const lines=tooltip.body.map(b=>b.lines).flat();
+    el.innerHTML=lines.map(l=>`<div>${l.replace(/</g,'&lt;')}</div>`).join('');
+  }
+  const rect=chart.canvas.getBoundingClientRect();
+  el.style.opacity=1;
+  // Clampé pour rester dans le viewport (évite de se faire couper près des bords d'écran).
+  const tw=el.offsetWidth,th=el.offsetHeight;
+  let left=rect.left+tooltip.caretX;
+  let top=rect.top+tooltip.caretY-th-10;
+  left=Math.max(8,Math.min(left,window.innerWidth-tw-8));
+  if(top<8)top=rect.top+tooltip.caretY+10; // pas assez de place au-dessus → afficher en dessous
+  el.style.left=left+'px';
+  el.style.top=top+'px';
+  el.style.transform='none';
+}
 function mkDonut(id,labels,data,colors){
   const el=document.getElementById(id);if(!el)return null;
-  return new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed.toFixed(1)+'%'}}}}});
+  return new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{enabled:false,external:externalDonutTooltip,callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed.toFixed(1)+'%'}}}}});
 }
 function mkDonutData(items,totalUSD){
   const labels=items.map(i=>i.label);
