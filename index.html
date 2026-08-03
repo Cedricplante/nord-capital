@@ -697,13 +697,19 @@
 
     <!-- HISTORIQUE -->
     <div id="tab-historique" class="section">
-      <!-- Rendement par actif (remplace l'ancien KPI bar — demandé par Cédric 2026-07-29) -->
+      <!-- Rendement par actif + P&L par trade fusionnés dans une seule carte (demandé par
+           Cédric 2026-08-03, pour condenser l'espace — étaient 2 cartes séparées depuis 2026-07-29) -->
       <div class="card" style="margin-bottom:14px;" id="asset-returns-card">
         <div class="card-title">
           <span>Rendement par actif</span>
           <span style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;">actifs entièrement fermés uniquement</span>
         </div>
         <div id="asset-returns-body" style="overflow-x:auto;"></div>
+        <div style="border-top:0.5px solid var(--border);margin:14px 0 10px;padding-top:10px;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:12px;color:var(--text);font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">P&amp;L réalisé par trade</span>
+          <span id="hist-summary-inline" style="font-size:11px;color:var(--text3);font-weight:500;"></span>
+        </div>
+        <div class="chart-wrap" style="height:110px;"><canvas id="pnlBarChart"></canvas></div>
       </div>
 
       <!-- Toolbar -->
@@ -719,15 +725,6 @@
           <button class="btn-export" onclick="exportPdf()" style="color:var(--cyan);border-color:rgba(0,217,255,0.3);">Exporter PDF</button>
           <button class="btn-export" style="color:var(--red);border-color:rgba(245,101,101,0.3);" onclick="clearHistory()">Effacer</button>
         </div>
-      </div>
-
-      <!-- P&L mensuel chart -->
-      <div class="card" style="margin-bottom:12px;">
-        <div class="card-title">
-          <span>P&amp;L réalisé par trade</span>
-          <span id="hist-summary-inline" style="font-size:11px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;"></span>
-        </div>
-        <div class="chart-wrap" style="height:140px;"><canvas id="pnlBarChart"></canvas></div>
       </div>
 
       <!-- P&L annuel -->
