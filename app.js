@@ -2658,18 +2658,33 @@ function posRow(p,idx,displayIdx){
     </tr>`;
   }
   if(isDca&&isExpanded){
+    // Étendu le 2026-08-03 (demande de Cédric) : P&L ouvert en $ ET en % par achat DCA
+    // (avant : seulement le % relatif, sans respecter la direction Short) + le compte de
+    // l'achat. Les entrées individuelles n'ont pas leur propre champ "account" -- une
+    // position est scopée à UN SEUL compte depuis le fix addPosition() du 2026-08-03
+    // (commit 78f7d07), donc p.account s'applique à tous ses achats.
     html+=p.entries.map((e,ei)=>{
-      const entryPnlPct=p.current>0?((p.current-e.price)/e.price*100):0;
-      const entryPnlCls=entryPnlPct>=0?'pos':'neg';
+      const entryShares=e.shares||0;
+      const entryPnlAbs=e.price>0?(p.dir==='Long'?(p.current-e.price):(e.price-p.current))*entryShares:0;
+      const entryPnlPct=e.price>0?(p.dir==='Long'?(p.current-e.price)/e.price*100:(e.price-p.current)/e.price*100):0;
+      const entryPnlCls=entryPnlAbs>=0?'pos':'neg';
+      const entryAcctBadge=p.account?`<span class="badge-dca ${getAcctClass(p.account)}" style="font-size:9px;">${p.account}</span>`:'<span style="color:var(--text3);font-size:10px;">—</span>';
       return`<tr class="dca-detail-row">
-        <td></td><td colspan="2" style="padding-left:20px;color:var(--purple);">└ Achat ${ei+1}</td>
-        <td style="color:var(--text3);">${e.date||'—'}</td><td></td>
-        <td style="color:var(--text3);">${e.shares?e.shares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—'}</td>
+        <td></td>
+        <td style="padding-left:20px;color:var(--purple);">└ Achat ${ei+1}</td>
+        <td>${entryAcctBadge}</td>
+        <td></td>
+        <td style="color:var(--text3);">${e.date||'—'}</td>
+        <td style="color:var(--text3);">${entryShares?entryShares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—'}</td>
         <td>${fmtPrice(e.price)}</td>
         <td style="color:var(--text3);">${fmtC(e.size,getPosCurrency(p))}</td>
-        <td></td><td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td class="${entryPnlCls}">${fmtCpnl(entryPnlAbs,getPosCurrency(p))}</td>
         <td class="${entryPnlCls}">${entryPnlPct>=0?'+':''}${entryPnlPct.toFixed(2)}%</td>
-        <td></td><td></td>
+        <td></td>
+        <td></td>
       </tr>`;
     }).join('');
   }
