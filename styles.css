@@ -19,14 +19,21 @@
        Tailwind ~600 (plus saturées/profondes que les ~500 précédentes) tout en gardant les
        mêmes teintes (vert/rouge/ambre/cyan) pour ne pas changer le langage visuel. */
     --bg: #fafafa; --bg2: #ffffff; --bg3: #f4f4f4; --bg4: #ececec;
-    --border: #e0e0e0; --border2: #bfbfbf;
+    --border: #d6d6d6; --border2: #a8a8a8;
     --green: #059669; --green-dim: #e6f9f1; --green-glow: rgba(5,150,105,0.14);
     --blue: #059669; --blue-dim: #e6f9f1; --blue-glow: rgba(5,150,105,0.14);
     --pos: #059669; --neg: #dc2626; --amber: #d97706; --purple: #0e7490; --cyan: #0e7490;
     --red: #dc2626;
     --text: #0a0a0a; --text2: #262626; --text3: #525252;
-    --shadow: 0 2px 8px rgba(0,0,0,0.08); --card-glow: 0 0 0 0.5px var(--border);
+    --shadow: 0 3px 10px rgba(0,0,0,0.10); --card-glow: 0 0 0 1px var(--border);
   }
+  /* Passe esthétique 2026-08-03 (carte blanche demandée par Cédric) : les bordures 0.5px des
+     .card/.kpi (définies plus bas, communes aux deux thèmes) sont quasi invisibles en clair --
+     un sous-pixel qui se fond dans un fond blanc a beaucoup moins de définition qu'un sous-pixel
+     sur fond noir. Remontées à 1px pleines seulement en thème clair pour un contour net sans
+     alourdir le thème sombre (qui n'en a pas besoin). */
+  [data-theme="light"] .card, [data-theme="light"] .kpi { border-width: 1px; }
+  [data-theme="light"] .btn:hover { background: #047857; }
   html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 12px; -webkit-font-smoothing: antialiased; }
   ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; } ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
   .app { display: flex; flex-direction: column; min-height: 100vh; }
@@ -80,9 +87,9 @@
     transform: translateY(-2px);
   }
   [data-theme="light"] #tab-dashboard .kpi:hover, [data-theme="light"] #tab-allocation .kpi:hover {
-    border-color: rgba(0,184,124,0.6) !important;
-    background: linear-gradient(180deg, rgba(0,184,124,0.10), var(--bg2)) !important;
-    box-shadow: 0 0 28px rgba(0,184,124,0.18);
+    border-color: rgba(5,150,105,0.6) !important;
+    background: linear-gradient(180deg, rgba(5,150,105,0.10), var(--bg2)) !important;
+    box-shadow: 0 0 28px rgba(5,150,105,0.18);
   }
   .kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: var(--green); opacity: 0.3; }
   .kpi-label { font-size: 11px; color: var(--text3); margin-bottom: 0; text-transform: uppercase; letter-spacing: 1px; font-family: var(--sans); font-weight: 600; flex-shrink: 0; height: 16px; display:flex; align-items:center; }
@@ -107,9 +114,9 @@
     box-shadow: 0 0 24px rgba(0,255,136,0.15);
   }
   [data-theme="light"] #tab-allocation .card:hover {
-    border-color: rgba(0,184,124,0.6) !important;
-    background: linear-gradient(180deg, rgba(0,184,124,0.08), var(--bg2)) !important;
-    box-shadow: 0 0 24px rgba(0,184,124,0.15);
+    border-color: rgba(5,150,105,0.6) !important;
+    background: linear-gradient(180deg, rgba(5,150,105,0.08), var(--bg2)) !important;
+    box-shadow: 0 0 24px rgba(5,150,105,0.15);
   }
   .card:last-child { margin-bottom: 0; }
   .card-title { font-size: 12px; color: var(--text); margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 1.2px; font-family: var(--sans); font-weight: 700; display:flex; align-items:center; justify-content:space-between; flex-shrink: 0; }
@@ -153,7 +160,7 @@
   tr:hover td { background: rgba(0,255,136,0.08) !important; transition: background 0.2s ease; }
   tbody tr:nth-child(odd) td { background: rgba(255,255,255,0.04); }
   [data-theme="light"] tbody tr:nth-child(odd) td { background: rgba(0,0,0,0.04); }
-  [data-theme="light"] tr:hover td { background: rgba(0,184,124,0.05) !important; }
+  [data-theme="light"] tr:hover td { background: rgba(5,150,105,0.05) !important; }
   td.sym { font-weight: 600; color: var(--text); font-family: var(--sans); }
 
   /* BADGES */
@@ -304,7 +311,7 @@
 /* ALLOCATION TAB - Ledger Style */
   .alloc-hero { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.75rem 2rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 2rem; transition: all 0.25s ease; }
   #tab-allocation .alloc-hero:hover { border-color: rgba(0,255,136,0.6) !important; background: linear-gradient(180deg, rgba(0,255,136,0.08), var(--bg2)) !important; box-shadow: 0 0 28px rgba(0,255,136,0.15); }
-  [data-theme="light"] #tab-allocation .alloc-hero:hover { border-color: rgba(0,184,124,0.6) !important; background: linear-gradient(180deg, rgba(0,184,124,0.08), var(--bg2)) !important; box-shadow: 0 0 28px rgba(0,184,124,0.15); }
+  [data-theme="light"] #tab-allocation .alloc-hero:hover { border-color: rgba(5,150,105,0.6) !important; background: linear-gradient(180deg, rgba(5,150,105,0.08), var(--bg2)) !important; box-shadow: 0 0 28px rgba(5,150,105,0.15); }
   .alloc-hero-left { flex: 1; }
   .alloc-hero-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; margin-bottom: 8px; }
   .alloc-hero-val { font-size: 42px; font-weight: 800; color: var(--text); font-family: var(--mono); letter-spacing: -1.5px; line-height: 1; margin-bottom: 14px; }
@@ -323,7 +330,7 @@
   .alloc-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
   .alloc-panel { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.25rem 1.5rem; transition: all 0.25s ease; display: flex; flex-direction: column; }
   #tab-allocation .alloc-panel:hover { border-color: rgba(0,255,136,0.6) !important; background: linear-gradient(180deg, rgba(0,255,136,0.05), var(--bg2)) !important; box-shadow: 0 0 24px rgba(0,255,136,0.1); }
-  [data-theme="light"] #tab-allocation .alloc-panel:hover { border-color: rgba(0,184,124,0.6) !important; background: linear-gradient(180deg, rgba(0,184,124,0.05), var(--bg2)) !important; box-shadow: 0 0 24px rgba(0,184,124,0.1); }
+  [data-theme="light"] #tab-allocation .alloc-panel:hover { border-color: rgba(5,150,105,0.6) !important; background: linear-gradient(180deg, rgba(5,150,105,0.05), var(--bg2)) !important; box-shadow: 0 0 24px rgba(5,150,105,0.1); }
   .alloc-panel-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem; }
   .alloc-panel-title { font-size: 12px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 1px; }
   .alloc-panel-sub { font-size: 11px; color: var(--text3); font-family: var(--mono); }
