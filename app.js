@@ -3352,6 +3352,44 @@ function externalDonutTooltip(context){
   el.style.top=top+'px';
   el.style.transform='none';
 }
+// Tooltip "i" en position fixed pour échapper à un ancêtre overflow:hidden -- même bug/pattern
+// que le tooltip du donut ci-dessus (ex: badge "i" de Cash disponible, coupé par .kpi qui a
+// overflow:hidden). Utilise data-tip-js (au lieu de data-tip) pour désactiver le tooltip CSS
+// pur (::after) sur CES éléments précis, sans toucher aux autres .info-badge existants qui
+// fonctionnent déjà correctement (pas dans un ancêtre overflow:hidden).
+let _infoBadgeTooltipEl=null;
+function getInfoBadgeTooltipEl(){
+  if(_infoBadgeTooltipEl)return _infoBadgeTooltipEl;
+  const el=document.createElement('div');
+  el.id='info-badge-ext-tooltip';
+  el.style.cssText='position:fixed;pointer-events:none;z-index:9999;width:260px;background:var(--bg2);border:0.5px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:11px;font-weight:400;line-height:1.5;color:var(--text2);font-family:var(--sans);box-shadow:0 12px 30px rgba(0,0,0,0.4);opacity:0;visibility:hidden;transition:opacity 0.15s;';
+  document.body.appendChild(el);
+  _infoBadgeTooltipEl=el;
+  return el;
+}
+document.addEventListener('mouseover',e=>{
+  const badge=e.target.closest('[data-tip-js]');
+  if(!badge)return;
+  const el=getInfoBadgeTooltipEl();
+  el.textContent=badge.getAttribute('data-tip-js')||'';
+  el.style.visibility='visible';el.style.opacity='1';
+  const rect=badge.getBoundingClientRect();
+  const tw=260;
+  let left=rect.left+rect.width/2-tw/2;
+  left=Math.max(8,Math.min(left,window.innerWidth-tw-8));
+  el.style.left=left+'px';
+  const th=el.offsetHeight||80;
+  let top=rect.top-th-8;
+  if(top<8)top=rect.bottom+8; // pas assez de place au-dessus → afficher en dessous
+  el.style.top=top+'px';
+});
+document.addEventListener('mouseout',e=>{
+  const badge=e.target.closest('[data-tip-js]');
+  if(!badge)return;
+  if(e.relatedTarget&&e.relatedTarget.closest&&e.relatedTarget.closest('[data-tip-js]')===badge)return;
+  const el=getInfoBadgeTooltipEl();
+  el.style.opacity='0';el.style.visibility='hidden';
+});
 function mkDonut(id,labels,data,colors){
   const el=document.getElementById(id);if(!el)return null;
   return new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{enabled:false,external:externalDonutTooltip,callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed.toFixed(1)+'%'}}}}});
