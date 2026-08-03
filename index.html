@@ -489,6 +489,20 @@
         </div>
       </div>
 
+      <!-- Concentration & risque -- demandé par Cédric 2026-08-03, absent malgré Sharpe/CAGR/
+           volatilité déjà présents dans Analytics avancés (risque de marché, pas de risque de
+           concentration). Signale une position qui pèse trop lourd sur le portefeuille total OU
+           sur un compte donné (ex. SOXL = 40% du CELI, même si CELI n'est qu'une fraction du
+           portefeuille global). -->
+      <div class="card" style="margin-bottom:1.25rem;" id="concentration-card">
+        <div class="card-title" style="margin-bottom:1rem;">
+          <span style="display:flex;align-items:center;gap:6px;">Concentration &amp; risque
+            <span class="info-badge" data-tip="Signale une position qui pèse trop lourd — soit sur le portefeuille total, soit sur un compte en particulier (ex. SOXL à 40% du CELI, même si le CELI n'est qu'une fraction du portefeuille global). Seuils : 20%+ = à surveiller, 40%+ = risque élevé. Ce n'est pas un jugement sur la qualité du titre, juste un rappel que ta perf dépend fortement de son comportement. Une conviction forte peut justifier une grosse position — l'idée est juste de le savoir, pas de forcer une diversification.">i</span>
+          </span>
+        </div>
+        <div id="concentration-body"></div>
+      </div>
+
       <!-- Section Comptes — dynamique -->
       <div class="alloc-section-title" style="display:flex;justify-content:space-between;align-items:center;">
         <span>Par compte</span>
