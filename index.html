@@ -68,7 +68,11 @@
   /* KPI GRID */
   .kpi-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
   .kpi-grid-2 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
-  .kpi-grid-2 .kpi { height: 190px; }
+  /* Scopé à min-width:769px : sinon cette règle (specificité 0,0,2,0) bat les surcharges
+     mobiles .kpi{height:auto} (specificité 0,0,1,0) des media queries ci-dessous, peu importe
+     leur ordre dans la feuille de style -- bug trouvé à l'audit du 2026-08-03, jamais visible
+     en desktop donc pas remarqué avant. */
+  @media (min-width: 769px) { .kpi-grid-2 .kpi { height: 190px; } }
   .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.1rem 1.5rem; position: relative; overflow: hidden; display: flex; flex-direction: column; height: 110px; transition: all 0.25s ease; }
   .kpi:hover { border-color: var(--border2); }
   /* Hover vert intense uniquement sur KPIs Dashboard et Cards Allocation */
