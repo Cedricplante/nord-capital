@@ -191,7 +191,7 @@
   .donut-pct { margin-left: auto; color: var(--text3); font-size: 11px; font-family: var(--mono); }
   .info-badge { display:inline-flex; align-items:center; justify-content:center; width:15px; height:15px; border-radius:50%; background:var(--bg4); border:0.5px solid var(--border2); color:var(--text3); font-size:10px; font-family:var(--mono); font-weight:700; font-style:normal; cursor:help; position:relative; flex-shrink:0; line-height:1; }
   .info-badge:hover { color:var(--green); border-color:var(--green); }
-  .info-badge::after { content: attr(data-tip); position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); width:260px; background:var(--bg2); border:0.5px solid var(--border2); border-radius:8px; padding:10px 12px; font-size:11px; font-weight:400; line-height:1.5; color:var(--text2); font-family:var(--sans); box-shadow:0 12px 30px rgba(0,0,0,0.4); z-index:60; white-space:normal; text-align:left; opacity:0; visibility:hidden; transition:opacity 0.15s; pointer-events:none; }
+  .info-badge::after { content: attr(data-tip); position:absolute; bottom:calc(100% + 8px); left:var(--tip-left,50%); transform:var(--tip-transform,translateX(-50%)); width:260px; background:var(--bg2); border:0.5px solid var(--border2); border-radius:8px; padding:10px 12px; font-size:11px; font-weight:400; line-height:1.5; color:var(--text2); font-family:var(--sans); box-shadow:0 12px 30px rgba(0,0,0,0.4); z-index:60; white-space:normal; text-align:left; opacity:0; visibility:hidden; transition:opacity 0.15s; pointer-events:none; }
   .info-badge::before { content:''; position:absolute; bottom:calc(100% + 3px); left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:var(--bg2); z-index:61; opacity:0; visibility:hidden; transition:opacity 0.15s; }
   .info-badge:hover::after, .info-badge:hover::before { opacity:1; visibility:visible; }
 
@@ -612,7 +612,7 @@
           </div>
           <div class="bench-legend">
             <span><span class="bench-dot" style="background:#00ff88;"></span>Portfolio</span>
-            <span><span class="bench-dot" style="background:#00d9ff;border-top:2px dashed #00d9ff;height:0;width:14px;border-radius:0;"></span>S&amp;P 500 (simulé)</span>
+            <span><span class="bench-dot" style="background:#00d9ff;border-top:2px dashed #00d9ff;height:0;width:14px;border-radius:0;"></span>S&amp;P 500 (simulé)<span class="info-badge" style="--tip-left:0; --tip-transform:none;" data-tip="Simule ce que tes dépôts et retraits auraient valu s'ils avaient été investis dans le S&amp;P 500 (SPY) au même moment plutôt que dans ton portefeuille réel — même calendrier de cash-flows, prix SPY du jour de chaque dépôt/retrait. En mode $ Valeur, la ligne pointillée est cette valeur simulée en dollars. En mode % Variation, c'est plutôt le rendement pur du SPY depuis le début (TWR, non affecté par les dépôts) comparé au rendement pur (TWR) de ton portefeuille. Si ta ligne verte est au-dessus de la pointillée : tu bats l'indice. En dessous : tu ferais mieux en indiciel passif.">i</span></span>
           </div>
           <div class="chart-wrap" style="flex:1;min-height:200px;"><canvas id="perfChart"></canvas></div>
         </div>
