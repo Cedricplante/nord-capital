@@ -1675,11 +1675,17 @@ function _clConsume(state,amountNeeded,currency){
 // accumulé avant cette date. Vérifié contre le solde réel (Disnat + exchanges) le 2026-07-30 :
 // 19116$ CAD (CELI 42$ CAD + 22,05$ USD ; CELIAPP 15415,43$ CAD [dont 15300$ CASH-C] + 2516,18$ USD).
 const CASH_LOTS_BASELINE_DATE='2026-07-30';
+// Comptes CAD/USD séparés depuis le 2026-08-04 (demandé par Cédric après l'incident TQQQ) --
+// CELI/CELIAPP ont chacun un côté CAD et un côté USD distincts chez Disnat, et les traiter
+// comme un seul compte masquait de quelle devise l'argent sortait réellement. Les noms de
+// compte incluent maintenant la devise ('CELI (CAD)' vs 'CELI (USD)') pour que Cédric puisse
+// choisir explicitement le bon sous-compte, plutôt que de compter sur _clConsume() pour deviner
+// la bonne devise (fix séparé du 2026-08-04, toujours en place comme filet de sécurité).
 const CASH_LOTS_SEED=[
-  {account:'CELI',currency:'CAD',amount:42},
-  {account:'CELI',currency:'USD',amount:22.05},
-  {account:'CELIAPP',currency:'CAD',amount:15415.43},
-  {account:'CELIAPP',currency:'USD',amount:2516.18},
+  {account:'CELI (CAD)',currency:'CAD',amount:42},
+  {account:'CELI (USD)',currency:'USD',amount:22.05},
+  {account:'CELIAPP (CAD)',currency:'CAD',amount:15415.43},
+  {account:'CELIAPP (USD)',currency:'USD',amount:2516.18},
 ];
 function reconstructCashLots(deductOnBuy){
   const accounts={};
@@ -2490,7 +2496,10 @@ function calcPnl(p){
 }
 function calcPnlUSD(p){return toUSD(calcPnl(p),getPosCurrency(p));}
 function getCat(symbol){const found=SYMBOLS.find(s=>s.s===symbol);if(found)return found.cat;if(symbol.includes('/'))return symbol.includes('USD')&&!symbol.includes('EUR')&&!symbol.includes('GBP')?'Crypto':'Forex';return'Action';}
-function getAcctClass(acct){if(!acct)return'acc-default';if(acct==='CELI')return'acc-celi';if(acct==='CELIAPP')return'acc-celiapp';if(acct==='REER'||acct==='REEE')return'acc-reer';if(acct==='Marge')return'acc-marge';if(['Coinbase','Binance','Kraken','Bitget','OKX','Bybit','Kucoin','Ledger Nano S','Ledger Nano X','Ledger Stax','Tangem','Trezor Model One','Trezor Model T','MetaMask','Autre wallet'].includes(acct))return'acc-crypto';return'acc-default';}
+// startsWith plutôt qu'égalité stricte depuis le 2026-08-04 : CELI/CELIAPP/Comptant ont
+// maintenant des variantes CAD/USD ('CELI (CAD)', 'CELI (USD)') qui doivent recevoir la
+// même couleur de badge que le compte de base.
+function getAcctClass(acct){if(!acct)return'acc-default';if(acct.startsWith('CELIAPP'))return'acc-celiapp';if(acct.startsWith('CELI'))return'acc-celi';if(acct==='REER'||acct==='REEE')return'acc-reer';if(acct==='Marge')return'acc-marge';if(['Coinbase','Binance','Kraken','Bitget','OKX','Bybit','Kucoin','Ledger Nano S','Ledger Nano X','Ledger Stax','Tangem','Trezor Model One','Trezor Model T','MetaMask','Autre wallet'].includes(acct))return'acc-crypto';return'acc-default';}
 
 function updateKPIs(){
   const totalPnlOpenUSD=positions.reduce((s,p)=>s+calcPnlUSD(p),0);

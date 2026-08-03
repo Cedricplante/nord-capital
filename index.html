@@ -207,8 +207,8 @@
               <div class="field"><label>Compte</label>
                 <select id="f-account">
                   <option value="">— Sélectionner (requis)</option>
-                  <optgroup label="Enregistrés"><option value="CELI">CELI</option><option value="CELIAPP">CELIAPP</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
-                  <optgroup label="Non-enregistrés"><option value="Comptant">Comptant</option><option value="Marge">Marge</option></optgroup>
+                  <optgroup label="Enregistrés"><option value="CELI (CAD)">CELI (CAD)</option><option value="CELI (USD)">CELI (USD)</option><option value="CELIAPP (CAD)">CELIAPP (CAD)</option><option value="CELIAPP (USD)">CELIAPP (USD)</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
+                  <optgroup label="Non-enregistrés"><option value="Comptant (CAD)">Comptant (CAD)</option><option value="Comptant (USD)">Comptant (USD)</option><option value="Marge">Marge</option></optgroup>
                   <optgroup label="Crypto — Exchanges"><option value="Coinbase">Coinbase</option><option value="Binance">Binance</option><option value="Kraken">Kraken</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option><option value="Bybit">Bybit</option><option value="Kucoin">Kucoin</option></optgroup>
                   <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
                   <optgroup label="Crypto — Autres"><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></optgroup>
@@ -229,7 +229,7 @@
               <span>Positions actives — <span id="pos-count-label" style="color:var(--text3);font-weight:500;font-size:11px;"></span></span>
               <div style="display:flex;gap:8px;align-items:center;margin-left:auto;">
                 <select class="filter-select" id="pos-filter-cat" onchange="renderPosTable()"><option value="">Type : Tous</option><option value="ETF Levier">ETF Levier</option><option value="ETF">ETF</option><option value="Action">Action</option><option value="Crypto">Crypto</option><option value="Forex">Forex</option><option value="Commodité">Commodité</option></select>
-                <select class="filter-select" id="pos-filter-account" onchange="renderPosTable()"><option value="">Compte : Tous</option><option value="CELI">CELI</option><option value="CELIAPP">CELIAPP</option><option value="REER">REER</option><option value="Comptant">Comptant</option><option value="Marge">Marge</option></select>
+                <select class="filter-select" id="pos-filter-account" onchange="renderPosTable()"><option value="">Compte : Tous</option><option value="CELI (CAD)">CELI (CAD)</option><option value="CELI (USD)">CELI (USD)</option><option value="CELIAPP (CAD)">CELIAPP (CAD)</option><option value="CELIAPP (USD)">CELIAPP (USD)</option><option value="REER">REER</option><option value="REEE">REEE</option><option value="Comptant (CAD)">Comptant (CAD)</option><option value="Comptant (USD)">Comptant (USD)</option><option value="Marge">Marge</option></select>
                 <select class="filter-select" id="pos-filter-period" onchange="renderPosTable()"><option value="">Période : Tous</option><option value="1m">Dernier mois</option><option value="3m">3 derniers mois</option><option value="1y">1 an</option></select>
                 <button class="btn-export" onclick="resetPosFilters()" style="padding:6px 14px;">Réinitialiser</button>
               </div>
@@ -640,11 +640,14 @@
       <div>
         <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Compte</div>
         <select id="div-account" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
-          <option value="CELI">CELI</option>
-          <option value="CELIAPP">CELIAPP</option>
+          <option value="CELI (CAD)">CELI (CAD)</option>
+          <option value="CELI (USD)">CELI (USD)</option>
+          <option value="CELIAPP (CAD)">CELIAPP (CAD)</option>
+          <option value="CELIAPP (USD)">CELIAPP (USD)</option>
           <option value="REER">REER</option>
           <option value="REEE">REEE</option>
-          <option value="Non enregistré">Non enregistré</option>
+          <option value="Comptant (CAD)">Comptant (CAD)</option>
+          <option value="Comptant (USD)">Comptant (USD)</option>
         </select>
       </div>
     </div>
@@ -701,10 +704,14 @@
       <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Type de compte</div>
       <select id="cash-account-type" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
         <option value="">— Sélectionner (requis)</option>
-        <option value="CELI">CELI</option>
-        <option value="CELIAPP">CELIAPP</option>
+        <option value="CELI (CAD)">CELI (CAD)</option>
+        <option value="CELI (USD)">CELI (USD)</option>
+        <option value="CELIAPP (CAD)">CELIAPP (CAD)</option>
+        <option value="CELIAPP (USD)">CELIAPP (USD)</option>
         <option value="REER">REER</option>
-        <option value="Comptant">Comptant</option>
+        <option value="REEE">REEE</option>
+        <option value="Comptant (CAD)">Comptant (CAD)</option>
+        <option value="Comptant (USD)">Comptant (USD)</option>
         <option value="Marge">Marge</option>
         <option value="Coinbase">Coinbase</option>
         <option value="Binance">Binance</option>
@@ -812,8 +819,8 @@
       <div class="field" style="grid-column:span 2;"><label>Compte</label>
         <select id="edit-account">
           <option value="">—</option>
-          <optgroup label="Enregistrés"><option value="CELI">CELI</option><option value="CELIAPP">CELIAPP</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
-          <optgroup label="Non-enregistrés"><option value="Comptant">Comptant</option><option value="Marge">Marge</option></optgroup>
+          <optgroup label="Enregistrés"><option value="CELI (CAD)">CELI (CAD)</option><option value="CELI (USD)">CELI (USD)</option><option value="CELIAPP (CAD)">CELIAPP (CAD)</option><option value="CELIAPP (USD)">CELIAPP (USD)</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
+          <optgroup label="Non-enregistrés"><option value="Comptant (CAD)">Comptant (CAD)</option><option value="Comptant (USD)">Comptant (USD)</option><option value="Marge">Marge</option></optgroup>
           <optgroup label="Crypto — Exchanges"><option value="Coinbase">Coinbase</option><option value="Binance">Binance</option><option value="Kraken">Kraken</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option><option value="Bybit">Bybit</option><option value="Kucoin">Kucoin</option></optgroup>
           <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
           <optgroup label="Crypto — Autres"><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></optgroup>
@@ -881,8 +888,8 @@
         <label>Compte</label>
         <select id="strat-account">
           <option value="">—</option>
-          <optgroup label="Enregistrés"><option value="CELI">CELI</option><option value="CELIAPP">CELIAPP</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
-          <optgroup label="Non-enregistrés"><option value="Comptant">Comptant</option><option value="Marge">Marge</option></optgroup>
+          <optgroup label="Enregistrés"><option value="CELI (CAD)">CELI (CAD)</option><option value="CELI (USD)">CELI (USD)</option><option value="CELIAPP (CAD)">CELIAPP (CAD)</option><option value="CELIAPP (USD)">CELIAPP (USD)</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
+          <optgroup label="Non-enregistrés"><option value="Comptant (CAD)">Comptant (CAD)</option><option value="Comptant (USD)">Comptant (USD)</option><option value="Marge">Marge</option></optgroup>
           <optgroup label="Crypto — Exchanges"><option value="Coinbase">Coinbase</option><option value="Binance">Binance</option><option value="Kraken">Kraken</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option><option value="Bybit">Bybit</option><option value="Kucoin">Kucoin</option></optgroup>
           <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
           <optgroup label="Crypto — Autres"><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></optgroup>
