@@ -3581,7 +3581,14 @@ async function startApp(){
   initCharts();
   await loadData();
   await loadStrategies();
-  loadWatchlist();
+  // Bug corrigé 2026-08-03 : cet appel écrasait systématiquement la watchlist déjà chargée
+  // depuis Supabase par loadData() (qui gère elle-même le fallback localStorage/migration si
+  // besoin) avec le contenu de localStorage['nc_watchlist'] -- vidé par loadData() après
+  // migration, donc quasi toujours '[]' au démarrage suivant. C'était la cause principale de
+  // "la watchlist ne se sauvegarde pas" (elle se sauvegardait très bien, elle était juste
+  // effacée en mémoire 2 lignes plus loin à chaque refresh). loadData() est déjà la seule
+  // source de vérité pour watchlist ; ne plus la ré-écraser ici.
+  renderWatchlist();
   // Résoudre la devise AVANT de charger l'historique (pour la migration USD→devise)
   const effectiveCur=accountCurrency!=='USD'?accountCurrency:(localStorage.getItem('nc_currency')||'USD');
   accountCurrency=effectiveCur;
