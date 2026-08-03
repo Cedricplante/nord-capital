@@ -1856,11 +1856,21 @@ async function saveWatchlistToSupabase(){
   if(!currentUser||!accessToken)return;
   try{
     const nowIso=new Date().toISOString();
-    await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`,{
-      method:'PATCH',headers:sbHeaders(),
+    const res=await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}`,{
+      method:'PATCH',headers:{...sbHeaders(),'Prefer':'return=representation'},
       body:JSON.stringify({watchlist:JSON.stringify(watchlist),updated_at:nowIso})
     });
-    lastKnownUpdatedAt=nowIso; // garder le verrou optimiste de saveData() synchronisé
+    const rows=res.ok?await res.json().catch(()=>[]):[];
+    if(res.ok&&rows.length>0){
+      lastKnownUpdatedAt=nowIso; // garder le verrou optimiste de saveData() synchronisé
+      return;
+    }
+    // Bug corrigé 2026-08-03 : si la ligne user_data n'existe pas encore (ex. premier geste
+    // de l'utilisateur après connexion est d'ajouter un ticker à la watchlist, avant tout
+    // saveData()), le PATCH ci-dessus ne matche 0 ligne et échoue silencieusement — la
+    // watchlist n'est alors jamais persistée côté serveur (perdue au prochain device/session).
+    // Fallback : créer la ligne complète comme le fait saveData(), avec l'état en mémoire.
+    await saveData();
   }catch(e){console.warn('[watchlist] Supabase save failed, keeping in localStorage',e);}
 }
 
