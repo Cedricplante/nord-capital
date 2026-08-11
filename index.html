@@ -216,9 +216,7 @@
               </div>
               <div class="field"><label>&nbsp;</label><button class="btn" onclick="addPosition()">+ Ajouter</button></div>
             </div>
-            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;margin-top:6px;">
-              <div class="field"><label>Target price ($) <span style="color:var(--text3);font-weight:400;">(optionnel)</span></label><input type="number" id="f-target" step="any" placeholder="ex: 250.00" /></div>
-              <div class="field"><label>Stop loss ($) <span style="color:var(--text3);font-weight:400;">(optionnel)</span></label><input type="number" id="f-stop" step="any" placeholder="ex: 180.00" /></div>
+            <div class="form-grid" style="grid-template-columns:1fr;margin-top:6px;">
               <div class="field" style="display:flex;align-items:flex-end;"><div class="dca-hint" style="margin:0;">Si le symbole existe déjà, le prix moyen sera recalculé (DCA). Montant = shares × prix achat.</div></div>
             </div>
           </div></div>
@@ -811,8 +809,6 @@
           <optgroup label="Crypto — Autres"><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></optgroup>
         </select>
       </div>
-      <div class="field"><label>Target price ($) <span style="color:var(--text3);font-weight:400;">(optionnel)</span></label><input type="number" id="edit-target" step="any" placeholder="ex: 250.00" /></div>
-      <div class="field"><label>Stop loss ($) <span style="color:var(--text3);font-weight:400;">(optionnel)</span></label><input type="number" id="edit-stop" step="any" placeholder="ex: 180.00" /></div>
     </div>
     <div style="display:flex;gap:10px;">
       <button class="btn" style="flex:1;padding:10px;" onclick="confirmEdit()">Sauvegarder</button>

@@ -2546,38 +2546,6 @@ let selectedPosIdx=null;
 let expandedDcaIdx=new Set();
 let editTarget=null;
 
-function renderTargetStop(p){
-  const cur=p.current,target=p.target,stop=p.stop;
-  if(!target&&!stop)return'<span style="color:var(--text3);font-size:10px;">—</span>';
-  let html='<div style="font-size:10px;line-height:1.6;">';
-  if(target){
-    const distT=((target-cur)/cur*100);
-    const clsT=distT>=0?'var(--green)':'var(--red)';
-    const arrow=distT>=0?'↑':'↓';
-    html+=`<div style="color:${clsT};">T: ${fmtPrice(target)} <span style="opacity:0.8;">${distT>=0?'+':''}${distT.toFixed(1)}% ${arrow}</span></div>`;
-  }
-  if(stop){
-    const distS=((stop-cur)/cur*100);
-    // Stop rouge si proche (< 5% de distance), amber si modéré
-    const danger=Math.abs(distS)<5;
-    const clsS=danger?'var(--red)':'var(--amber)';
-    html+=`<div style="color:${clsS};">S: ${fmtPrice(stop)} <span style="opacity:0.8;">${distS>=0?'+':''}${distS.toFixed(1)}%</span></div>`;
-  }
-  // Mini barre si les deux sont définis
-  if(target&&stop&&cur){
-    const lo=Math.min(stop,target),hi=Math.max(stop,target),range=hi-lo;
-    if(range>0){
-      const pct=Math.max(0,Math.min(100,((cur-lo)/range)*100));
-      const isLongSetup=target>stop;
-      html+=`<div style="margin-top:3px;height:4px;background:var(--bg3);border-radius:2px;position:relative;">
-        <div style="position:absolute;left:0;width:${isLongSetup?pct:100-pct}%;height:100%;background:${pct>50?'var(--green)':'var(--red)'};border-radius:2px;transition:width 0.3s;"></div>
-        <div style="position:absolute;left:calc(${pct}% - 2px);top:-1px;width:4px;height:6px;background:var(--text);border-radius:1px;"></div>
-      </div>`;
-    }
-  }
-  html+='</div>';
-  return html;
-}
 // Note de provenance (demandée par Cédric, 2026-07-30) : indique si les shares encore ouvertes
 // d'une position ont été (en partie) financées par du profit réinvesti, et d'où ce profit vient.
 function getProvenanceBadge(p){
@@ -2783,8 +2751,6 @@ function openEditModal(idx){
   document.getElementById('edit-current').value=p.current||'';
   document.getElementById('edit-currency').value=p.currency||'USD';
   document.getElementById('edit-account').value=p.account||'';
-  document.getElementById('edit-target').value=p.target||'';
-  document.getElementById('edit-stop').value=p.stop||'';
   document.getElementById('edit-modal-overlay').classList.add('open');
 }
 function cancelEdit(){editTarget=null;document.getElementById('edit-modal-overlay').classList.remove('open');}
@@ -2798,10 +2764,6 @@ async function confirmEdit(){
   p.current=parseFloat(document.getElementById('edit-current').value)||p.current;
   p.currency=tickerCurrency(p.symbol)||document.getElementById('edit-currency').value||p.currency;
   p.account=document.getElementById('edit-account').value;
-  const tVal=parseFloat(document.getElementById('edit-target').value);
-  const sVal=parseFloat(document.getElementById('edit-stop').value);
-  p.target=isNaN(tVal)?null:tVal;
-  p.stop=isNaN(sVal)?null:sVal;
   const newDate=document.getElementById('edit-date').value;
   if(p.entries&&p.entries[0]&&newDate)p.entries[0].date=newDate;
   cancelEdit();await saveData();renderAll();
@@ -2982,8 +2944,6 @@ async function addPosition(){
   const matchingPositions=positions.filter(p=>p.symbol===s&&p.dir===d);
   const distinctAccounts=[...new Set(matchingPositions.map(p=>p.account||''))].filter(Boolean);
   const account=document.getElementById('f-account').value||(distinctAccounts.length===1?distinctAccounts[0]:'')||'';
-  const targetVal=parseFloat(document.getElementById('f-target').value)||null;
-  const stopVal=parseFloat(document.getElementById('f-stop').value)||null;
   if(!s||isNaN(e)||isNaN(shares)||isNaN(cur)||isNaN(sz)){alert('Remplis tous les champs (symbole, prix, shares, prix actuel).');return;}
   // Compte réel requis (durci le 2026-07-30, sur demande de Cédric) -- plus de "Non spécifié"
   // silencieux : sans compte, impossible de savoir dans quel cash piger, donc on bloque.
@@ -3017,13 +2977,11 @@ async function addPosition(){
     existing.shares=existingShares+shares;
     existing.currency=posCurrency;
     if(account)existing.account=account;
-    if(targetVal)existing.target=targetVal;
-    if(stopVal)existing.stop=stopVal;
     existing.entries=existing.entries||[];
     existing.entries.push({price:e,shares,size:sz,date:dateVal,fxSnapshot:fxSnapshotFor(posCurrency)});
   }
-  else positions.push({symbol:s,dir:d,avgEntry:e,current:cur,totalSize:sz,shares,currency:posCurrency,account,target:targetVal,stop:stopVal,entries:[{price:e,shares,size:sz,date:dateVal,fxSnapshot:fxSnapshotFor(posCurrency)}]});
-  ['f-symbol','f-entry','f-shares','f-current','f-size','f-target','f-stop'].forEach(id=>document.getElementById(id).value='');
+  else positions.push({symbol:s,dir:d,avgEntry:e,current:cur,totalSize:sz,shares,currency:posCurrency,account,entries:[{price:e,shares,size:sz,date:dateVal,fxSnapshot:fxSnapshotFor(posCurrency)}]});
+  ['f-symbol','f-entry','f-shares','f-current','f-size'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('f-currency').value='USD';document.getElementById('f-account').value='';document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('symbol-dropdown').classList.remove('open');
   syncCashFromLots();
