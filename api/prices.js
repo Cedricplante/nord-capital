@@ -45,7 +45,7 @@ async function fetchYahooSingle(symbol, detail = false) {
       };
       return price;
     }
-  } catch(e) {}
+  } catch(e) { console.warn(`[prices] Yahoo chart error (${symbol}):`, e.message); }
 
   try {
     const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}&fields=regularMarketPrice,regularMarketChangePercent,shortName,fiftyTwoWeekHigh,fiftyTwoWeekLow,regularMarketVolume`;
@@ -64,7 +64,7 @@ async function fetchYahooSingle(symbol, detail = false) {
       };
       return price;
     }
-  } catch(e) {}
+  } catch(e) { console.warn(`[prices] Yahoo quote fallback error (${symbol}):`, e.message); }
 
   return null;
 }

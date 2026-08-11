@@ -121,7 +121,7 @@ export default async function handler(req, res) {
         <tbody>${rows}</tbody>
       </table>
       <p style="margin-top:20px;font-size:11px;color:#999;">
-        Généré par Nord Capital · <a href="https://nord-capital-cedricplantes-projects.vercel.app">Ouvrir l'app</a>
+        Généré par Nord Capital · <a href="https://nord-capital.vercel.app">Ouvrir l'app</a>
       </p>
     </div>`;
 
