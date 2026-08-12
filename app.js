@@ -1278,7 +1278,7 @@ function renderStratDetails(id){
     let badge='';
     if(livePrice&&price>0){
       const reached=planType==='entry'?livePrice<=price:livePrice>=price;
-      if(reached&&!e.executed)badge=`<span style="background:rgba(255,183,52,0.15);color:#ffb547;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:5px;">Atteint</span>`;
+      if(reached&&!e.executed)badge=`<span style="background:rgba(255,170,0,0.15);color:#ffaa00;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:5px;">Atteint</span>`;
     }
     const chkClr=e.executed?'var(--green)':'var(--border2)';
     const rowBg=e.executed?'rgba(0,255,136,0.04)':'var(--bg3)';
@@ -3322,7 +3322,7 @@ function updatePerfChart(){
 }
 
 // ─── ALLOCATION ───────────────────────────────────────────────────
-const COLORS=['#00ff88','#00d9ff','#ffb547','#ff4d6d','#a78bfa','#fb923c','#4ade80','#e879f9','#f43f5e','#6ee7b7','#fcd34d','#94a3b8'];
+const COLORS=['#00ff88','#00e5ff','#ffaa00','#ff2d55','#a78bfa','#fb923c','#4ade80','#e879f9','#f43f5e','#6ee7b7','#fcd34d','#94a3b8'];
 // Tooltip externe en HTML pour les petits donuts (ex. cashLotsChart 90x90px) — demandé par
 // Cédric 2026-08-03 : le tooltip natif de Chart.js est dessiné DANS le canvas, donc
 // physiquement coupé quand le canvas est petit ou logé dans une carte overflow:hidden.
@@ -3512,10 +3512,10 @@ function renderAllocDashboard(){
 // themeHex() ici, contrairement aux couleurs passées à Chart.js plus haut dans le fichier.
 const ACCT_COLORS=[
   {bg:'rgba(0,255,136,0.12)',text:'var(--green)',bar:'var(--green)'},
-  {bg:'rgba(0,217,255,0.12)',text:'var(--cyan)',bar:'var(--cyan)'},
-  {bg:'rgba(255,181,71,0.12)',text:'var(--amber)',bar:'var(--amber)'},
+  {bg:'rgba(0,229,255,0.12)',text:'var(--cyan)',bar:'var(--cyan)'},
+  {bg:'rgba(255,170,0,0.12)',text:'var(--amber)',bar:'var(--amber)'},
   {bg:'rgba(167,139,250,0.12)',text:'var(--purple)',bar:'var(--purple)'},
-  {bg:'rgba(255,77,109,0.12)',text:'var(--red)',bar:'var(--red)'},
+  {bg:'rgba(255,45,85,0.12)',text:'var(--red)',bar:'var(--red)'},
   {bg:'rgba(96,165,250,0.12)',text:'var(--blue)',bar:'var(--blue)'},
 ];
 
@@ -3680,7 +3680,7 @@ function renderAllocCharts(){
     sectorVarChart.data.labels=sectorEntries.map(s=>s.cat);
     const pcts=sectorEntries.map(s=>s.pct);
     sectorVarChart.data.datasets[0].data=pcts;
-    sectorVarChart.data.datasets[0].backgroundColor=pcts.map(v=>v>=0?'rgba(0,255,136,0.75)':'rgba(255,77,109,0.75)');
+    sectorVarChart.data.datasets[0].backgroundColor=pcts.map(v=>v>=0?'rgba(0,255,136,0.75)':'rgba(255,45,85,0.75)');
     sectorVarChart.update();
   }
 }
