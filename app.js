@@ -267,6 +267,21 @@ function fmtPrice(p){if(p===null||p===undefined||isNaN(p))return '—';return p>
 function fmtC(n,posCur){return fmtAmt(toUSD(n,posCur||'USD')*fxRate);}
 function fmtCpnl(n,posCur){const v=toUSD(n,posCur||'USD')*fxRate;return(v>=0?'+':'-')+fmtAmt(Math.abs(v));}
 
+// ─── COULEURS DE THÈME POUR CHART.JS ────────────────────────────────────────
+// Chart.js ne comprend pas var(--green) -- il faut une vraie valeur hex/rgba au moment du
+// rendu. Avant le 2026-08-11, ces couleurs étaient codées en dur (#00ff88 etc.) dans chaque
+// chart, donc tous les graphiques de l'app restaient au vert néon du thème sombre même en
+// thème clair, en désaccord avec le reste de l'UI (qui suit bien var(--green) partout ailleurs).
+// themeHex() lit la vraie valeur CSS active pour le thème courant, themeRgba() en dérive une
+// version semi-transparente pour les remplissages de zone.
+function themeHex(name){return(getComputedStyle(document.documentElement).getPropertyValue('--'+name)||'').trim()||'#00ff88';}
+function themeRgba(name,alpha){
+  const hex=themeHex(name).replace('#','');
+  const full=hex.length===3?hex.split('').map(c=>c+c).join(''):hex;
+  const n=parseInt(full,16);
+  return`rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
+}
+
 // ─── AUTH ────────────────────────────────────────────────────────
 function switchAuthTab(tab,el){document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');document.getElementById('auth-login').style.display=tab==='login'?'block':'none';document.getElementById('auth-signup').style.display=tab==='signup'?'block':'none';}
 async function authFetch(endpoint,body){const res=await fetch(`${SB_URL}/auth/v1/${endpoint}`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify(body)});return res.json();}
@@ -366,6 +381,23 @@ function setTheme(theme){
   document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('nc_theme',theme);
   const btnDark=document.getElementById('btn-dark'),btnLight=document.getElementById('btn-light');
   if(btnDark&&btnLight){btnDark.style.background=theme==='dark'?'var(--blue)':'var(--bg4)';btnDark.style.color=theme==='dark'?'#fff':'var(--text2)';btnDark.style.borderColor=theme==='dark'?'var(--blue)':'var(--border2)';btnLight.style.background=theme==='light'?'var(--blue)':'var(--bg3)';btnLight.style.color=theme==='light'?'#fff':'var(--text2)';btnLight.style.borderColor=theme==='light'?'var(--blue)':'var(--border2)';}
+  // Recolorer les charts Chart.js déjà créés — ils lisent une vraie couleur hex au moment du
+  // rendu (via themeHex/themeRgba), donc un changement de thème après coup ne les met pas à
+  // jour tout seul comme le fait le CSS. Si les charts n'existent pas encore (1er appel au
+  // chargement de la page, avant initCharts()), il n'y a rien à recolorer.
+  if(typeof chartsInitialized!=='undefined'&&chartsInitialized){
+    if(perfChart){
+      perfChart.data.datasets[0].borderColor=themeHex('green');
+      perfChart.data.datasets[0].backgroundColor=themeRgba('green',0.08);
+      perfChart.data.datasets[0].pointBackgroundColor=themeHex('green');
+      perfChart.data.datasets[1].borderColor=themeHex('cyan');
+      perfChart.update();
+    }
+    renderAllocDashboard();
+    renderAllocCharts();
+    renderHistory();
+    if(typeof watchlist!=='undefined'&&watchlist.length)renderWatchlist();
+  }
 }
 let hideAmounts=localStorage.getItem('nc_hide_amounts')==='1';
 function toggleHideAmounts(){
@@ -1799,8 +1831,8 @@ function syncCashFromLots(){
 // ─── LIVE PRICES ─────────────────────────────────────────────────
 function setLiveStatus(status){
   const dot=document.getElementById('live-dot'),label=document.getElementById('live-label');if(!dot||!label)return;
-  if(status==='live'){dot.style.background='#00ff88';label.style.color='#00ff88';const now=new Date();label.textContent='Live · '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');}
-  else if(status==='error'){dot.style.background='#ff4d6d';label.style.color='#ff4d6d';label.textContent='Hors ligne';}
+  if(status==='live'){dot.style.background='var(--green)';label.style.color='var(--green)';const now=new Date();label.textContent='Live · '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');}
+  else if(status==='error'){dot.style.background='var(--red)';label.style.color='var(--red)';label.textContent='Hors ligne';}
   else{dot.style.background='#606075';label.style.color='#606075';label.textContent='Chargement...';}
 }
 async function fetchLivePrices(){
@@ -2216,8 +2248,8 @@ function renderWatchlist(){
     // Alert indicator
     let alertDot='';
     if(price!=null){
-      if(target&&price>=parseFloat(target))alertDot='<span style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--green);background:rgba(0,255,136,0.1);border:0.5px solid rgba(0,255,136,0.3);padding:1px 5px;border-radius:3px;margin-left:4px;">TGT</span>';
-      else if(stop&&price<=parseFloat(stop))alertDot='<span style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--red);background:rgba(255,77,109,0.1);border:0.5px solid rgba(255,77,109,0.3);padding:1px 5px;border-radius:3px;margin-left:4px;">STP</span>';
+      if(target&&price>=parseFloat(target))alertDot='<span style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--green);background:var(--green-dim);border:0.5px solid var(--green);padding:1px 5px;border-radius:3px;margin-left:4px;">TGT</span>';
+      else if(stop&&price<=parseFloat(stop))alertDot='<span style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--red);background:color-mix(in srgb, var(--red) 10%, transparent);border:0.5px solid color-mix(in srgb, var(--red) 30%, transparent);padding:1px 5px;border-radius:3px;margin-left:4px;">STP</span>';
     }
     const vol52Range=hi52&&lo52?`<div style="margin-top:6px;"><div style="font-size:9px;color:var(--text3);margin-bottom:2px;">52W : ${lo52.toLocaleString('fr-FR',{maximumFractionDigits:2})} – ${hi52.toLocaleString('fr-FR',{maximumFractionDigits:2})}</div>${price!=null&&hi52&&lo52?`<div style="height:3px;background:var(--bg4);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.max(0,Math.min(100,((price-lo52)/(hi52-lo52))*100)).toFixed(1)}%;background:${chg>=0?'var(--green)':'var(--red)'};border-radius:2px;"></div></div>`:''}
 </div>`:'';
@@ -2273,10 +2305,10 @@ function renderWatchlist(){
       const sparkData=w._spark||[];
       if(sparkData.length<2){canvas.style.opacity='0.3';return;}
       const isUp=sparkData[sparkData.length-1]>=sparkData[0];
-      const color=isUp?'#00ff88':'#ff4d6d';
+      const color=isUp?themeHex('green'):themeHex('red');
       const ctx=canvas.getContext('2d');
       const grad=ctx.createLinearGradient(0,0,0,40);
-      grad.addColorStop(0,isUp?'rgba(0,255,136,0.3)':'rgba(255,77,109,0.3)');
+      grad.addColorStop(0,isUp?themeRgba('green',0.3):themeRgba('red',0.3));
       grad.addColorStop(1,'rgba(0,0,0,0)');
       const ch=new Chart(canvas,{type:'line',data:{labels:sparkData.map((_,i)=>i),datasets:[{data:sparkData,borderColor:color,borderWidth:1.5,fill:true,backgroundColor:grad,tension:0.3,pointRadius:0}]},options:{animation:false,responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
       wlSparklineCharts[w.symbol]=ch;
@@ -2937,7 +2969,7 @@ function updatePnlBar(){
   const rows=Object.entries(bySymbol).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
   pnlBarChart.data.labels=rows.map(r=>r[0]);
   const data=rows.map(r=>parseFloat(r[1].toFixed(2)));
-  pnlBarChart.data.datasets[0].data=data;pnlBarChart.data.datasets[0].backgroundColor=data.map(v=>v>=0?'#00ff88':'#ff4d6d');pnlBarChart.update();
+  pnlBarChart.data.datasets[0].data=data;pnlBarChart.data.datasets[0].backgroundColor=data.map(v=>v>=0?themeHex('green'):themeHex('red'));pnlBarChart.update();
 }
 
 async function addPosition(){
@@ -3460,8 +3492,8 @@ function renderAllocDashboard(){
   if(totalCADDash>0){
     const labels=['Positions','Cash'];
     const values=[parseFloat((totalSizeUSD*fxRate/totalCADDash*100).toFixed(1)),parseFloat((cash/totalCADDash*100).toFixed(1))];
-    updateDonut(cashAllocChart,labels,values,['#00ff88','#00d9ff']);
-    buildLegend('cash-alloc-legend',labels,values,['#00ff88','#00d9ff']);
+    updateDonut(cashAllocChart,labels,values,[themeHex('green'),themeHex('cyan')]);
+    buildLegend('cash-alloc-legend',labels,values,[themeHex('green'),themeHex('cyan')]);
   }
 
   // P&L par classe (dashboard)
@@ -3470,18 +3502,21 @@ function renderAllocDashboard(){
     assetPerfDashChart.data.labels=Object.keys(catPnl);
     const vals=Object.values(catPnl).map(v=>parseFloat(v.toFixed(2)));
     assetPerfDashChart.data.datasets[0].data=vals;
-    assetPerfDashChart.data.datasets[0].backgroundColor=vals.map(v=>v>=0?'#00ff88':'#ff4d6d');
+    assetPerfDashChart.data.datasets[0].backgroundColor=vals.map(v=>v>=0?themeHex('green'):themeHex('red'));
     assetPerfDashChart.update();
   }
 }
 
+// bar utilise var(--x) directement (pas de hex figé) : ce sont des styles inline HTML, pas du
+// Chart.js, donc le navigateur les résout tout seul selon le thème actif -- aucun besoin de
+// themeHex() ici, contrairement aux couleurs passées à Chart.js plus haut dans le fichier.
 const ACCT_COLORS=[
-  {bg:'rgba(0,255,136,0.12)',text:'var(--green)',bar:'#00ff88'},
-  {bg:'rgba(0,217,255,0.12)',text:'var(--cyan)',bar:'#00d9ff'},
-  {bg:'rgba(255,181,71,0.12)',text:'var(--amber)',bar:'#ffb547'},
-  {bg:'rgba(167,139,250,0.12)',text:'var(--purple)',bar:'#a78bfa'},
-  {bg:'rgba(255,77,109,0.12)',text:'var(--red)',bar:'#ff4d6d'},
-  {bg:'rgba(96,165,250,0.12)',text:'var(--blue)',bar:'#60a5fa'},
+  {bg:'rgba(0,255,136,0.12)',text:'var(--green)',bar:'var(--green)'},
+  {bg:'rgba(0,217,255,0.12)',text:'var(--cyan)',bar:'var(--cyan)'},
+  {bg:'rgba(255,181,71,0.12)',text:'var(--amber)',bar:'var(--amber)'},
+  {bg:'rgba(167,139,250,0.12)',text:'var(--purple)',bar:'var(--purple)'},
+  {bg:'rgba(255,77,109,0.12)',text:'var(--red)',bar:'var(--red)'},
+  {bg:'rgba(96,165,250,0.12)',text:'var(--blue)',bar:'var(--blue)'},
 ];
 
 // Destroy per-account sparkline charts between renders
@@ -3628,7 +3663,7 @@ function renderAllocCharts(){
 
   // P&L par classe
   const catPnl={};positions.forEach(p=>{const c=getCat(p.symbol);catPnl[c]=(catPnl[c]||0)+calcPnlUSD(p)*fxRate;});
-  if(assetPerfChart){assetPerfChart.data.labels=Object.keys(catPnl);const pnlVals=Object.values(catPnl).map(v=>parseFloat(v.toFixed(2)));assetPerfChart.data.datasets[0].data=pnlVals;assetPerfChart.data.datasets[0].backgroundColor=pnlVals.map(v=>v>=0?'#00ff88':'#ff4d6d');assetPerfChart.update();}
+  if(assetPerfChart){assetPerfChart.data.labels=Object.keys(catPnl);const pnlVals=Object.values(catPnl).map(v=>parseFloat(v.toFixed(2)));assetPerfChart.data.datasets[0].data=pnlVals;assetPerfChart.data.datasets[0].backgroundColor=pnlVals.map(v=>v>=0?themeHex('green'):themeHex('red'));assetPerfChart.update();}
 
   // F5: Variation relative par secteur (PnL% depuis coût moyen)
   if(sectorVarChart){
@@ -4103,8 +4138,8 @@ function initCharts(){
 
   const safeNew=(id,cfg)=>{const el=document.getElementById(id);return el?new Chart(el,cfg):null;};
   perfChart=safeNew('perfChart',{type:'line',data:{labels:[],datasets:[
-    {label:'Portfolio',data:[],borderColor:'#00ff88',backgroundColor:'rgba(0,255,136,0.08)',borderWidth:2,pointRadius:2,pointHoverRadius:5,pointBackgroundColor:'#00ff88',fill:true,tension:0.4,spanGaps:true},
-    {label:'S&P 500',data:[],borderColor:'#00d9ff',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,pointHoverRadius:3,fill:false,tension:0.4,borderDash:[5,3],spanGaps:true}
+    {label:'Portfolio',data:[],borderColor:themeHex('green'),backgroundColor:themeRgba('green',0.08),borderWidth:2,pointRadius:2,pointHoverRadius:5,pointBackgroundColor:themeHex('green'),fill:true,tension:0.4,spanGaps:true},
+    {label:'S&P 500',data:[],borderColor:themeHex('cyan'),backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,pointHoverRadius:3,fill:false,tension:0.4,borderDash:[5,3],spanGaps:true}
   ]},options:{...chartDefaults,interaction:{mode:'index',intersect:false},scales:{x:{ticks:{...cd},grid:{color:gc},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
 
   pnlBarChart=safeNew('pnlBarChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});

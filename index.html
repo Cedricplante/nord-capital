@@ -172,8 +172,8 @@
             </div>
           </div>
           <div class="bench-legend">
-            <span><span class="bench-dot" style="background:#00ff88;"></span>Portfolio</span>
-            <span><span class="bench-dot" style="background:#00d9ff;border-top:2px dashed #00d9ff;height:0;width:14px;border-radius:0;"></span>S&amp;P 500 (simulé)<span class="info-badge" style="--tip-left:0; --tip-transform:none;" data-tip="Simule ce que tes dépôts et retraits auraient valu s'ils avaient été investis dans le S&amp;P 500 (SPY) au même moment plutôt que dans ton portefeuille réel — même calendrier de cash-flows, prix SPY du jour de chaque dépôt/retrait. En mode $ Valeur, la ligne pointillée est cette valeur simulée en dollars. En mode % Variation, c'est plutôt le rendement pur du SPY depuis le début (TWR, non affecté par les dépôts) comparé au rendement pur (TWR) de ton portefeuille. Si ta ligne verte est au-dessus de la pointillée : tu bats l'indice. En dessous : tu ferais mieux en indiciel passif.">i</span></span>
+            <span><span class="bench-dot" style="background:var(--green);"></span>Portfolio</span>
+            <span><span class="bench-dot" style="background:var(--cyan);border-top:2px dashed var(--cyan);height:0;width:14px;border-radius:0;"></span>S&amp;P 500 (simulé)<span class="info-badge" style="--tip-left:0; --tip-transform:none;" data-tip="Simule ce que tes dépôts et retraits auraient valu s'ils avaient été investis dans le S&amp;P 500 (SPY) au même moment plutôt que dans ton portefeuille réel — même calendrier de cash-flows, prix SPY du jour de chaque dépôt/retrait. En mode $ Valeur, la ligne pointillée est cette valeur simulée en dollars. En mode % Variation, c'est plutôt le rendement pur du SPY depuis le début (TWR, non affecté par les dépôts) comparé au rendement pur (TWR) de ton portefeuille. Si ta ligne verte est au-dessus de la pointillée : tu bats l'indice. En dessous : tu ferais mieux en indiciel passif.">i</span></span>
           </div>
           <div class="chart-wrap" style="flex:1;min-height:200px;"><canvas id="perfChart"></canvas></div>
         </div>
@@ -189,7 +189,7 @@
     <div id="tab-positions" class="section">
       <div class="pos-tab-wrap">
         <div class="pos-form-sticky">
-          <div class="card" style="margin-bottom:0;">
+          <div class="card card-glow" style="margin-bottom:0;">
             <div class="card-title" style="cursor:pointer;user-select:none;" onclick="togglePosForm()">
               <span>Ajouter / DCA une position</span>
               <button id="pos-form-toggle" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0 4px;transition:transform 0.2s;line-height:1;" title="Réduire/Agrandir">▲</button>
@@ -257,7 +257,7 @@
     <div id="tab-historique" class="section">
       <!-- Rendement par actif + P&L par trade fusionnés dans une seule carte (demandé par
            Cédric 2026-08-03, pour condenser l'espace — étaient 2 cartes séparées depuis 2026-07-29) -->
-      <div class="card" style="margin-bottom:14px;" id="asset-returns-card">
+      <div class="card card-glow" style="margin-bottom:14px;" id="asset-returns-card">
         <div class="card-title">
           <span>Rendement par actif</span>
           <span style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;">actifs entièrement fermés uniquement</span>
@@ -276,18 +276,18 @@
           <select id="filter-month" onchange="renderHistory()" class="filter-select"><option value="">Tous les mois</option></select>
           <select id="filter-asset" onchange="renderHistory()" class="filter-select"><option value="">Tous les actifs</option></select>
           <button class="btn-ghost" onclick="resetFilters()" style="padding:5px 12px;font-size:11px;">Reset</button>
-          <button onclick="openDividendModal()" style="background:rgba(0,255,136,0.1);border:0.5px solid rgba(0,255,136,0.3);color:var(--green);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:600;font-family:var(--mono);">+ Dividende</button>
+          <button class="btn-accent-soft" onclick="openDividendModal()">+ Dividende</button>
         </div>
         <div style="display:flex;gap:8px;">
           <button class="btn-export" onclick="openImportModal()">Importer CSV</button>
           <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
-          <button class="btn-export" onclick="exportPdf()" style="color:var(--cyan);border-color:rgba(0,217,255,0.3);">Exporter PDF</button>
-          <button class="btn-export" style="color:var(--red);border-color:rgba(245,101,101,0.3);" onclick="clearHistory()">Effacer</button>
+          <button class="btn-export" onclick="exportPdf()" style="color:var(--cyan);border-color:color-mix(in srgb, var(--cyan) 30%, transparent);">Exporter PDF</button>
+          <button class="btn-export" style="color:var(--red);border-color:color-mix(in srgb, var(--red) 30%, transparent);" onclick="clearHistory()">Effacer</button>
         </div>
       </div>
 
       <!-- Dividendes reçus (demandé par Cédric 2026-08-03) -->
-      <div class="card" style="margin-bottom:12px;" id="dividends-card">
+      <div class="card card-glow" style="margin-bottom:12px;" id="dividends-card">
         <div class="card-title">
           <span>Dividendes reçus</span>
           <span id="dividends-total-inline" style="font-size:11px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;"></span>
@@ -296,7 +296,7 @@
       </div>
 
       <!-- P&L annuel -->
-      <div class="card" style="margin-bottom:12px;" id="annual-pnl-card">
+      <div class="card card-glow" style="margin-bottom:12px;" id="annual-pnl-card">
         <div class="card-title">P&amp;L réalisé par année</div>
         <div id="annual-pnl-body" style="overflow-x:auto;"></div>
       </div>
@@ -323,7 +323,7 @@
     <div id="tab-strategie" class="section">
 
       <!-- KPIs rapides par catégorie de stratégie -->
-      <div id="strat-perf-section" class="card" style="margin-bottom:14px;display:none;">
+      <div id="strat-perf-section" class="card card-glow" style="margin-bottom:14px;display:none;">
         <div id="strat-perf-body"></div>
       </div>
 
@@ -531,7 +531,7 @@
     </div>
     <!-- WATCHLIST -->
     <div id="tab-watchlist" class="section">
-      <div class="card" style="max-width:700px;">
+      <div class="card card-glow" style="max-width:700px;">
         <div class="card-title">Ajouter un ticker</div>
         <div class="form-grid" style="grid-template-columns:1fr 1fr auto;gap:10px;align-items:flex-end;">
           <div class="field"><label>Symbole</label>

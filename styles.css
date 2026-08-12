@@ -107,13 +107,19 @@
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
   .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.1rem 1.25rem; margin-bottom: 1.25rem; transition: all 0.2s; display: flex; flex-direction: column; }
   .card:hover { border-color: var(--border2); }
-  /* Hover vert intense sur Cards Allocation */
-  #tab-allocation .card:hover {
+  /* Hover vert intense — né sur Allocation, étendu le 2026-08-11 aux cards "panneau" des
+     autres onglets (charts, résumés) pour uniformiser le look. Volontairement PAS appliqué
+     aux cards qui enveloppent un grand tableau qui défile (Positions, Registre des
+     transactions, Plans de trading) : le curseur y reste posé longtemps pendant la lecture,
+     et un fond qui reste teinté en vert en continu serait fatiguant plutôt qu'élégant — ces
+     cards gardent le hover neutre de .card:hover ci-dessus. */
+  #tab-allocation .card:hover, #tab-dashboard .card:hover, .card-glow:hover {
     border-color: rgba(0,255,136,0.6) !important;
     background: linear-gradient(180deg, rgba(0,255,136,0.08), var(--bg2)) !important;
     box-shadow: 0 0 24px rgba(0,255,136,0.15);
   }
-  [data-theme="light"] #tab-allocation .card:hover {
+  [data-theme="light"] #tab-allocation .card:hover, [data-theme="light"] #tab-dashboard .card:hover,
+  [data-theme="light"] .card-glow:hover {
     border-color: rgba(5,150,105,0.6) !important;
     background: linear-gradient(180deg, rgba(5,150,105,0.08), var(--bg2)) !important;
     box-shadow: 0 0 24px rgba(5,150,105,0.15);
@@ -230,7 +236,7 @@
   .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
   .chart-wrap { position: relative; width: 100%; }
   .empty { text-align: center; padding: 2rem; color: var(--text3); font-family: var(--sans); font-size: 12px; }
-  .dca-hint { font-size: 10px; color: var(--cyan); font-family: var(--sans); margin-top: 8px; padding: 5px 10px; background: rgba(0,217,255,0.06); border-radius: 5px; border: 0.5px solid rgba(0,217,255,0.15); font-weight: 500; }
+  .dca-hint { font-size: 10px; color: var(--cyan); font-family: var(--sans); margin-top: 8px; padding: 5px 10px; background: color-mix(in srgb, var(--cyan) 6%, transparent); border-radius: 5px; border: 0.5px solid color-mix(in srgb, var(--cyan) 15%, transparent); font-weight: 500; }
   .autocomplete-wrap { position: relative; }
   .autocomplete-list { position: absolute; top: calc(100% + 3px); left: 0; right: 0; background: var(--bg3); border: 0.5px solid var(--green); border-radius: 8px; z-index: 50; max-height: 200px; overflow-y: auto; display: none; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
   .autocomplete-list.open { display: block; }
@@ -298,14 +304,14 @@
 
   /* WATCHLIST CARDS */
   .wl-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:10px; padding:14px 16px; transition:all 0.2s; }
-  .wl-card:hover { border-color:rgba(0,255,136,0.3); box-shadow:0 0 16px rgba(0,255,136,0.06); }
+  .wl-card:hover { border-color:color-mix(in srgb, var(--green) 30%, transparent); box-shadow:0 0 16px color-mix(in srgb, var(--green) 6%, transparent); }
   .wl-cards-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,280px)); justify-content:center; gap:12px; }
   .wl-sym-big { font-family:var(--mono); font-size:16px; font-weight:700; }
   .wl-name { font-size:10px; color:var(--text3); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
   .wl-sparkline { height:40px; margin:8px 0; }
   .wl-alert-row { display:flex; gap:6px; margin-top:8px; }
   .wl-alert-input { flex:1; background:var(--bg3); border:0.5px solid var(--border2); border-radius:5px; color:var(--text2); font-size:11px; font-family:var(--mono); padding:4px 8px; outline:none; width:100%; }
-  .wl-alert-input:focus { border-color:rgba(0,255,136,0.5); }
+  .wl-alert-input:focus { border-color:color-mix(in srgb, var(--green) 50%, transparent); }
   .wl-alert-label { font-size:9px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:2px; }
 
 /* ALLOCATION TAB - Ledger Style */
