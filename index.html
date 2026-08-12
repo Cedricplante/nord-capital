@@ -323,7 +323,7 @@
     <div id="tab-strategie" class="section">
 
       <!-- KPIs rapides par catégorie de stratégie -->
-      <div id="strat-perf-section" style="margin-bottom:14px;">
+      <div id="strat-perf-section" class="card" style="margin-bottom:14px;display:none;">
         <div id="strat-perf-body"></div>
       </div>
 
@@ -411,7 +411,7 @@
       <div class="card" style="margin-bottom:1.25rem;" id="contributions-card">
         <div class="card-title" style="margin-bottom:1rem;">
           <span>Cotisations &amp; Droits</span>
-          <button onclick="openCotisationModal()" style="background:rgba(0,255,136,0.1);border:0.5px solid rgba(0,255,136,0.3);color:var(--green);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:600;font-family:var(--mono);">+ Cotisation</button>
+          <button class="btn-accent-soft" onclick="openCotisationModal()">+ Cotisation</button>
         </div>
         <div id="contributions-trackers" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;"></div>
         <div id="contributions-history" style="display:none;">
@@ -445,25 +445,25 @@
           <span style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;" id="analytics-period-label"></span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="analytics-grid">
-          <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:14px 16px;">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:6px;">CAGR</div>
-            <div style="font-size:22px;font-weight:700;font-family:var(--mono);" id="analytics-cagr" data-sensitive>—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px;">rendement annualisé</div>
+          <div class="kpi-tile">
+            <div class="kpi-tile-label">CAGR</div>
+            <div class="kpi-tile-val" style="font-size:22px;" id="analytics-cagr" data-sensitive>—</div>
+            <div class="kpi-tile-sub">rendement annualisé</div>
           </div>
-          <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:14px 16px;">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Volatilité</div>
-            <div style="font-size:22px;font-weight:700;font-family:var(--mono);" id="analytics-vol" data-sensitive>—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px;">annualisée (σ)</div>
+          <div class="kpi-tile">
+            <div class="kpi-tile-label">Volatilité</div>
+            <div class="kpi-tile-val" style="font-size:22px;" id="analytics-vol" data-sensitive>—</div>
+            <div class="kpi-tile-sub">annualisée (σ)</div>
           </div>
-          <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:14px 16px;">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Sharpe ratio</div>
-            <div style="font-size:22px;font-weight:700;font-family:var(--mono);" id="analytics-sharpe" data-sensitive>—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px;">taux sans risque 4%</div>
+          <div class="kpi-tile">
+            <div class="kpi-tile-label">Sharpe ratio</div>
+            <div class="kpi-tile-val" style="font-size:22px;" id="analytics-sharpe" data-sensitive>—</div>
+            <div class="kpi-tile-sub">taux sans risque 4%</div>
           </div>
-          <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:8px;padding:14px 16px;">
-            <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:6px;">Max Drawdown</div>
-            <div style="font-size:22px;font-weight:700;font-family:var(--mono);" id="analytics-mdd" data-sensitive>—</div>
-            <div style="font-size:10px;color:var(--text3);margin-top:4px;" id="analytics-mdd-sub">depuis ATH</div>
+          <div class="kpi-tile">
+            <div class="kpi-tile-label">Max Drawdown</div>
+            <div class="kpi-tile-val" style="font-size:22px;" id="analytics-mdd" data-sensitive>—</div>
+            <div class="kpi-tile-sub" id="analytics-mdd-sub">depuis ATH</div>
           </div>
         </div>
         <div style="margin-top:12px;padding:10px 14px;background:var(--bg3);border-radius:6px;font-size:10px;color:var(--text3);line-height:1.6;" id="analytics-note">

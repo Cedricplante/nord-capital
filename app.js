@@ -601,6 +601,7 @@ async function deleteStrategy(id){
 
 function renderStratPerf(){
   const body=document.getElementById('strat-perf-body');
+  const section=document.getElementById('strat-perf-section');
   if(!body)return;
 
   const activeStrats=strategies.filter(s=>s.status==='Active'||s.status==='Brouillon');
@@ -641,24 +642,32 @@ function renderStratPerf(){
     </span>`;
   }).join('');
 
-  if(!activeStrats.length&&!totalPaliers){body.innerHTML='';return;}
+  if(!activeStrats.length&&!totalPaliers){body.innerHTML='';if(section)section.style.display='none';return;}
+  if(section)section.style.display='flex';
 
-  body.innerHTML=`<div style="padding:2px 0 16px;">
-    <div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap;margin-bottom:${typeChips||totalPaliers?'12px':'0'};">
-      <span style="font-size:11px;color:var(--text3);">${activeStrats.length} stratégie${activeStrats.length!==1?'s':''} active${activeStrats.length!==1?'s':''}</span>
-      <span style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Non déployé</span><span style="font-family:var(--mono);font-weight:700;font-size:17px;letter-spacing:-0.3px;">${fmtAmtRound(totalAlloc)}</span></span>
-      <span style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">P&L ouvert</span><span style="font-family:var(--mono);font-weight:700;font-size:17px;letter-spacing:-0.3px;color:${clr(totalOpenPnl)};">${fmt(totalOpenPnl)}</span></span>
-      <span style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;">Réalisé</span><span style="font-family:var(--mono);font-weight:700;font-size:17px;letter-spacing:-0.3px;color:${clr(totalRealPnl)};">${fmt(totalRealPnl)}</span></span>
-    </div>
-    ${typeChips?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">${typeChips}</div>`:''}
-    ${totalPaliers>0?`<div style="display:flex;align-items:center;gap:10px;">
-      <span style="font-size:10px;color:var(--text3);white-space:nowrap;">${donePaliers}/${totalPaliers} paliers exécutés</span>
-      <div style="flex:1;height:4px;background:var(--bg3);border-radius:4px;overflow:hidden;">
-        <div style="width:${Math.max(2,pct)}%;height:100%;background:var(--green);border-radius:4px;transition:width 0.3s;"></div>
+  body.innerHTML=`
+    <div class="strat-kpi-row">
+      <span class="strat-kpi-label">${activeStrats.length} stratégie${activeStrats.length!==1?'s':''} active${activeStrats.length!==1?'s':''}</span>
+      <div class="kpi-tile strat-kpi-tile">
+        <div class="kpi-tile-label">Non déployé</div>
+        <div class="kpi-tile-val">${fmtAmtRound(totalAlloc)}</div>
       </div>
-      <span style="font-size:10px;color:var(--text3);font-family:var(--mono);">${pct}%</span>
+      <div class="kpi-tile strat-kpi-tile">
+        <div class="kpi-tile-label">P&L ouvert</div>
+        <div class="kpi-tile-val" style="color:${clr(totalOpenPnl)};">${fmt(totalOpenPnl)}</div>
+      </div>
+      <div class="kpi-tile strat-kpi-tile">
+        <div class="kpi-tile-label">Réalisé</div>
+        <div class="kpi-tile-val" style="color:${clr(totalRealPnl)};">${fmt(totalRealPnl)}</div>
+      </div>
+    </div>
+    ${typeChips?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;">${typeChips}</div>`:''}
+    ${totalPaliers>0?`<div class="strat-paliers-row">
+      <span class="strat-paliers-label">${donePaliers}/${totalPaliers} paliers exécutés</span>
+      <div class="strat-paliers-bar"><div class="strat-paliers-fill" style="width:${Math.max(2,pct)}%;"></div></div>
+      <span class="strat-paliers-pct">${pct}%</span>
     </div>`:''}
-  </div>`;
+  `;
 }
 
 function renderStrategies(){
@@ -678,6 +687,11 @@ function renderStrategies(){
   updateStratBadge();
 }
 
+function palierPill(done,total){
+  if(!total)return'<span style="color:var(--text3);">—</span>';
+  const p=Math.round(done/total*100),full=done>=total;
+  return`<span class="strat-palier-pill"><span class="strat-palier-count" style="color:${full?'var(--green)':'var(--text2)'};">${done}/${total}</span><span class="strat-palier-bar"><span class="strat-palier-fill" style="width:${p}%;background:${full?'var(--green)':'var(--border2)'};"></span></span></span>`;
+}
 function stratRow(s){
   const ep=s.entries_plan||[],xp=s.exits_plan||[];
   const epDone=ep.filter(e=>e.executed).length,xpDone=xp.filter(e=>e.executed).length;
@@ -704,10 +718,10 @@ function stratRow(s){
   return `<tr onclick="openStratDetails('${s.id}')" style="cursor:pointer;">
     <td><strong>${s.symbol}</strong>${triggerBadge}</td>
     <td><span style="font-size:10px;background:var(--bg3);padding:2px 8px;border-radius:10px;">${s.type||'—'}</span></td>
-    <td><span style="font-size:10px;color:${statusColors[s.status]||'var(--text3)'};font-weight:600;">${s.status}</span></td>
+    <td><span class="strat-status-pill" style="color:${statusColors[s.status]||'var(--text3)'};">${s.status}</span></td>
     <td style="color:var(--text3);">${s.account||'—'}</td>
-    <td style="color:var(--text3);">${epDone}/${ep.length}</td>
-    <td style="color:var(--text3);">${xpDone}/${xp.length}</td>
+    <td>${palierPill(epDone,ep.length)}</td>
+    <td>${palierPill(xpDone,xp.length)}</td>
     <td>${fmtC(cashAlloc,amtCur)}</td>
     <td class="${profitCls}" style="${profitPot===null?'color:var(--text3);font-size:11px;':''}">${profitPot===null?'N/A':((profitPot>=0?'+':'')+fmtC(profitPot,getStratCurrency(s)))}</td>
     <td onclick="event.stopPropagation();">
@@ -3868,33 +3882,33 @@ function renderContributions(){
   }
 
   trackersEl.innerHTML=`
-    <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;">
+    <div class="kpi-tile">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
         <span style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:1px;">CELI</span>
         <span style="font-size:9px;color:var(--text3);cursor:pointer;" onclick="promptCeliJoinYear()">Depuis ${celiJoinYear}</span>
       </div>
-      <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text);">${fmtCAD(celi.restant)}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px;">restant / ${fmtCAD(celi.total)} total</div>
+      <div class="kpi-tile-val">${fmtCAD(celi.restant)}</div>
+      <div class="kpi-tile-sub" style="margin-top:2px;">restant / ${fmtCAD(celi.total)} total</div>
       ${bar(celi.cotise,celi.total,'var(--green)')}
       <div style="font-size:9px;color:var(--text3);margin-top:4px;">Cotisé : ${fmtCAD(celi.cotise)}${celi.retraits>0?` · Retiré : ${fmtCAD(celi.retraits)}`:''}</div>
     </div>
-    <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;">
+    <div class="kpi-tile">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
         <span style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:1px;">CELIAPP</span>
         <span style="font-size:9px;color:var(--text3);">Max ${fmtCAD(CELIAPP_LIFETIME)}</span>
       </div>
-      <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text);">${fmtCAD(celiapp.restant)}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px;">restant à vie · ${fmtCAD(celiapp.anneeRestant)} cette année</div>
+      <div class="kpi-tile-val">${fmtCAD(celiapp.restant)}</div>
+      <div class="kpi-tile-sub" style="margin-top:2px;">restant à vie · ${fmtCAD(celiapp.anneeRestant)} cette année</div>
       ${bar(celiapp.cotise,CELIAPP_LIFETIME,'var(--cyan)')}
       <div style="font-size:9px;color:var(--text3);margin-top:4px;">Cotisé : ${fmtCAD(celiapp.cotise)}${celiapp.retraits>0?` · Retiré : ${fmtCAD(celiapp.retraits)} (aucun droit redonné)`:''}</div>
     </div>
-    <div style="background:var(--bg3);border:0.5px solid var(--border);border-radius:10px;padding:14px 16px;">
+    <div class="kpi-tile">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
         <span style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:1px;">REER</span>
         <span style="font-size:9px;color:var(--text3);cursor:pointer;text-decoration:underline dotted;" onclick="promptReerLimit()">Modifier plafond</span>
       </div>
-      <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:var(--text);">${reer.limit>0?fmtCAD(reer.restant):'—'}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px;">${reer.limit>0?'restant / '+fmtCAD(reer.limit)+' plafond':'Plafond non configuré'}</div>
+      <div class="kpi-tile-val">${reer.limit>0?fmtCAD(reer.restant):'—'}</div>
+      <div class="kpi-tile-sub" style="margin-top:2px;">${reer.limit>0?'restant / '+fmtCAD(reer.limit)+' plafond':'Plafond non configuré'}</div>
       ${reer.limit>0?bar(reer.cotise,reer.limit,'var(--amber)'):''}
       <div style="font-size:9px;color:var(--text3);margin-top:4px;">${reer.limit>0?'Cotisé : '+fmtCAD(reer.cotise):''}${reer.retraits>0?` · Retiré : ${fmtCAD(reer.retraits)} (aucun droit redonné)`:''}</div>
     </div>`;

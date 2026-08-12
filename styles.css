@@ -335,6 +335,36 @@
   .alloc-panel-title { font-size: 12px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 1px; }
   .alloc-panel-sub { font-size: 11px; color: var(--text3); font-family: var(--mono); }
   .alloc-donut-wrap { position: relative; height: 180px; }
+
+  /* Passe design 2026-08-11 (Allocation + Stratégie, demandée par Cédric : "étape supérieure"
+     pour le look et l'expérience) — tuiles KPI et bouton accent doux réutilisables entre les
+     deux onglets, pour que le langage visuel soit cohérent partout où on affiche un petit
+     chiffre-clé (analytics Allocation, résumé Stratégie, trackers de cotisations). */
+  .kpi-tile { background: var(--bg3); border: 0.5px solid var(--border); border-radius: 8px; padding: 14px 16px; transition: all 0.25s ease; position: relative; }
+  #tab-allocation .kpi-tile:hover, #tab-strategie .kpi-tile:hover { border-color: rgba(0,255,136,0.55); box-shadow: 0 0 18px rgba(0,255,136,0.09); }
+  [data-theme="light"] #tab-allocation .kpi-tile:hover, [data-theme="light"] #tab-strategie .kpi-tile:hover { border-color: rgba(5,150,105,0.55); box-shadow: 0 0 18px rgba(5,150,105,0.09); }
+  .kpi-tile-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 6px; }
+  .kpi-tile-val { font-size: 18px; font-weight: 700; color: var(--text); font-family: var(--mono); letter-spacing: -0.3px; }
+  .kpi-tile-sub { font-size: 10px; color: var(--text3); margin-top: 4px; }
+
+  .btn-accent-soft { background: var(--green-dim); border: 0.5px solid var(--green); color: var(--green); border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 11px; font-weight: 600; font-family: var(--mono); transition: all 0.15s; }
+  .btn-accent-soft:hover { background: var(--green-glow); transform: translateY(-1px); }
+
+  /* Stratégie — résumé KPI + barre paliers (même famille visuelle que .kpi-tile ci-dessus) */
+  .strat-kpi-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .strat-kpi-label { font-size: 11px; color: var(--text3); margin-right: 4px; white-space: nowrap; }
+  .strat-kpi-tile { min-width: 128px; }
+  .strat-paliers-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+  .strat-paliers-label { font-size: 10px; color: var(--text3); white-space: nowrap; }
+  .strat-paliers-bar { flex: 1; height: 6px; background: var(--bg4); border-radius: 4px; overflow: hidden; }
+  .strat-paliers-fill { height: 100%; background: var(--green); border-radius: 4px; transition: width 0.3s; }
+  .strat-paliers-pct { font-size: 10px; color: var(--text3); font-family: var(--mono); min-width: 30px; text-align: right; }
+  .strat-status-pill { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 10px; font-weight: 600; background: var(--bg4); }
+  .strat-palier-pill { display: inline-flex; align-items: center; gap: 6px; }
+  .strat-palier-count { font-size: 10.5px; white-space: nowrap; }
+  .strat-palier-bar { width: 36px; height: 4px; background: var(--bg4); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+  .strat-palier-fill { height: 100%; border-radius: 2px; }
+  #strat-table-wrap td { padding: 9px 12px; }
   .alloc-account-panel { padding: 1.25rem; }
   .alloc-account-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; }
   .alloc-account-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0; }
