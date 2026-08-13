@@ -38,7 +38,7 @@
      alourdir le thème sombre (qui n'en a pas besoin). */
   [data-theme="light"] .card, [data-theme="light"] .kpi { border-width: 1px; }
   [data-theme="light"] .btn:hover { background: #047857; }
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 12px; -webkit-font-smoothing: antialiased; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: clamp(12px, 0.14vw + 10.2px, 15px); -webkit-font-smoothing: antialiased; }
   ::-webkit-scrollbar { width: 6px; height: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; } ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
   .app { display: flex; flex-direction: column; min-height: 100vh; }
 
@@ -80,8 +80,8 @@
      mobiles .kpi{height:auto} (specificité 0,0,1,0) des media queries ci-dessous, peu importe
      leur ordre dans la feuille de style -- bug trouvé à l'audit du 2026-08-03, jamais visible
      en desktop donc pas remarqué avant. */
-  @media (min-width: 769px) { .kpi-grid-2 .kpi { height: 190px; } }
-  .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.1rem 1.5rem; position: relative; overflow: hidden; display: flex; flex-direction: column; height: 110px; transition: all 0.25s ease; }
+  @media (min-width: 769px) { .kpi-grid-2 .kpi { height: clamp(190px, 10.5vw, 230px); } }
+  .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.1rem 1.5rem; position: relative; overflow: hidden; display: flex; flex-direction: column; height: clamp(110px, 6vw, 130px); transition: all 0.25s ease; }
   .kpi:hover { border-color: var(--border2); }
   /* Hover vert intense uniquement sur KPIs Dashboard et Cards Allocation */
   #tab-dashboard .kpi:hover, #tab-allocation .kpi:hover {
@@ -105,7 +105,7 @@
 
   /* CARDS */
   .grid-2-1 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; align-items: stretch; }
-  .grid-2-1 .card { height: 340px; margin-bottom: 0; }
+  .grid-2-1 .card { height: clamp(340px, 21vw, 460px); margin-bottom: 0; }
   .grid-2-1 .card .chart-wrap { flex: 1; }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
@@ -309,7 +309,7 @@
   /* WATCHLIST CARDS */
   .wl-card { background:var(--bg2); border:0.5px solid var(--border); border-radius:10px; padding:14px 16px; transition:all 0.2s; }
   .wl-card:hover { border-color:color-mix(in srgb, var(--green) 30%, transparent); box-shadow:0 0 16px color-mix(in srgb, var(--green) 6%, transparent); }
-  .wl-cards-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,280px)); justify-content:center; gap:12px; }
+  .wl-cards-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; }
   .wl-sym-big { font-family:var(--mono); font-size:16px; font-weight:700; }
   .wl-name { font-size:10px; color:var(--text3); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px; }
   .wl-sparkline { height:40px; margin:8px 0; }
