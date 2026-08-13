@@ -105,7 +105,9 @@
 
   /* CARDS */
   .grid-2-1 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; align-items: stretch; }
-  .grid-2-1 .card { height: clamp(340px, 21vw, 460px); margin-bottom: 0; }
+  .grid-2-1 .card { min-height: clamp(340px, 21vw, 460px); height: auto; margin-bottom: 0; }
+  #tab-dashboard.section.active { display: flex; flex-direction: column; min-height: calc(100vh - 96px); }
+  #tab-dashboard .grid-2-1 { flex: 1; margin-bottom: 0; }
   .grid-2-1 .card .chart-wrap { flex: 1; }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
