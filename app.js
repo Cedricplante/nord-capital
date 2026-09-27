@@ -2615,6 +2615,28 @@ function getProvenanceBadge(p){
   const chainStr=[...chains].join(' → ')||'inconnue';
   return `<span style="display:inline-block;width:5px;height:5px;background:var(--amber);border-radius:50%;margin-left:5px;vertical-align:middle;" title="Financé à ${pct}% par du profit réinvesti (origine : ${escapeHtml(chainStr)})"></span>`;
 }
+// Poids pos. / Poids classe (porté de la session 2026-09-26) -- cash inclus au dénominateur.
+// Tout en devise du compte : positions converties via toUSD()*fxRate, `cash` est déjà en devise du compte.
+// Totaux calculés UNE fois par rendu/tri (évite le O(n²) de la version d'origine).
+function computeWeightTotals(){
+  const byCat={};let posTotal=0;
+  positions.forEach(pp=>{
+    const v=toUSD((pp.shares||0)*(pp.current||0),getPosCurrency(pp))*(fxRate||1);
+    posTotal+=v;const c=getCat(pp.symbol);byCat[c]=(byCat[c]||0)+v;
+  });
+  return{total:posTotal+(cash||0),byCat};
+}
+let _weightTotals=null;
+function getPositionWeights(p,wt){
+  wt=wt||_weightTotals||computeWeightTotals();
+  const v=toUSD((p.shares||0)*(p.current||0),getPosCurrency(p))*(fxRate||1);
+  const cat=getCat(p.symbol);
+  return{
+    weight:wt.total>0?v/wt.total*100:0,
+    weightClass:wt.total>0?(wt.byCat[cat]||0)/wt.total*100:0,
+    cat
+  };
+}
 function posRow(p,idx,displayIdx){
   const shares=p.shares||0,valeurMarche=shares*p.current;
   // P&L calculé en devise de la position (prix courant × shares vs avgEntry × shares)
@@ -2625,6 +2647,7 @@ function posRow(p,idx,displayIdx){
   // Coût total affiché = somme réelle des achats (peut être en devise différente si DCA mixte)
   const coutTotal=p.entries&&p.entries.length?p.entries.reduce((s,e)=>s+(e.size||0),0):coutPnl;
   const acbCAD=getPositionAcbCAD(p);
+  const w=getPositionWeights(p);
   const isDca=p.entries&&p.entries.length>1,firstDate=p.entries&&p.entries[0]?p.entries[0].date:'—';
   // Le badge DCA×N se met à jour automatiquement via entries.length après FIFO
   const sharesStr=shares?shares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—';
@@ -2648,6 +2671,8 @@ function posRow(p,idx,displayIdx){
     <td>${fmtC(valeurMarche,getPosCurrency(p))}</td>
     <td class="${cls}">${fmtCpnl(pnl,getPosCurrency(p))}</td>
     <td class="${cls}">${fmtPct(pct)}</td>
+    <td style="color:var(--text2);font-family:var(--mono);font-size:11px;">${w.weight.toFixed(2)}%</td>
+    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;">${w.weightClass.toFixed(2)}% <span style="font-size:9px;">${w.cat}</span></td>
     <td style="display:flex;gap:4px;white-space:nowrap;">
       <button class="btn" onclick="openEditModal(${idx});event.stopPropagation();" style="padding:3px 8px;font-size:9px;">Modifier</button>
       <button class="btn-danger" onclick="openCloseModal(${idx});event.stopPropagation();">Fermer</button>
@@ -2657,7 +2682,7 @@ function posRow(p,idx,displayIdx){
   if(isSelected){
     const noteVal=escapeHtml(p.note||'');
     html+=`<tr class="pos-note-row">
-      <td colspan="14" style="padding:6px 12px 10px 12px;background:rgba(0,255,136,0.04);border-top:none;">
+      <td colspan="16" style="padding:6px 12px 10px 12px;background:rgba(0,255,136,0.04);border-top:none;">
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;white-space:nowrap;">Note</span>
           <input type="text"
@@ -2698,6 +2723,7 @@ function posRow(p,idx,displayIdx){
         <td></td>
         <td class="${entryPnlCls}">${fmtCpnl(entryPnlAbs,getPosCurrency(p))}</td>
         <td class="${entryPnlCls}">${entryPnlPct>=0?'+':''}${entryPnlPct.toFixed(2)}%</td>
+        <td></td>
         <td></td>
         <td></td>
       </tr>`;
@@ -2745,6 +2771,7 @@ function getFilteredSortedPositions(){
   }
   if(sortColumn){
     const dir=sortDir==='asc'?1:-1;
+    const wt=(sortColumn==='weight'||sortColumn==='weightClass')?computeWeightTotals():null;
     const getVal=(p)=>{
       switch(sortColumn){
         case'symbol':return p.symbol||'';
@@ -2758,6 +2785,8 @@ function getFilteredSortedPositions(){
         case'pnl':return calcPnlUSD(p);
         case'pnlPct':{const c=(p.shares||0)*p.avgEntry;return c>0?(calcPnl(p)/c)*100:0;}
         case'acb':return getPositionAcbCAD(p);
+        case'weight':return getPositionWeights(p,wt).weight;
+        case'weightClass':return getPositionWeights(p,wt).weightClass;
         default:return 0;
       }
     };
@@ -2780,11 +2809,12 @@ function renderPosTable(){
   const t=document.getElementById('pos-body');if(!t)return;
   // Provenance (profit réinvesti) -- calculée une fois par rendu, pas par ligne.
   try{_cashEntryFunding=reconstructCashLots(true).entryFunding;}catch(e){_cashEntryFunding={};}
+  _weightTotals=computeWeightTotals();
   updateSortArrows();
   const filtered=getFilteredSortedPositions();
   const countEl=document.getElementById('pos-count-label');
   if(countEl)countEl.textContent=`${filtered.length} / ${positions.length} positions`;
-  t.innerHTML=filtered.length?filtered.map((p,displayIdx)=>posRow(p,p._origIdx,displayIdx)).join(''):`<tr><td colspan="14" class="empty">Aucune position${positions.length?' (filtrée)':' ouverte'}</td></tr>`;
+  t.innerHTML=filtered.length?filtered.map((p,displayIdx)=>posRow(p,p._origIdx,displayIdx)).join(''):`<tr><td colspan="16" class="empty">Aucune position${positions.length?' (filtrée)':' ouverte'}</td></tr>`;
 }
 
 function openEditModal(idx){
