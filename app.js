@@ -245,6 +245,9 @@ let portfolioHistory=[];
 
 // ─── FORMAT ──────────────────────────────────────────────────────
 // Espaces comme séparateurs de milliers (1 234,56 $)
+// Date du jour en heure LOCALE (YYYY-MM-DD). Fix 2026-10-01 : toISOString() donne la date UTC,
+// donc après 20h (heure de l'Est) toute transaction/snapshot était datée du LENDEMAIN.
+function localToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 // Fix audit 2026-08-03 : w.symbol (watchlist) venait d'un <input> utilisateur et était
 // interpolé BRUT (pas escapeHtml, contrairement à w.note) dans du HTML texte, un attribut id,
@@ -518,6 +521,7 @@ async function loadData(){
   if(!currentUser||!accessToken)return;
   const res=await fetch(`${SB_URL}/rest/v1/user_data?user_id=eq.${currentUser.id}&select=*`,{headers:sbHeaders()});
   if(!res.ok)return;
+  clearUndo(); // état rechargé depuis le serveur -> plus d'annulation possible sur l'ancien état
   const data=await res.json();
   if(data&&data.length>0){
     const row=data[0];
@@ -1395,7 +1399,7 @@ async function loadPortfolioHistory(){
 async function saveSnapshot(valueCAD){
   if(!currentUser||!accessToken)return;
   const valueInCurrency=parseFloat(valueCAD.toFixed(2)); // déjà en devise du compte
-  const today=new Date().toISOString().split('T')[0];
+  const today=localToday();
   try{
     // INSERT uniquement si pas de ligne existante (ignore-duplicates préserve le cron 22h)
     // → 1 seul appel Supabase au lieu de SELECT+PATCH
@@ -1605,7 +1609,7 @@ function renderDividends(){
     </tr>`).join('')}</tbody></table>`;
 }
 function openDividendModal(){
-  const dateEl=document.getElementById('div-date');if(dateEl)dateEl.value=new Date().toISOString().split('T')[0];
+  const dateEl=document.getElementById('div-date');if(dateEl)dateEl.value=localToday();
   const symEl=document.getElementById('div-symbol');if(symEl)symEl.value='';
   const amtEl=document.getElementById('div-amount');if(amtEl)amtEl.value='';
   const noteEl=document.getElementById('div-note');if(noteEl)noteEl.value='';
@@ -1619,7 +1623,7 @@ async function saveDividend(){
   const account=document.getElementById('div-account')?.value||'CELI';
   const amount=parseFloat(document.getElementById('div-amount')?.value||'0');
   const currency=document.getElementById('div-currency')?.value||'USD';
-  const date=document.getElementById('div-date')?.value||new Date().toISOString().split('T')[0];
+  const date=document.getElementById('div-date')?.value||localToday();
   const note=document.getElementById('div-note')?.value||'';
   if(!symbol){alert('Entre un symbole.');return;}
   if(isNaN(amount)||amount<=0){alert('Montant invalide.');return;}
@@ -1767,7 +1771,17 @@ function reconstructCashLots(deductOnBuy){
       _clAddLot(acct(account),'profit',amt,cur,t.date,[]);
     }else if(t.type==='Achat'){
       const amt=t.size,cur=t.currency||'USD';
-      const consumed=deductOnBuy?_clConsume(acct(account),amt,cur).consumed:[];
+      // Financement multi-comptes (2026-10-01) : t.funding = [{account,amount,currency,srcAmount,srcCurrency}].
+      // Sans t.funding (trades plus anciens) : prélevé du compte de détention, comme avant.
+      let consumed=[];
+      if(deductOnBuy){
+        if(Array.isArray(t.funding)&&t.funding.length){
+          t.funding.forEach(f=>{
+            const fa=f.srcAmount!=null?f.srcAmount:f.amount,fc=f.srcCurrency||f.currency||cur;
+            consumed.push(..._clConsume(acct(f.account),fa,fc).consumed);
+          });
+        }else consumed=_clConsume(acct(account),amt,cur).consumed;
+      }
       // BUG CRITIQUE corrigé (audit 2026-07-30) : clé uniquement par symbole permettait à une
       // vente d'un compte X de piger dans du funding tracké pour un achat du compte Y (même
       // symbole, comptes différents) -- fuite de cash entre comptes. Clé maintenant par
@@ -1795,10 +1809,27 @@ function reconstructCashLots(deductOnBuy){
       }
       const cur=t.currency||'USD';
       const chainHop={symbol:t.symbol,date:t.date};
-      returningFunding.forEach(f=>_clAddLot(acct(account),f.type,f.amount,f.currency,t.date,[...f.chain,chainHop]));
-      if(returningFunding.length===0){
-        _clAddLot(acct(account),'principal',t.size,cur,t.date,[]);
+      // Fix 2026-10-01 : le coût de base rendu au compte vendeur = t.size (coût moyen des shares
+      // vendues, en devise de la vente), réparti selon les proportions principal/profit du
+      // financement d'origine. Avant : on rendait les lots FIFO bruts -> (1) en DCA à prix
+      // différents, le cash rendu ≠ coût moyen utilisé pour le profit (cash faussé tant que la
+      // position n'était pas entièrement vendue) ; (2) un achat USD financé en CAD rendait des
+      // lots CAD dans un compte USD ; (3) les shares non couvertes par un achat tracké (achetées
+      // avant la ligne de départ) n'étaient pas remboursées si une partie l'était.
+      const totalShares=t.shares||0;
+      const coveredShares=Math.max(0,totalShares-sharesToClose);
+      const coveredSize=totalShares>0?t.size*coveredShares/totalShares:0;
+      const uncoveredSize=t.size-coveredSize;
+      const fundVal=returningFunding.reduce((s2,f)=>s2+Math.max(0,fxConvert(f.amount,f.currency,cur)),0);
+      if(fundVal>0.0001){
+        returningFunding.forEach(f=>{
+          const share=Math.max(0,fxConvert(f.amount,f.currency,cur))/fundVal;
+          _clAddLot(acct(account),f.type,coveredSize*share,cur,t.date,[...f.chain,chainHop]);
+        });
+      }else if(coveredSize>0.0001){
+        _clAddLot(acct(account),'principal',coveredSize,cur,t.date,[]);
       }
+      if(uncoveredSize>0.0001)_clAddLot(acct(account),'principal',uncoveredSize,cur,t.date,[]);
       const parentChains=_clUniqueChains(returningFunding);
       // BUG CRITIQUE corrigé (audit 2026-07-30) : _clAddLot ignore silencieusement les montants
       // <=0, donc une vente PERDANTE (t.profit négatif) ne débitait jamais le cash -- le coût de
@@ -1874,7 +1905,7 @@ async function fetchLivePrices(){
 
 // ─── AUTOCOMPLETE ─────────────────────────────────────────────────
 let acIndex=-1;
-function calcMontant(){const e=parseFloat(document.getElementById('f-entry').value),s=parseFloat(document.getElementById('f-shares').value);if(!isNaN(e)&&!isNaN(s)&&e>0&&s>0)document.getElementById('f-size').value=(e*s).toFixed(2);else document.getElementById('f-size').value='';}
+function calcMontant(){const e=parseFloat(document.getElementById('f-entry').value),s=parseFloat(document.getElementById('f-shares').value);if(!isNaN(e)&&!isNaN(s)&&e>0&&s>0)document.getElementById('f-size').value=(e*s).toFixed(2);else document.getElementById('f-size').value='';if(typeof renderFundingUI==='function')renderFundingUI();}
 function onSymbolInput(val, inputId='f-symbol', dropdownId='symbol-dropdown'){
   const list=document.getElementById(dropdownId);if(!val||val.length<1){list.classList.remove('open');return;}
   const q=val.toUpperCase();
@@ -1900,6 +1931,7 @@ function selectSymbol(sym,cur){
   document.getElementById('f-symbol').value=sym;
   const ce=document.getElementById('f-currency');if(ce&&cur)ce.value=cur;
   document.getElementById('symbol-dropdown').classList.remove('open');acIndex=-1;
+  renderFundingUI();
   const ticker=getTicker(sym);
   fetch(`/api/prices?symbols=${encodeURIComponent(ticker)}`).then(r=>r.json()).then(data=>{const p=data[ticker];if(p&&p>0)document.getElementById('f-current').value=p;}).catch(()=>{});
 }
@@ -2058,7 +2090,7 @@ function parseGeneric(headers,lines){
     const sym=(cols[iSym]||'').toUpperCase();
     const qty=parseFloat(cols[iQty]);
     const price=parseFloat(cols[iPrice]);
-    const date=iDate>=0?cols[iDate].split(' ')[0]:new Date().toISOString().split('T')[0];
+    const date=iDate>=0?cols[iDate].split(' ')[0]:localToday();
     const side=iSide>=0?cols[iSide].toUpperCase():'BUY';
     const action=side.includes('BUY')||side.includes('ACHAT')?'BUY':'SELL';
     if(!sym||isNaN(qty)||isNaN(price))continue;
@@ -2117,7 +2149,8 @@ async function confirmImportCsv(){
     trades.unshift(tradeEntry);
 
     if(r.action==='BUY'){
-      const existing=positions.find(p=>p.symbol===r.symbol&&(p.dir==='Long'||!p.dir));
+      // Fix audit 2026-10-01 : fusion par symbole+compte (comme addPosition), plus par symbole seul.
+      const existing=positions.find(p=>p.symbol===r.symbol&&(p.dir==='Long'||!p.dir)&&(p.account||'')===(r.account||''));
       if(existing){
         const prevShares=existing.shares||0;
         existing.avgEntry=prevShares>0?(existing.avgEntry*prevShares+r.price*r.qty)/(prevShares+r.qty):r.price;
@@ -2132,7 +2165,11 @@ async function confirmImportCsv(){
       }
     } else if(r.action==='SELL'){
       // Réduire (ou fermer) la position correspondante
-      const posIdx=positions.findIndex(p=>p.symbol===r.symbol&&(p.dir==='Long'||!p.dir));
+      // Fix audit 2026-10-01 : vend dans la position du MÊME compte ; à défaut, seulement s'il n'y
+      // a qu'une seule position de ce symbole (jamais deviner entre plusieurs comptes).
+      let posIdx=positions.findIndex(p=>p.symbol===r.symbol&&(p.dir==='Long'||!p.dir)&&(p.account||'')===(r.account||''));
+      if(posIdx<0){const cands=positions.map((p,i)=>i).filter(i=>positions[i].symbol===r.symbol&&(positions[i].dir==='Long'||!positions[i].dir));if(cands.length===1)posIdx=cands[0];}
+      if(posIdx>-1&&!tradeEntry.account)tradeEntry.account=positions[posIdx].account||'';
       if(posIdx>-1){
         const p=positions[posIdx];
         const profit=(r.price-p.avgEntry)*r.qty;
@@ -2150,19 +2187,12 @@ async function confirmImportCsv(){
         // que confirmClose() pour une vente manuelle ; fix audit 2026-07-29).
         p.totalSize=Math.max(0,parseFloat(((p.totalSize||0)-p.avgEntry*r.qty).toFixed(2)));
         p.shares=parseFloat(((p.shares||0)-r.qty).toFixed(6));
+        // Coût moyen (PBR) : prix moyen inchangé, chaque achat réduit au prorata (fix 2026-10-01,
+        // même logique que confirmClose()).
         if(p.entries&&p.entries.length>0){
-          // Retirer des entries les plus anciennes (FIFO)
-          let toRemove=r.qty;
-          while(toRemove>0&&p.entries.length>0){
-            const e=p.entries[0];
-            if(e.shares<=toRemove){toRemove-=e.shares;p.entries.shift();}
-            else{e.shares-=toRemove;e.size=e.shares*e.price;toRemove=0;}
-          }
-          // Recalculer avgEntry à partir des entries restantes (cohérent avec confirmClose())
-          if(p.entries.length>0){
-            const totalShR=p.entries.reduce((s,e)=>s+(e.shares||0),0);
-            p.avgEntry=totalShR>0?p.entries.reduce((s,e)=>s+(e.price*(e.shares||0)),0)/totalShR:p.avgEntry;
-          }
+          const before=(p.shares||0)+r.qty,keep=before>0?Math.max(0,(p.shares||0)/before):0;
+          p.entries.forEach(en=>{en.shares=parseFloat(((en.shares||0)*keep).toFixed(8));en.size=parseFloat(((en.size||0)*keep).toFixed(2));});
+          p.entries=p.entries.filter(en=>(en.shares||0)>1e-9);
         }
         if(p.shares<=0.000001)positions.splice(posIdx,1);
       }
@@ -2358,7 +2388,7 @@ async function refreshWatchlist(){
 async function checkPriceAlerts(){
   // Construire liste des alertes déclenchées
   const triggered=[];
-  const today=new Date().toISOString().slice(0,10);
+  const today=localToday();
 
   watchlist.forEach(w=>{
     if(!w._price?.price)return;
@@ -2405,7 +2435,7 @@ async function startApp(){
   const username=currentUser.user_metadata?.username||currentUser.email.split('@')[0];
   const unEl=document.getElementById('nav-username');if(unEl)unEl.textContent=username.charAt(0).toUpperCase()+username.slice(1);
   document.getElementById('auth-screen').style.display='none';document.getElementById('main-app').style.display='flex';
-  document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('f-date').value=localToday();
   initCharts();
   await loadData();
   await loadStrategies();
@@ -2452,8 +2482,8 @@ async function startApp(){
   if(backfillEntryFxSnapshots())await saveData();
   renderAll();
   if(portfolioHistory.length===0&&positions.length>0){
-    const firstTradeDate=trades.length>0?[...trades].sort((a,b)=>a.date.localeCompare(b.date))[0].date:new Date().toISOString().split('T')[0];
-    const today=new Date().toISOString().split('T')[0];
+    const firstTradeDate=trades.length>0?[...trades].sort((a,b)=>a.date.localeCompare(b.date))[0].date:localToday();
+    const today=localToday();
     const initialValueCAD=positions.reduce((s,p)=>s+toUSD((p.shares||0)*p.current,getPosCurrency(p)),0)*fxRate+cash;
     await saveSnapshot(initialValueCAD);
     if(firstTradeDate<today){
@@ -2563,7 +2593,7 @@ function updateKPIs(){
   const cashPct=totalCAD>0?(cash/totalCAD*100):0;
 
   {const _e=document.getElementById('kpi-total');if(_e)_e.textContent=fmtAmtRound(totalCAD);}
-  const todayStr=new Date().toISOString().split('T')[0];
+  const todayStr=localToday();
   // V1: utiliser totalCAD live comme valeur du jour (pas le snapshot stale)
   const yesterdayPt=portfolioHistory.filter(h=>h.date<todayStr);
   const dayEl=document.getElementById('kpi-day-change');
@@ -2615,28 +2645,85 @@ function getProvenanceBadge(p){
   const chainStr=[...chains].join(' → ')||'inconnue';
   return `<span style="display:inline-block;width:5px;height:5px;background:var(--amber);border-radius:50%;margin-left:5px;vertical-align:middle;" title="Financé à ${pct}% par du profit réinvesti (origine : ${escapeHtml(chainStr)})"></span>`;
 }
-// Poids pos. / Poids classe (porté de la session 2026-09-26) -- cash inclus au dénominateur.
-// Tout en devise du compte : positions converties via toUSD()*fxRate, `cash` est déjà en devise du compte.
-// Totaux calculés UNE fois par rendu/tri (évite le O(n²) de la version d'origine).
-function computeWeightTotals(){
-  const byCat={};let posTotal=0;
-  positions.forEach(pp=>{
-    const v=toUSD((pp.shares||0)*(pp.current||0),getPosCurrency(pp))*(fxRate||1);
-    posTotal+=v;const c=getCat(pp.symbol);byCat[c]=(byCat[c]||0)+v;
-  });
-  return{total:posTotal+(cash||0),byCat};
+// ── Poids pos. / Poids classe (refait 2026-10-01, demandé par Cédric) ──────────────────
+// Poids pos.    = valeur de la position / (Σ positions + cash dispo)  → la colonne somme à 100 %
+//                 (le cash dispo apparaît en lignes « CASH » par compte en bas du tableau).
+// Poids classe  = valeur de la position / valeur totale de SA classe  → chaque classe somme à 100 %.
+// Classe « Cash » = cash dispo + CASH.TO (CASH-C chez Disnat, ETF d'épargne à intérêt élevé).
+// Même dénominateur que le KPI « Valeur totale » (totalSizeUSD*fxRate + cash) pour que tout concorde.
+// Arrondi à la plus grande décimale restante (Hamilton) pour que les valeurs AFFICHÉES à 2 décimales
+// totalisent exactement 100,00 % (sinon 99,99 % / 100,01 % à cause des arrondis individuels).
+const CASH_CLASS_SYMBOLS=['CASH.TO'];
+function getWeightClass(symbol){return CASH_CLASS_SYMBOLS.includes((symbol||'').toUpperCase())?'Cash':getCat(symbol||'');}
+function posValueAcct(p){return Math.abs(toUSD((p.shares||0)*(p.current||0),getPosCurrency(p))*(fxRate||1));}
+// Largest-remainder : arrondit `vals` (en %) à `dec` décimales en garantissant que la somme = target.
+function roundToTarget(vals,target,dec){
+  const f=Math.pow(10,dec);
+  const scaled=vals.map(v=>(isFinite(v)?v:0)*f);
+  const floors=scaled.map(Math.floor);
+  let diff=Math.round(target*f)-floors.reduce((a,b)=>a+b,0);
+  const order=scaled.map((v,i)=>({i,r:v-floors[i]})).sort((a,b)=>b.r-a.r);
+  for(let k=0;k<order.length&&diff>0;k++,diff--)floors[order[k].i]++;
+  return floors.map(v=>v/f);
 }
-let _weightTotals=null;
-function getPositionWeights(p,wt){
-  wt=wt||_weightTotals||computeWeightTotals();
-  const v=toUSD((p.shares||0)*(p.current||0),getPosCurrency(p))*(fxRate||1);
-  const cat=getCat(p.symbol);
+// Cash dispo par compte (en devise du compte d'affichage), depuis la reconstruction des lots.
+function getCashByAccount(){
+  let accounts={};
+  try{accounts=reconstructCashLots(true).accounts;}catch(e){accounts={};}
+  return Object.entries(accounts).map(([account,state])=>({account,value:_clAccountTotalCAD(state),native:_fmtLotsNative2([...state.principal,...state.profit])}))
+    .filter(r=>r.value>0.005).sort((a,b)=>b.value-a.value);
+}
+function _fmtLotsNative2(lots){
+  const byCur={};lots.forEach(l=>{byCur[l.currency]=(byCur[l.currency]||0)+l.amount;});
+  return Object.entries(byCur).filter(([,a])=>Math.abs(a)>0.005).map(([c,a])=>fmtAmt(a)+' '+c).join(' + ');
+}
+function computeWeightTotals(){
+  const byClass={};let posTotal=0;
+  const posVals=positions.map(pp=>{const v=posValueAcct(pp);posTotal+=v;const c=getWeightClass(pp.symbol);byClass[c]=(byClass[c]||0)+v;return v;});
+  const cashRows=getCashByAccount();
+  // Le cash par compte vient des lots ; `cash` global = même somme (syncCashFromLots). On prend la
+  // somme des lignes pour que lignes CASH + positions = total exact affiché.
+  const cashTotal=cashRows.reduce((s,r)=>s+r.value,0);
+  if(cashTotal>0)byClass.Cash=(byClass.Cash||0)+cashTotal;
+  const total=posTotal+cashTotal;
+  const rawPos=posVals.map(v=>total>0?v/total*100:0);
+  const rawCash=cashRows.map(r=>total>0?r.value/total*100:0);
+  // Poids pos. arrondi conjointement (positions + lignes cash) → somme affichée = 100,00 %
+  const roundedAll=total>0?roundToTarget([...rawPos,...rawCash],100,2):[...rawPos,...rawCash];
+  const posWeight=roundedAll.slice(0,posVals.length),cashWeight=roundedAll.slice(posVals.length);
+  // Poids classe : arrondi par classe → chaque classe somme à 100,00 %
+  const members={};
+  posVals.forEach((v,i)=>{const c=getWeightClass(positions[i].symbol);(members[c]=members[c]||[]).push({k:'p'+i,v});});
+  cashRows.forEach((r,i)=>{(members.Cash=members.Cash||[]).push({k:'c'+i,v:r.value});});
+  const classW={};
+  Object.entries(members).forEach(([c,arr])=>{
+    const tot=byClass[c]||0;
+    const raw=arr.map(m=>tot>0?m.v/tot*100:0);
+    const rd=tot>0?roundToTarget(raw,100,2):raw;
+    arr.forEach((m,j)=>classW[m.k]=rd[j]);
+  });
+  // Récap des classes (poids de chaque classe dans le portefeuille), somme = 100,00 %
+  const classNames=Object.keys(byClass).filter(c=>byClass[c]>0).sort((a,b)=>byClass[b]-byClass[a]);
+  const classRaw=classNames.map(c=>total>0?byClass[c]/total*100:0);
+  const classRd=total>0?roundToTarget(classRaw,100,2):classRaw;
+  const classSummary=classNames.map((c,i)=>({cls:c,value:byClass[c],weight:classRd[i],rawWeight:classRaw[i]}));
   return{
-    weight:wt.total>0?v/wt.total*100:0,
-    weightClass:wt.total>0?(wt.byCat[cat]||0)/wt.total*100:0,
-    cat
+    total,posTotal,cashTotal,byClass,cashRows,classSummary,
+    posRaw:rawPos,posWeight,cashWeight,cashRaw:rawCash,
+    posClassWeight:posVals.map((v,i)=>classW['p'+i]),
+    cashClassWeight:cashRows.map((r,i)=>classW['c'+i])
   };
 }
+let _weightTotals=null;
+// p peut être une copie (getFilteredSortedPositions ajoute _origIdx) -- on retrouve l'index d'origine.
+function getPositionWeights(p,wt){
+  wt=wt||_weightTotals||computeWeightTotals();
+  let i=p._origIdx;if(i==null)i=positions.indexOf(p);
+  const cat=getWeightClass(p.symbol);
+  if(i==null||i<0){const v=posValueAcct(p),ct=wt.byClass[cat]||0;return{weight:wt.total>0?v/wt.total*100:0,weightClass:ct>0?v/ct*100:0,cat};}
+  return{weight:wt.posWeight[i]||0,weightRaw:wt.posRaw[i]||0,weightClass:wt.posClassWeight[i]||0,cat};
+}
+function fmtW(v){return (v||0).toLocaleString('fr-CA',{minimumFractionDigits:2,maximumFractionDigits:2})+' %';}
 function posRow(p,idx,displayIdx){
   const shares=p.shares||0,valeurMarche=shares*p.current;
   // P&L calculé en devise de la position (prix courant × shares vs avgEntry × shares)
@@ -2671,8 +2758,8 @@ function posRow(p,idx,displayIdx){
     <td>${fmtC(valeurMarche,getPosCurrency(p))}</td>
     <td class="${cls}">${fmtCpnl(pnl,getPosCurrency(p))}</td>
     <td class="${cls}">${fmtPct(pct)}</td>
-    <td style="color:var(--text2);font-family:var(--mono);font-size:11px;">${w.weight.toFixed(2)}%</td>
-    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;">${w.weightClass.toFixed(2)}% <span style="font-size:9px;">${w.cat}</span></td>
+    <td style="color:var(--text2);font-family:var(--mono);font-size:11px;">${fmtW(w.weight)}</td>
+    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;" title="Part de la position dans sa classe (${escapeHtml(w.cat)})">${fmtW(w.weightClass)} <span style="font-size:9px;">${escapeHtml(w.cat)}</span></td>
     <td style="display:flex;gap:4px;white-space:nowrap;">
       <button class="btn" onclick="openEditModal(${idx});event.stopPropagation();" style="padding:3px 8px;font-size:9px;">Modifier</button>
       <button class="btn-danger" onclick="openCloseModal(${idx});event.stopPropagation();">Fermer</button>
@@ -2762,7 +2849,7 @@ function getFilteredSortedPositions(){
   const accountFilter=document.getElementById('pos-filter-account')?.value||'';
   const periodFilter=document.getElementById('pos-filter-period')?.value||'';
   let filtered=positions.map((p,i)=>({...p,_origIdx:i}));
-  if(catFilter)filtered=filtered.filter(p=>getCat(p.symbol)===catFilter);
+  if(catFilter)filtered=filtered.filter(p=>getWeightClass(p.symbol)===catFilter);
   if(accountFilter)filtered=filtered.filter(p=>(p.account||'')===accountFilter);
   if(periodFilter){
     const now=new Date();
@@ -2771,7 +2858,7 @@ function getFilteredSortedPositions(){
   }
   if(sortColumn){
     const dir=sortDir==='asc'?1:-1;
-    const wt=(sortColumn==='weight'||sortColumn==='weightClass')?computeWeightTotals():null;
+    const wt=(sortColumn==='weight'||sortColumn==='weightClass')?(_weightTotals||computeWeightTotals()):null;
     const getVal=(p)=>{
       switch(sortColumn){
         case'symbol':return p.symbol||'';
@@ -2814,14 +2901,67 @@ function renderPosTable(){
   const filtered=getFilteredSortedPositions();
   const countEl=document.getElementById('pos-count-label');
   if(countEl)countEl.textContent=`${filtered.length} / ${positions.length} positions`;
-  t.innerHTML=filtered.length?filtered.map((p,displayIdx)=>posRow(p,p._origIdx,displayIdx)).join(''):`<tr><td colspan="16" class="empty">Aucune position${positions.length?' (filtrée)':' ouverte'}</td></tr>`;
+  const wt=_weightTotals;
+  // Lignes CASH (cash dispo par compte) -- masquées si filtre période ou filtre de classe ≠ Cash.
+  const catFilter=document.getElementById('pos-filter-cat')?.value||'';
+  const accountFilter=document.getElementById('pos-filter-account')?.value||'';
+  const periodFilter=document.getElementById('pos-filter-period')?.value||'';
+  const showCash=!periodFilter&&(!catFilter||catFilter==='Cash');
+  const cashIdx=showCash?wt.cashRows.map((r,i)=>i).filter(i=>!accountFilter||wt.cashRows[i].account===accountFilter):[];
+  let html=filtered.map((p,displayIdx)=>posRow(p,p._origIdx,displayIdx)).join('');
+  html+=cashIdx.map(i=>cashWeightRow(wt,i)).join('');
+  if(!filtered.length&&!cashIdx.length)html=`<tr><td colspan="16" class="empty">Aucune position${positions.length?' (filtrée)':' ouverte'}</td></tr>`;
+  t.innerHTML=html;
+  renderPosFooter(filtered,cashIdx,!!(catFilter||accountFilter||periodFilter));
+}
+function cashWeightRow(wt,i){
+  const r=wt.cashRows[i];
+  return `<tr class="pos-cash-row" style="background:rgba(127,127,127,0.04);">
+    <td style="color:var(--text3);font-size:10px;">—</td>
+    <td class="sym" style="color:var(--text2);">CASH</td>
+    <td><span class="badge-dca ${getAcctClass(r.account)}">${escapeHtml(r.account)}</span></td>
+    <td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td>
+    <td style="color:var(--text3);font-size:10px;" colspan="2">${escapeHtml(r.native||'')}</td>
+    <td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td>
+    <td data-sensitive>${fmtAmt(r.value)}</td>
+    <td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td>
+    <td style="color:var(--text2);font-family:var(--mono);font-size:11px;">${fmtW(wt.cashWeight[i])}</td>
+    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;">${fmtW(wt.cashClassWeight[i])} <span style="font-size:9px;">Cash</span></td>
+    <td></td>
+  </tr>`;
+}
+// Pied du tableau : total des lignes visibles + récap des classes (somme 100 %).
+function renderPosFooter(filtered,cashIdx,isFiltered){
+  const f=document.getElementById('pos-foot');if(!f)return;
+  const wt=_weightTotals;if(!wt){f.innerHTML='';return;}
+  let val=0,wSum=0,pnl=0;
+  filtered.forEach(p=>{val+=posValueAcct(p);wSum+=(wt.posWeight[p._origIdx]||0);pnl+=calcPnlUSD(p)*(fxRate||1);});
+  cashIdx.forEach(i=>{val+=wt.cashRows[i].value;wSum+=wt.cashWeight[i]||0;});
+  wSum=Math.round(wSum*100)/100;
+  const ok=Math.abs(wSum-100)<0.005;
+  const pnlCls=pnl>=0?'pos':'neg';
+  const recap=wt.classSummary.map(c=>`<span style="white-space:nowrap;">${escapeHtml(c.cls)} <b style="color:var(--text2);">${fmtW(c.weight)}</b></span>`).join(' · ');
+  const recapSum=Math.round(wt.classSummary.reduce((s,c)=>s+c.weight,0)*100)/100;
+  f.innerHTML=`<tr class="pos-total-row" style="font-weight:600;border-top:2px solid var(--border2);">
+    <td></td><td class="sym">${isFiltered?'TOTAL (filtré)':'TOTAL'}</td>
+    <td colspan="8" style="color:var(--text3);font-size:10px;font-weight:500;">Positions + cash dispo · dénominateur = valeur totale du portefeuille (${fmtAmtRound(wt.total)})</td>
+    <td data-sensitive>${fmtAmt(val)}</td>
+    <td class="${pnlCls}">${(pnl>=0?'+':'-')+fmtAmt(Math.abs(pnl))}</td>
+    <td></td>
+    <td style="font-family:var(--mono);font-size:11px;color:${ok||isFiltered?'var(--text)':'var(--red)'};">${fmtW(wSum)}</td>
+    <td style="font-family:var(--mono);font-size:10px;color:var(--text3);font-weight:500;">100 % / classe</td>
+    <td></td>
+  </tr>
+  <tr class="pos-class-recap"><td></td><td colspan="15" style="font-size:10px;color:var(--text3);padding-top:4px;padding-bottom:8px;">
+    Répartition par classe : ${recap||'—'} <span style="margin-left:6px;color:var(--text2);">= ${fmtW(recapSum)}</span>
+  </td></tr>`;
 }
 
 function openEditModal(idx){
   editTarget=idx;const p=positions[idx];
   document.getElementById('edit-modal-symbol').textContent=p.symbol;
   document.getElementById('edit-dir').value=p.dir||'Long';
-  document.getElementById('edit-date').value=p.entries?.[0]?.date||new Date().toISOString().split('T')[0];
+  document.getElementById('edit-date').value=p.entries?.[0]?.date||localToday();
   document.getElementById('edit-avgentry').value=p.avgEntry||'';
   document.getElementById('edit-shares').value=p.shares||'';
   document.getElementById('edit-current').value=p.current||'';
@@ -2850,7 +2990,7 @@ function openCloseModal(i){
   document.getElementById('modal-symbol').textContent=p.symbol;
   const isDca=p.entries&&p.entries.length>1,totalShares=p.shares||0;
   document.getElementById('modal-info').textContent='Prix moy. entrée : '+fmtPrice(p.avgEntry)+'  |  Shares : '+(totalShares||'—')+'  |  Valeur : '+fmtC((p.shares||0)*p.current,getPosCurrency(p))+(isDca?'\n'+p.entries.length+' achats DCA':'');
-  document.getElementById('modal-exit').value=p.current||'';document.getElementById('modal-shares').value=totalShares||'';
+  document.getElementById('modal-exit').value=p.current||'';document.getElementById('modal-shares').value=totalShares||'';{const md=document.getElementById('modal-date');if(md)md.value=localToday();}
   document.getElementById('modal-shares-hint').textContent=totalShares?'Max : '+totalShares+' shares':'';
   updatePartialSize();document.getElementById('modal-overlay').classList.add('open');setTimeout(()=>document.getElementById('modal-shares').focus(),100);
 }
@@ -2866,13 +3006,17 @@ async function confirmClose(){
   if(closeTarget===null)return;
   const exitPrice=parseFloat(document.getElementById('modal-exit').value),sharesToSell=parseFloat(document.getElementById('modal-shares').value);
   if(isNaN(exitPrice)||isNaN(sharesToSell)||sharesToSell<=0){alert('Entre un prix de sortie et le nombre de shares à vendre.');return;}
-  const p=positions[closeTarget],date=new Date().toISOString().split('T')[0];
+  const p=positions[closeTarget],date=document.getElementById('modal-date')?.value||localToday();
+  // Garde-fou (audit 2026-10-01) : impossible de vendre plus que les shares détenues.
+  if(p.shares&&sharesToSell>p.shares+1e-9){alert(`Tu ne détiens que ${p.shares} shares de ${p.symbol}.`);return;}
+  if(date>localToday()){alert('La date de vente ne peut pas être dans le futur.');return;}
   const totalShares=p.shares||sharesToSell,pctToSell=sharesToSell/totalShares,sizeToClose=p.totalSize*pctToSell;
   const pnlPct=p.dir==='Long'?(exitPrice-p.avgEntry)/p.avgEntry:(p.avgEntry-exitPrice)/p.avgEntry;
   const profit=parseFloat((sizeToClose*pnlPct).toFixed(2)),montantFinal=parseFloat((sizeToClose+profit).toFixed(2));
   // Libérer cash en devise du compte (CAD)
   const profitUSD=toUSD(profit,getPosCurrency(p)),montantUSD=toUSD(montantFinal,getPosCurrency(p));
   const montantCAD=parseFloat((montantUSD*fxRate).toFixed(2));
+  pushUndo(`Vente ${sharesToSell} ${p.symbol} @ ${exitPrice} (${p.account||'—'}) du ${date}`);
   trades.unshift({date,symbol:p.symbol,dir:p.dir,type:'Vente',price:exitPrice,avgEntry:p.avgEntry,size:sizeToClose,profit,profitUSD,montantFinal,montantUSD,shares:sharesToSell,dcaCount:p.entries?p.entries.length:1,currency:getPosCurrency(p),account:p.account||''});
   // Cash resynchronisé depuis les lots (trades + CASH_LOTS_SEED) plutôt qu'un incrément manuel --
   // reflète correctement le split principal/profit et la chaîne de provenance côté compte vendeur.
@@ -2883,29 +3027,20 @@ async function confirmClose(){
     p.totalSize-=sizeToClose;
     p.shares-=sharesToSell;
     if(p.shares<0)p.shares=0;
-    // FIFO : supprimer les achats les plus anciens jusqu'à couvrir sharesToSell
+    // Fix 2026-10-01 : coût moyen (méthode PBR/ACB canadienne), plus FIFO. Avant, une vente
+    // partielle retirait les achats les plus anciens puis RECALCULAIT avgEntry sur les achats
+    // restants, alors que totalSize était réduit au prorata (coût moyen) -> les deux divergeaient
+    // et la vente suivante calculait un mauvais profit (ex. DCA 100 $ + 120 $, vente 10 @ 110 puis
+    // 10 @ 90 : perte enregistrée -275 $ au lieu de -200 $, cash faussé de 75 $). Au coût moyen,
+    // le prix moyen ne change pas après une vente ; chaque achat est réduit au même prorata, ce
+    // qui garde aussi l'ACB $CA (somme des entries) cohérent.
     if(p.entries&&p.entries.length>0){
-      let remaining=sharesToSell;
-      while(remaining>0&&p.entries.length>0){
-        const oldest=p.entries[0];
-        const oldestShares=oldest.shares||0;
-        if(oldestShares<=remaining){
-          // Cet achat est entièrement consommé → retirer
-          remaining-=oldestShares;
-          p.entries.shift();
-        }else{
-          // Achat partiellement consommé → réduire proportionnellement
-          const ratio=(oldestShares-remaining)/oldestShares;
-          oldest.shares=parseFloat((oldestShares-remaining).toFixed(6));
-          oldest.size=parseFloat((oldest.size*ratio).toFixed(2));
-          remaining=0;
-        }
-      }
-      // Recalculer avgEntry à partir des entries restantes
-      if(p.entries.length>0){
-        const totalShR=p.entries.reduce((s,e)=>s+(e.shares||0),0);
-        p.avgEntry=totalShR>0?p.entries.reduce((s,e)=>s+(e.price*(e.shares||0)),0)/totalShR:p.avgEntry;
-      }
+      const keep=1-pctToSell;
+      p.entries.forEach(en=>{
+        en.shares=parseFloat(((en.shares||0)*keep).toFixed(8));
+        en.size=parseFloat(((en.size||0)*keep).toFixed(2));
+      });
+      p.entries=p.entries.filter(en=>(en.shares||0)>1e-9);
     }
   }
   closeTarget=null;document.getElementById('modal-overlay').classList.remove('open');
@@ -3004,7 +3139,7 @@ function updatePnlBar(){
 
 async function addPosition(){
   const s=document.getElementById('f-symbol').value.trim().toUpperCase(),d=document.getElementById('f-dir').value;
-  const dateVal=document.getElementById('f-date').value||new Date().toISOString().split('T')[0];
+  const dateVal=document.getElementById('f-date').value||localToday();
   const e=parseFloat(document.getElementById('f-entry').value),shares=parseFloat(document.getElementById('f-shares').value);
   const posCurrency=tickerCurrency(s)||document.getElementById('f-currency').value||'USD',cur=parseFloat(document.getElementById('f-current').value),sz=parseFloat(document.getElementById('f-size').value);
   // BUG CRITIQUE corrigé (audit 2026-08-04, signalé par Cédric après un achat TQQQ réel mal
@@ -3024,22 +3159,15 @@ async function addPosition(){
   // Compte réel requis (durci le 2026-07-30, sur demande de Cédric) -- plus de "Non spécifié"
   // silencieux : sans compte, impossible de savoir dans quel cash piger, donc on bloque.
   if(!account){alert('Sélectionne un compte pour cet achat — requis pour vérifier le cash disponible (plus de "Non spécifié" automatique).');return;}
-  // Blocage si cash insuffisant dans le compte visé (demandé par Cédric, 2026-07-30).
-  // reconstructCashLots() est toujours recalculé à la volée depuis trades + CASH_LOTS_SEED,
-  // jamais une valeur stockée qui pourrait dériver de la réalité.
-  {
-    const acctKey=account;
-    const{accounts}=reconstructCashLots(true);
-    const state=accounts[acctKey]||_clMakeAccount();
-    const clone={principal:state.principal.map(l=>({...l})),profit:state.profit.map(l=>({...l}))};
-    const{shortfall}=_clConsume(clone,sz,posCurrency);
-    if(shortfall>0.01){
-      const availCAD=_clAccountTotalCAD(state);
-      alert(`Achat bloqué : cash insuffisant dans "${acctKey}".\nDisponible : ${fmtAmtRound(availCAD)} CAD\nBesoin pour cet achat : ${fmtAmtRound(fxConvert(sz,posCurrency,'CAD'))} CAD (manque ${fmtAmtRound(fxConvert(shortfall,posCurrency,'CAD'))} CAD)`);
-      return;
-    }
-  }
-  trades.unshift({date:dateVal,symbol:s,dir:d,type:'Achat',price:e,shares,size:sz,currency:posCurrency,account});
+  if(!(sz>0)){alert('Montant invalide (shares × prix achat doit être > 0).');return;}
+  // Financement (2026-10-01) : cash prélevé du/des compte(s) choisi(s) dans « Financement »,
+  // dans l'ordre de sélection (défaut = le compte de détention). Bloqué si insuffisant, comme avant
+  // (demande de Cédric du 2026-07-30), mais on peut maintenant combiner plusieurs comptes.
+  const fundingRes=buildFundingForPurchase(sz,posCurrency,account);
+  if(fundingRes.error){alert(fundingRes.error);return;}
+  const funding=fundingRes.lines;
+  pushUndo(`Achat ${shares} ${s} @ ${e} ${posCurrency} (${account}) du ${dateVal}`);
+  trades.unshift({date:dateVal,symbol:s,dir:d,type:'Achat',price:e,shares,size:sz,currency:posCurrency,account,funding});
   // Fusion UNIQUEMENT dans une position du MÊME compte (jamais par symbole+dir seul, cf.
   // fix ci-dessus) -- si le symbole existe déjà mais dans un autre compte, on crée une
   // nouvelle position distincte pour ce compte, comme prévu par la fonctionnalité "par compte".
@@ -3058,10 +3186,193 @@ async function addPosition(){
   }
   else positions.push({symbol:s,dir:d,avgEntry:e,current:cur,totalSize:sz,shares,currency:posCurrency,account,entries:[{price:e,shares,size:sz,date:dateVal,fxSnapshot:fxSnapshotFor(posCurrency)}]});
   ['f-symbol','f-entry','f-shares','f-current','f-size'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f-currency').value='USD';document.getElementById('f-account').value='';document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('f-currency').value='USD';document.getElementById('f-account').value='';document.getElementById('f-date').value=localToday();
   document.getElementById('symbol-dropdown').classList.remove('open');
+  resetFundingState();
   syncCashFromLots();
-  await saveData();renderAll();
+  await saveData();renderAll();renderFundingUI();
+}
+
+// ─── FINANCEMENT D'UN ACHAT (demandé par Cédric 2026-10-01) ───────────────────────────
+// Choisir de quel(s) compte(s) le cash est prélevé, dans l'ordre de sélection : le 1er compte
+// est vidé d'abord, le suivant prend le reste, etc. Montants pré-remplis mais modifiables.
+// Chaque prélèvement est figé sur le trade (trade.funding) avec son montant converti dans la
+// devise du compte source AU MOMENT de l'achat (srcAmount/srcCurrency) -- la reconstruction du
+// cash ne dérive donc plus avec le taux de change du jour pour un achat USD payé en CAD.
+let fundingOrder=[];          // comptes sélectionnés, dans l'ordre de sélection
+let fundingManual={};         // compte -> montant saisi à la main (devise de l'achat)
+let fundingTouched=false;     // true dès que Cédric coche/décoche lui-même
+let _fundingLastDefault='';
+function accountNativeCurrency(account,state){
+  const m=/\((CAD|USD)\)\s*$/.exec(account||'');if(m)return m[1];
+  const lots=state?[...state.principal,...state.profit]:[];
+  const curs=[...new Set(lots.map(l=>l.currency))];
+  return curs.length===1?curs[0]:null;
+}
+// Cash disponible par compte : {account: {state, native, availIn(cur)}}
+function getFundingCandidates(){
+  let accounts={};
+  try{accounts=reconstructCashLots(true).accounts;}catch(e){accounts={};}
+  return accounts;
+}
+function availableIn(state,cur){
+  if(!state)return 0;
+  return [...state.principal,...state.profit].reduce((s,l)=>s+fxConvert(l.amount,l.currency,cur),0);
+}
+function getFormPurchase(){
+  const s=(document.getElementById('f-symbol')?.value||'').trim().toUpperCase();
+  const posCurrency=tickerCurrency(s)||document.getElementById('f-currency')?.value||'USD';
+  const sz=parseFloat(document.getElementById('f-size')?.value);
+  return{symbol:s,currency:posCurrency,size:isNaN(sz)?0:sz};
+}
+// Répartit `size` entre les comptes sélectionnés : montants manuels respectés, le reste en ordre.
+function computeFundingAllocation(size,cur,order,manual,accounts){
+  const rows=order.map(a=>({account:a,available:availableIn(accounts[a],cur),amount:0,manual:manual[a]!=null}));
+  let remaining=size;
+  rows.forEach(r=>{if(r.manual){r.amount=Math.max(0,manual[r.account]||0);remaining-=r.amount;}});
+  rows.forEach(r=>{if(!r.manual){const take=Math.max(0,Math.min(remaining,r.available));r.amount=parseFloat(take.toFixed(2));remaining-=r.amount;}});
+  const total=rows.reduce((s,r)=>s+r.amount,0);
+  return{rows,total,shortfall:Math.max(0,size-total)};
+}
+function fundingDefaultSync(){
+  const holding=document.getElementById('f-account')?.value||'';
+  if(!fundingTouched){
+    fundingOrder=holding?[holding]:[];fundingManual={};
+  }
+  _fundingLastDefault=holding;
+}
+function toggleFundingAccount(account){
+  fundingTouched=true;
+  const i=fundingOrder.indexOf(account);
+  if(i>=0){fundingOrder.splice(i,1);delete fundingManual[account];}
+  else fundingOrder.push(account);
+  renderFundingUI();
+}
+function setFundingAmount(account,val){
+  fundingTouched=true;
+  const v=parseFloat(val);
+  if(val===''||isNaN(v))delete fundingManual[account];else fundingManual[account]=v;
+  renderFundingUI(account);
+}
+function resetFundingAuto(){fundingManual={};renderFundingUI();}
+// « Tout le cash » : achète pour la totalité du cash des comptes sélectionnés.
+function useAllFundingCash(){
+  const price=parseFloat(document.getElementById('f-entry').value);
+  if(isNaN(price)||price<=0){alert('Entre d\'abord le prix d\'achat.');return;}
+  fundingDefaultSync();
+  if(!fundingOrder.length){alert('Sélectionne au moins un compte (Compte ou Financement).');return;}
+  fundingManual={};
+  const{symbol,currency}=getFormPurchase();
+  const accounts=getFundingCandidates();
+  const total=fundingOrder.reduce((s,a)=>s+availableIn(accounts[a],currency),0);
+  if(total<=0.01){alert('Aucun cash disponible dans le(s) compte(s) sélectionné(s).');return;}
+  const fractional=getCat(symbol)==='Crypto'||getCat(symbol)==='Forex';
+  // Marge de 0,01 pour que l'arrondi du montant (2 déc.) ne dépasse jamais le cash dispo.
+  let shares=fractional?Math.floor(((total-0.01)/price)*1e6)/1e6:Math.floor((total+0.0001)/price);
+  if(!(shares>0)){alert(`Cash insuffisant pour 1 unité à ${price} ${currency} (dispo : ${fmtAmt(total)} ${currency}).`);return;}
+  document.getElementById('f-shares').value=shares;
+  calcMontant();
+  renderFundingUI();
+}
+function renderFundingUI(focusAccount){
+  const box=document.getElementById('funding-list');if(!box)return;
+  if(_fundingLastDefault!==(document.getElementById('f-account')?.value||''))fundingDefaultSync();
+  const{currency,size}=getFormPurchase();
+  const accounts=getFundingCandidates();
+  const holding=document.getElementById('f-account')?.value||'';
+  // Candidats : comptes avec du cash + compte de détention + comptes déjà sélectionnés
+  // Comptes cochés d'abord (dans l'ordre #1, #2…), puis les autres par cash décroissant.
+  const others=Object.keys(accounts).filter(a=>availableIn(accounts[a],'CAD')>0.005&&!fundingOrder.includes(a)).sort((a,b)=>availableIn(accounts[b],'CAD')-availableIn(accounts[a],'CAD'));
+  const names=[...new Set([...fundingOrder,...(holding&&!fundingOrder.includes(holding)?[holding]:[]),...others].filter(Boolean))];
+  const alloc=computeFundingAllocation(size,currency,fundingOrder,fundingManual,accounts);
+  const byAcct={};alloc.rows.forEach(r=>byAcct[r.account]=r);
+  box.innerHTML=names.length?names.map(a=>{
+    const st=accounts[a];
+    const sel=fundingOrder.indexOf(a);
+    const r=byAcct[a];
+    const native=st?_fmtLotsNative2([...st.principal,...st.profit]):'';
+    const availCur=availableIn(st,currency);
+    const over=r&&r.amount>availCur+0.01;
+    return `<div class="funding-item${sel>=0?' sel':''}" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border:1px solid ${sel>=0?'var(--blue)':'var(--border2)'};border-radius:8px;background:var(--bg3);">
+      <input type="checkbox" ${sel>=0?'checked':''} onchange="toggleFundingAccount('${escapeJsAttr(a)}')" style="width:auto;margin:0;" />
+      ${sel>=0?`<span style="font-size:9px;color:var(--blue);font-weight:700;">#${sel+1}</span>`:''}
+      <span class="badge-dca ${getAcctClass(a)}" style="margin:0;">${escapeHtml(a)}</span>
+      <span style="font-size:10px;color:var(--text3);font-family:var(--mono);" title="≈ ${fmtAmt(availCur)} ${currency}">${native||'0,00 $'}</span>
+      ${sel>=0?`<input type="number" step="any" value="${r?r.amount.toFixed(2):''}" onchange="setFundingAmount('${escapeJsAttr(a)}',this.value)" style="width:90px;padding:3px 6px;font-size:11px;${over?'border-color:var(--red);':''}${fundingManual[a]!=null?'':'color:var(--text3);'}" title="${fundingManual[a]!=null?'Montant manuel':'Montant auto'} (${currency})" /> <span style="font-size:9px;color:var(--text3);">${currency}</span>`:''}
+    </div>`;
+  }).join(''):'<span style="font-size:11px;color:var(--text3);">Aucun compte avec du cash — choisis un Compte ou fais un dépôt.</span>';
+  const st=document.getElementById('funding-status');
+  if(st){
+    if(!size){st.innerHTML='';}
+    else{
+      const diff=alloc.total-size;
+      const overAny=alloc.rows.some(r=>r.amount>availableIn(accounts[r.account],currency)+0.01);
+      const ok=Math.abs(diff)<=0.01&&!overAny;
+      st.innerHTML=`<span style="color:${ok?'var(--green)':'var(--red)'};">Prélevé ${fmtAmt(alloc.total)} / ${fmtAmt(size)} ${currency}</span>`+
+        (alloc.shortfall>0.01?` · <span style="color:var(--red);">manque ${fmtAmt(alloc.shortfall)} ${currency} — ajoute un compte</span>`:'')+
+        (diff>0.01?` · <span style="color:var(--red);">excédent ${fmtAmt(diff)} ${currency}</span>`:'')+
+        (overAny?` · <span style="color:var(--red);">un compte dépasse son cash dispo</span>`:'')+
+        (Object.keys(fundingManual).length?` · <a href="#" onclick="resetFundingAuto();return false;" style="color:var(--blue);">répartition auto</a>`:'');
+    }
+  }
+}
+// Construit le financement final à enregistrer sur le trade (ou une erreur lisible).
+function buildFundingForPurchase(size,cur,holding){
+  if(!fundingTouched&&!fundingOrder.length&&holding)fundingOrder=[holding];
+  const order=fundingOrder.length?fundingOrder:(holding?[holding]:[]);
+  if(!order.length)return{error:'Sélectionne au moins un compte d\'où prélever le cash.'};
+  const accounts=getFundingCandidates();
+  const alloc=computeFundingAllocation(size,cur,order,fundingManual,accounts);
+  const lines=[];
+  for(const r of alloc.rows){
+    if(r.amount<=0.005)continue;
+    const state=accounts[r.account]||_clMakeAccount();
+    const srcCurrency=accountNativeCurrency(r.account,state)||cur;
+    const srcAmount=parseFloat(fxConvert(r.amount,cur,srcCurrency).toFixed(2));
+    // Vérifie que CE compte peut fournir ce montant (profit d'abord, même logique que la reconstruction).
+    const clone={principal:state.principal.map(l=>({...l})),profit:state.profit.map(l=>({...l}))};
+    const{shortfall}=_clConsume(clone,srcAmount,srcCurrency);
+    if(shortfall>0.01)return{error:`Cash insuffisant dans "${r.account}" : besoin ${fmtAmt(srcAmount)} ${srcCurrency}, manque ${fmtAmt(shortfall)} ${srcCurrency}.`};
+    lines.push({account:r.account,amount:parseFloat(r.amount.toFixed(2)),currency:cur,srcAmount,srcCurrency});
+  }
+  const total=lines.reduce((s,l)=>s+l.amount,0);
+  if(Math.abs(total-size)>0.01){
+    const totalAvail=order.reduce((s,a)=>s+availableIn(accounts[a],cur),0);
+    if(total<size)return{error:`Achat bloqué : cash insuffisant.\nBesoin : ${fmtAmt(size)} ${cur}\nDisponible dans ${order.join(' + ')} : ${fmtAmt(totalAvail)} ${cur}\nManque : ${fmtAmt(size-total)} ${cur} — coche un autre compte dans « Financement » pour combiner.`};
+    return{error:`Le total prélevé (${fmtAmt(total)} ${cur}) dépasse le montant de l'achat (${fmtAmt(size)} ${cur}). Ajuste les montants ou clique « répartition auto ».`};
+  }
+  return{lines};
+}
+function resetFundingState(){fundingOrder=[];fundingManual={};fundingTouched=false;_fundingLastDefault='';}
+
+// ─── ANNULER LA DERNIÈRE OPÉRATION (audit 2026-10-01) ─────────────────────────────────
+// Aucune transaction Achat/Vente/Dépôt/Retrait ne pouvait être supprimée : une faute de frappe
+// laissait le cash reconstruit faux pour toujours. Pile d'annulation en mémoire (session) :
+// on photographie positions+trades juste avant chaque opération. Vidée au rechargement des
+// données (loadData / conflit) pour ne jamais restaurer un état périmé.
+let _undoStack=[];
+function pushUndo(label){
+  _undoStack.push({label,positions:JSON.stringify(positions),trades:JSON.stringify(trades)});
+  if(_undoStack.length>15)_undoStack.shift();
+  updateUndoBtn();
+}
+function clearUndo(){_undoStack=[];updateUndoBtn();}
+function updateUndoBtn(){
+  document.querySelectorAll('.undo-btn').forEach(b=>{
+    const last=_undoStack[_undoStack.length-1];
+    b.style.display=last?'inline-block':'none';
+    b.title=last?'Annuler : '+last.label:'';
+  });
+}
+async function undoLast(){
+  const u=_undoStack[_undoStack.length-1];if(!u)return;
+  if(!confirm('Annuler la dernière opération ?\n\n'+u.label))return;
+  _undoStack.pop();
+  positions=JSON.parse(u.positions);trades=JSON.parse(u.trades);
+  syncCashFromLots();
+  const ok=await saveData();
+  if(ok===false)alert('Annulé localement, mais la sauvegarde a échoué (connexion ?). Recharge la page avant de continuer.');
+  updateUndoBtn();renderAll();
 }
 
 let cashType='depot';
@@ -3088,16 +3399,18 @@ async function updateCashPreview(){
     else hint.textContent='';
   }else if(hint)hint.textContent='';
 }
-function toggleCashPopup(e){e.stopPropagation();document.getElementById('cash-modal-overlay').classList.add('open');const p=document.getElementById('cash-preview-current');if(p)p.textContent=fmtAmtRound(cash);setTimeout(()=>document.getElementById('cash-input').focus(),100);}
+function toggleCashPopup(e){e.stopPropagation();document.getElementById('cash-modal-overlay').classList.add('open');{const cd=document.getElementById('cash-date');if(cd&&!cd.value)cd.value=localToday();}const p=document.getElementById('cash-preview-current');if(p)p.textContent=fmtAmtRound(cash);setTimeout(()=>document.getElementById('cash-input').focus(),100);}
 function closeCashPopup(){
   document.getElementById('cash-modal-overlay').classList.remove('open');
   document.getElementById('cash-input').value='';
   const noteEl=document.getElementById('cash-note');if(noteEl)noteEl.value='';
   const acctEl=document.getElementById('cash-account-type');if(acctEl)acctEl.value='';
+  const cd=document.getElementById('cash-date');if(cd)cd.value='';
 }
 async function updateCash(){
   const inputAmt=parseFloat(document.getElementById('cash-input').value);if(isNaN(inputAmt)||inputAmt<=0){alert('Entre un montant valide.');return;}
-  const inputCur=document.getElementById('cash-currency-input')?.value||'USD',date=new Date().toISOString().split('T')[0],type=cashType==='depot'?'Dépôt':'Retrait';
+  const inputCur=document.getElementById('cash-currency-input')?.value||'USD',date=document.getElementById('cash-date')?.value||localToday(),type=cashType==='depot'?'Dépôt':'Retrait';
+  if(date>localToday()){alert('La date ne peut pas être dans le futur.');return;}
   // Compte requis pour les deux types depuis le 2026-07-30 (Phase 2) -- nécessaire pour savoir
   // dans quel compte ajouter/retirer le lot de cash.
   const accountType=document.getElementById('cash-account-type')?.value||'';
@@ -3123,6 +3436,7 @@ async function updateCash(){
   const amtCAD=parseFloat((toUSD(inputAmt,inputCur)*fxRate).toFixed(2));
   const tradeEntry={date,symbol:'CASH',dir:'—',type,price:0,size:amtCAD,profit:0,currency:accountCurrency,originalAmt:inputAmt,originalCurrency:inputCur,accountType};
   if(note)tradeEntry.note=note;
+  pushUndo(`${type} ${inputAmt} ${inputCur} (${accountType}) du ${date}`);
   trades.unshift(tradeEntry);
   // Cash resynchronisé depuis les lots (trades + CASH_LOTS_SEED), jamais une valeur qui dérive.
   const newCash=syncCashFromLots();
@@ -3250,7 +3564,7 @@ function updatePerfChart(){
     // Inject live value as last point so chart matches KPI (must be before portStart fallback)
     const totalSizeUSD=getTotalSizeUSD();
     const liveVal=parseFloat((totalSizeUSD*fxRate+cash).toFixed(2));
-    const todayStr2=new Date().toISOString().slice(0,10);
+    const todayStr2=localToday();
     const sampledWithLive=sampled.map((h,i)=>i===sampled.length-1?{...h,value:liveVal,date:todayStr2}:h);
 
     if(!spyPriceStart){portStart=sampledWithLive[0].value;}
@@ -4059,7 +4373,7 @@ function openCotisationModal(){
     for(let y=cur;y>=2009;y--){const o=document.createElement('option');o.value=y;o.textContent=y;yearSel.appendChild(o);}
   }
   const dateEl=document.getElementById('cotis-date');
-  if(dateEl)dateEl.value=new Date().toISOString().split('T')[0];
+  if(dateEl)dateEl.value=localToday();
   const amtEl=document.getElementById('cotis-amount');
   if(amtEl)amtEl.value='';
   const noteEl=document.getElementById('cotis-note');
@@ -4123,7 +4437,7 @@ async function saveCotisation(){
   const acct=document.getElementById('cotis-account')?.value;
   const amount=parseFloat(document.getElementById('cotis-amount')?.value||'0');
   const year=parseInt(document.getElementById('cotis-year')?.value||new Date().getFullYear());
-  const date=document.getElementById('cotis-date')?.value||new Date().toISOString().split('T')[0];
+  const date=document.getElementById('cotis-date')?.value||localToday();
   const note=document.getElementById('cotis-note')?.value||'';
   if(!acct||isNaN(amount)||amount<=0){alert('Montant invalide.');return;}
   const kind=cotisType==='retrait'?'retrait':'depot';
@@ -4159,7 +4473,7 @@ async function deleteCotisation(idx){
 document.addEventListener('click',function(e){if(e.target===document.getElementById('cotisation-modal-overlay'))closeCotisationModal();});
 // ─── FIN COTISATIONS ──────────────────────────────────────────────────────
 
-function renderAll(){updateKPIs();renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderStratPerf();renderMilestones();renderAnalytics();renderContributions();}
+function renderAll(){updateKPIs();try{renderFundingUI();}catch(e){}renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderStratPerf();renderMilestones();renderAnalytics();renderContributions();}
 
 function initCharts(){
   if(chartsInitialized)return;chartsInitialized=true;
