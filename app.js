@@ -236,6 +236,7 @@ let lastKnownUpdatedAt=null; // updated_at connu de user_data — contrôle de c
 let reerLimit=0,celiJoinYear=2009;
 let perfChart,allocChart,allocSymChart,allocCatChart,allocCatDashChart,assetPerfChart,assetPerfDashChart,pnlBarChart,cashAllocChart,celiChart,celiappChart,cryptoAllocChart,sectorVarChart,cashLotsChart;
 let chartsInitialized=false;
+let managerRadarChart=null; // radar des attributs du gestionnaire (onglet Allocation, 2026-10-03)
 let accountCurrency='USD',fxRate=1;
 let activePeriod='ALL'; // défaut ALL demandé par Cédric (2026-07-28) — chaque connexion doit repartir sur ALL/$/CAD
 let benchmarkMode='absolute';
@@ -400,6 +401,7 @@ function setTheme(theme){
     }
     renderAllocDashboard();
     renderAllocCharts();
+    try{renderManager();}catch(e){}
     renderHistory();
     if(typeof watchlist!=='undefined'&&watchlist.length)renderWatchlist();
   }
@@ -2762,7 +2764,7 @@ function posRow(p,idx,displayIdx){
     <td style="color:var(--text3);font-size:10px;">#${displayIdx+1}</td>
     <td class="sym">${p.symbol}${isDca?`<span class="badge-dca">DCA×${p.entries.length}</span>`:''}${dcaToggle}${curBadge}${p.note?'<span style="display:inline-block;width:5px;height:5px;background:var(--cyan);border-radius:50%;margin-left:5px;vertical-align:middle;" title="'+escapeHtml(p.note)+'"></span>':''}${getProvenanceBadge(p)}</td>
     <td>${acctBadge}</td>
-    <td><span class="badge ${p.dir==='Long'?'badge-long':'badge-short'}">${p.dir}</span></td>
+    <td><span class="dir-tag ${p.dir==='Long'?'dir-long':'dir-short'}">${p.dir}</span></td>
     <td style="color:var(--text3);">${firstDate}</td>
     <td style="color:var(--text2);">${sharesStr}</td>
     <td>${fmtPrice(p.avgEntry)}</td>
@@ -2771,11 +2773,11 @@ function posRow(p,idx,displayIdx){
     <td>${fmtC(valeurMarche,getPosCurrency(p))}</td>
     <td class="${cls}">${fmtCpnl(pnl,getPosCurrency(p))}</td>
     <td class="${cls}">${fmtPct(pct)}</td>
-    <td style="color:var(--text2);font-family:var(--mono);font-size:11px;">${fmtW(w.weight)}</td>
-    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;" title="Part de la position dans sa classe (${escapeHtml(w.cat)})">${fmtW(w.weightClass)} <span style="font-size:9px;">${escapeHtml(w.cat)}</span></td>
-    <td style="display:flex;gap:4px;white-space:nowrap;">
-      <button class="btn" onclick="openEditModal(${idx});event.stopPropagation();" style="padding:3px 8px;font-size:9px;">Modifier</button>
-      <button class="btn-danger" onclick="openCloseModal(${idx});event.stopPropagation();">Fermer</button>
+    <td class="w-cell">${fmtW(w.weight)}</td>
+    <td class="w-cell w-muted" title="Part de la position dans sa classe (${escapeHtml(w.cat)})">${fmtW(w.weightClass)}</td>
+    <td class="row-acts">
+      <button class="row-act" onclick="openEditModal(${idx});event.stopPropagation();" title="Modifier la position">Modifier</button>
+      <button class="row-act row-act-danger" onclick="openCloseModal(${idx});event.stopPropagation();" title="Vendre / fermer">Fermer</button>
     </td>
   </tr>`;
   // Note row — appears when row is selected
@@ -2945,10 +2947,17 @@ function renderPosTable(){
   t.innerHTML=html;
   renderPosFooter(filtered,cashIdx,!!(catFilter||accountFilter||periodFilter));
 }
+// Couleur d'identité par classe d'actif (en-têtes de section Positions, 2026-10-03).
+const CLASS_COLORS={'Cash':'#3b82f6','ETF Levier':'#f43f5e','ETF':'#10b981','Action':'#a78bfa','Crypto':'#f59e0b','Forex':'#06b6d4','Commodité':'#eab308'};
+function classColor(c){return CLASS_COLORS[c]||'#94a3b8';}
+// Refonte 2026-10-03 (Cédric : « difficile de différencier classe et sous-total ») :
+// - EN-TÊTE = grand titre coloré (pastille + soulignement couleur de la classe), sans fond ;
+// - SOUS-TOTAL = bande teintée discrète, libellé « Total <classe> », chiffres en gras.
+// Les deux ne se ressemblent plus du tout.
 function posClassHeadRow(c,g){
   const nPos=g.pos.length,nCash=g.cash.length;
   const parts=[];if(nPos)parts.push(nPos+' position'+(nPos>1?'s':''));if(nCash)parts.push(nCash+' compte'+(nCash>1?'s':'')+' de cash');
-  return `<tr class="pos-class-head"><td colspan="15">${escapeHtml(c)}<span class="pos-class-count">${parts.join(' · ')}</span></td></tr>`;
+  return `<tr class="pos-class-head" style="--cls:${classColor(c)};"><td colspan="15"><span class="pos-class-dot"></span>${escapeHtml(c)}<span class="pos-class-count">${parts.join(' · ')}</span></td></tr>`;
 }
 function posClassSubtotalRow(c,g,wt){
   let val=0,pnl=0,w=0,wc=0;
@@ -2956,30 +2965,29 @@ function posClassSubtotalRow(c,g,wt){
   g.cash.forEach(i=>{val+=wt.cashRows[i].value;w+=wt.cashRaw[i]||0;});
   const clsTot=wt.byClass[c]||0;wc=clsTot>0?val/clsTot*100:0;
   const pnlCls=pnl>=0?'pos':'neg';
-  return `<tr class="pos-class-sub">
-    <td></td><td class="sym" style="color:var(--text2);">Sous-total</td>
-    <td colspan="7" class="pos-class-weights">Poids portefeuille <b>${fmtW(w)}</b><span style="margin:0 8px;color:var(--border2);">|</span>Poids dans la classe <b>${fmtW(wc)}</b></td>
-    <td data-sensitive>${fmtAmt(val)}</td>
-    <td class="${g.pos.length?pnlCls:''}">${g.pos.length?(pnl>=0?'+':'-')+fmtAmt(Math.abs(pnl)):'—'}</td>
+  return `<tr class="pos-class-sub" style="--cls:${classColor(c)};">
+    <td></td><td class="pos-sub-label" colspan="8"><span class="pos-sub-name">Total ${escapeHtml(c)}</span><span class="pos-sub-w">Poids portefeuille <b>${fmtW(w)}</b><span class="pos-sub-sep">·</span>Poids dans la classe <b>${fmtW(wc)}</b></span></td>
+    <td class="pos-sub-num" data-sensitive>${fmtAmt(val)}</td>
+    <td class="pos-sub-num ${g.pos.length?pnlCls:''}">${g.pos.length?(pnl>=0?'+':'-')+fmtAmt(Math.abs(pnl)):'—'}</td>
     <td></td>
-    <td style="font-family:var(--mono);font-size:11px;color:var(--text);">${fmtW(w)}</td>
-    <td style="font-family:var(--mono);font-size:11px;color:var(--text3);">${fmtW(wc)}</td>
+    <td class="pos-sub-num">${fmtW(w)}</td>
+    <td class="w-cell w-muted">${fmtW(wc)}</td>
     <td></td>
   </tr>`;
 }
 function cashWeightRow(wt,i){
   const r=wt.cashRows[i];
-  return `<tr class="pos-cash-row" style="background:rgba(127,127,127,0.04);">
-    <td style="color:var(--text3);font-size:10px;">—</td>
-    <td class="sym" style="color:var(--text2);">CASH</td>
+  return `<tr class="pos-cash-row">
+    <td class="muted">—</td>
+    <td class="sym" style="color:var(--text2);">Cash</td>
     <td><span class="badge-dca ${getAcctClass(r.account)}">${escapeHtml(r.account)}</span></td>
-    <td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td>
-    <td style="color:var(--text3);font-size:10px;" colspan="2">${escapeHtml(r.native||'')}</td>
-    <td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td>
+    <td class="muted">—</td><td class="muted">—</td>
+    <td class="muted" colspan="2">${escapeHtml(r.native||'')}</td>
+    <td class="muted">—</td><td class="muted">—</td>
     <td data-sensitive>${fmtAmt(r.value)}</td>
-    <td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td>
-    <td style="color:var(--text2);font-family:var(--mono);font-size:11px;">${fmtW(wt.cashWeight[i])}</td>
-    <td style="color:var(--text3);font-family:var(--mono);font-size:11px;">${fmtW(wt.cashClassWeight[i])} <span style="font-size:9px;">Cash</span></td>
+    <td class="muted">—</td><td class="muted">—</td>
+    <td class="w-cell">${fmtW(wt.cashWeight[i])}</td>
+    <td class="w-cell w-muted">${fmtW(wt.cashClassWeight[i])}</td>
     <td></td>
   </tr>`;
 }
@@ -2993,14 +3001,14 @@ function renderPosFooter(filtered,cashIdx,isFiltered){
   wSum=Math.round(wSum*10)/10;
   const ok=Math.abs(wSum-100)<0.05;
   const pnlCls=pnl>=0?'pos':'neg';
-  f.innerHTML=`<tr class="pos-total-row" style="font-weight:600;border-top:2px solid var(--border2);">
-    <td></td><td class="sym">${isFiltered?'TOTAL (filtré)':'TOTAL'}</td>
-    <td colspan="7" style="color:var(--text3);font-size:10px;font-weight:500;">Positions + cash dispo · dénominateur = valeur totale du portefeuille (${fmtAmtRound(wt.total)})</td>
+  f.innerHTML=`<tr class="pos-total-row">
+    <td></td><td class="sym">${isFiltered?'Total (filtré)':'Total portefeuille'}</td>
+    <td colspan="7" class="muted" style="font-size:11px;">Positions + cash disponible</td>
     <td data-sensitive>${fmtAmt(val)}</td>
     <td class="${pnlCls}">${(pnl>=0?'+':'-')+fmtAmt(Math.abs(pnl))}</td>
     <td></td>
-    <td style="font-family:var(--mono);font-size:11px;color:${ok||isFiltered?'var(--text)':'var(--red)'};">${fmtW(wSum)}</td>
-    <td style="font-family:var(--mono);font-size:10px;color:var(--text3);font-weight:500;">100 % / classe</td>
+    <td class="w-cell" style="color:${ok||isFiltered?'var(--text)':'var(--red)'};">${fmtW(wSum)}</td>
+    <td class="w-cell w-muted">100 % / classe</td>
     <td></td>
   </tr>`;
 }
@@ -3101,17 +3109,39 @@ function populateHistFilters(){
   const assets=[...new Set(histTrades.map(t=>t.symbol))].sort();
   const mSel=document.getElementById('filter-month'),aSel=document.getElementById('filter-asset');if(!mSel||!aSel)return;
   const curMonth=mSel.value,curAsset=aSel.value;
-  mSel.innerHTML='<option value="">Tous les mois</option>'+months.map(m=>`<option value="${m}">${m}</option>`).join('');
+  mSel.innerHTML='<option value="">Tous les mois</option>'+months.map(m=>`<option value="${m}">${monthLabelFr(m)}</option>`).join('');
   aSel.innerHTML='<option value="">Tous les actifs</option>'+assets.map(a=>`<option value="${a}">${a}</option>`).join('');
   if(curMonth)mSel.value=curMonth;if(curAsset)aSel.value=curAsset;
 }
-function resetFilters(){const mSel=document.getElementById('filter-month'),aSel=document.getElementById('filter-asset');if(mSel)mSel.value='';if(aSel)aSel.value='';renderHistory();}
+function resetFilters(){['filter-month','filter-asset','filter-type'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderHistory();}
+const MONTHS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+// '2026-09' -> 'Septembre 2026'
+function monthLabelFr(ym){const[y,m]=String(ym||'').split('-');const i=parseInt(m,10)-1;return MONTHS_FR[i]?MONTHS_FR[i]+' '+y:String(ym||'');}
+// Ligne de section du Ledger (2026-10-03) : mois + année, avec un mini-résumé du mois.
+function ledgerMonthRow(ym,list){
+  const[y,m]=ym.split('-');const name=MONTHS_FR[parseInt(m,10)-1]||ym;
+  let pnl=0,nSales=0,dep=0,div=0;
+  list.forEach(t=>{
+    if(t.type==='Vente'){nSales++;pnl+=toUSD(t.profit||0,getTradeCurrency(t))*fxRate;}
+    else if(t.type==='Dépôt')dep+=t.size||0;else if(t.type==='Retrait')dep-=t.size||0;
+    else if(t.type==='Dividende')div+=fxConvert(t.size||0,getTradeCurrency(t),'CAD');
+  });
+  const bits=[`${list.length} transaction${list.length>1?'s':''}`];
+  if(nSales)bits.push(`P&L réalisé <b class="${pnl>=0?'pos':'neg'}" data-sensitive>${pnl>=0?'+':'-'}${fmtAmtRound(Math.abs(pnl))}</b>`);
+  if(Math.abs(dep)>0.005)bits.push(`Dépôts nets <b data-sensitive>${dep>=0?'+':'-'}${fmtAmtRound(Math.abs(dep))}</b>`);
+  if(div>0.005)bits.push(`Dividendes <b data-sensitive>+${fmtAmt(div)}</b>`);
+  return`<tr class="ledger-month"><td colspan="8"><div class="ledger-month-inner"><span class="ledger-month-name">${name}<span class="ledger-month-year">${y}</span></span><span class="ledger-month-meta">${bits.join('<span class="ledger-sep">·</span>')}</span></div></td></tr>`;
+}
 function renderHistory(){
   populateHistFilters();
-  const filterMonth=document.getElementById('filter-month')?.value||'',filterAsset=document.getElementById('filter-asset')?.value||'';
+  const filterMonth=document.getElementById('filter-month')?.value||'',filterAsset=document.getElementById('filter-asset')?.value||'',filterType=document.getElementById('filter-type')?.value||'';
   const tbody=document.getElementById('hist-body');let wins=0,losses=0,totalPnl=0;
-  const filtered=trades.filter(t=>{if(t.type==='Cotisation')return false;if(filterMonth&&!t.date.startsWith(filterMonth))return false;if(filterAsset&&t.symbol!==filterAsset)return false;return true;});
-  tbody.innerHTML=filtered.map(t=>{
+  const filtered=trades.filter(t=>{if(t.type==='Cotisation')return false;if(filterMonth&&!t.date.startsWith(filterMonth))return false;if(filterAsset&&t.symbol!==filterAsset)return false;if(filterType&&t.type!==filterType)return false;return true;})
+    // Tri chronologique décroissant pour regrouper par mois (tri stable : l'ordre d'insertion
+    // est conservé pour les transactions du même jour).
+    .map((t,i)=>({t,i})).sort((a,b)=>(b.t.date||'').localeCompare(a.t.date||'')||a.i-b.i).map(x=>x.t);
+  const byMonth=new Map();filtered.forEach(t=>{const k=(t.date||'').slice(0,7);if(!byMonth.has(k))byMonth.set(k,[]);byMonth.get(k).push(t);});
+  const rowHtml=t=>{
     if(t.type==='Dépôt'||t.type==='Retrait'){
       const isDeposit=t.type==='Dépôt',color=isDeposit?'var(--green)':'var(--amber)';
       const bs=isDeposit?'background:rgba(45,212,160,0.1);color:var(--green);border:0.5px solid rgba(45,212,160,0.25);':'background:rgba(246,200,67,0.1);color:var(--amber);border:0.5px solid rgba(246,200,67,0.25);';
@@ -3128,7 +3158,8 @@ function renderHistory(){
       const noteTip=t.note?`<span style="font-size:10px;color:var(--text3);margin-left:4px;" title="${escapeHtml(t.note)}">note</span>`:'';
       return`<tr style="opacity:0.85;"><td>${t.date}</td><td class="sym">${escapeHtml(t.symbol||'—')}</td><td><span class="badge" style="background:rgba(96,165,250,0.1);color:var(--blue);border:0.5px solid rgba(96,165,250,0.25);">Dividende</span>${acctBadge}${noteTip}</td><td style="color:var(--text3);">—</td><td style="color:var(--text2);">${fmtC(t.size,t.currency)}</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
     }else{return`<tr><td>${t.date}</td><td class="sym">${t.symbol}</td><td><span class="badge badge-achat">Achat</span></td><td>${fmtPrice(t.price)}</td><td>${fmtC(t.size,t.currency)}</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;}
-  }).join('')||'<tr><td colspan="8" class="empty">Aucune transaction</td></tr>';
+  };
+  tbody.innerHTML=[...byMonth.entries()].map(([ym,list])=>ledgerMonthRow(ym,list)+list.map(rowHtml).join('')).join('')||'<tr><td colspan="8" class="empty">Aucune transaction</td></tr>';
   const cls=totalPnl>=0?'pos':'neg';
   const sumEl=document.getElementById('hist-summary-inline');
   if(sumEl)sumEl.innerHTML=`<span class="${cls}">${wins+losses} trades filtrés</span>`;
@@ -3499,7 +3530,7 @@ function switchTab(name,el){
   document.getElementById('tab-'+name).classList.add('active');el.classList.add('active');
   if(name==='watchlist'){renderWatchlist();refreshWatchlist();}
   if(name==='strategie'){renderStratPerf();}
-  if(name==='allocation'){renderAnalytics();}
+  if(name==='allocation'){try{renderManager();}catch(e){}}
   if(name==='allocation')renderAllocCharts();
 }
 function togglePosForm(){
@@ -3935,6 +3966,27 @@ function shadeList(hex,n){
   if(n<=0)return[];
   return Array.from({length:n},(_,i)=>{const a=Math.round(255-(n>1?i/(n-1):0)*150);return hex+a.toString(16).padStart(2,'0');});
 }
+// Palette « Optimus Prime » : rouge camion / bleu cabine. Version claire et version sombre
+// (le sombre a besoin de tons un peu plus lumineux pour rester lisible sur fond noir).
+function optimusBase(){
+  const light=document.documentElement.getAttribute('data-theme')==='light';
+  return light?{red:'#c8102e',blue:'#1d4fb8'}:{red:'#e8283c',blue:'#2f6fe4'};
+}
+// n tons d'une même famille, du plus saturé/profond au plus clair : la teinte glisse un peu
+// (rouge -> cramoisi / bleu roi -> bleu ciel) en plus de la luminosité, pour que des tranches
+// voisines restent faciles à distinguer même à 10+ éléments.
+function optimusRamp(family,n){
+  if(n<=0)return[];
+  const light=document.documentElement.getAttribute('data-theme')==='light';
+  const spec=family==='red'
+    ?{h0:356,h1:12,s0:82,s1:88,l0:light?38:46,l1:light?68:74}
+    :{h0:222,h1:200,s0:78,s1:85,l0:light?36:48,l1:light?66:76};
+  return Array.from({length:n},(_,i)=>{
+    const t=n>1?i/(n-1):0;
+    const h=(spec.h0+((spec.h1-spec.h0+540)%360-180)*t+360)%360;
+    return`hsl(${h.toFixed(0)} ${(spec.s0+(spec.s1-spec.s0)*t).toFixed(0)}% ${(spec.l0+(spec.l1-spec.l0)*t).toFixed(0)}%)`;
+  });
+}
 function cashAllocTooltipLabel(ctx){
   const m=ctx.datasetIndex===0?_cashAllocMeta.outer[ctx.dataIndex]:_cashAllocMeta.inner[ctx.dataIndex];
   if(!m)return ' '+ctx.label;
@@ -3949,9 +4001,12 @@ function renderCashAllocDouble(){
   const cashItems=getCashByAccount().map(r=>({label:'Cash · '+r.account,value:r.value,group:'Cash'}));
   const posTot=posItems.reduce((s,x)=>s+x.value,0),cashTot=cashItems.reduce((s,x)=>s+x.value,0),total=posTot+cashTot;
   if(!(total>0))return;
-  const green=themeHex('green'),cyan=themeHex('cyan');
+  // Couleurs 2026-10-03 (demande de Cédric) : positions en rouge « Optimus Prime », cash en
+  // bleu, avec une vraie rampe de tons (teinte + luminosité) plutôt qu'un seul hex dont on ne
+  // variait que la transparence -- chaque tranche de l'anneau extérieur est distincte.
+  const{red:green,blue:cyan}=optimusBase();
   const outer=[...posItems,...cashItems];
-  const outerColors=[...shadeList(green,posItems.length),...shadeList(cyan,cashItems.length)];
+  const outerColors=[...optimusRamp('red',posItems.length),...optimusRamp('blue',cashItems.length)];
   const inner=[{label:'Positions',value:posTot},{label:'Cash',value:cashTot}];
   _cashAllocMeta={outer,inner,total};
   const ds=cashAllocChart.data.datasets;
@@ -4199,154 +4254,9 @@ function exportCSV(){
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='nord_capital_transactions.csv';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 async function clearHistory(){if(!confirm('Effacer tout l\'historique ? Irréversible.'))return;trades=[];await saveData();renderAll();}
-function renderMilestones(){
-  const body=document.getElementById('milestones-body');
-  if(!body)return;
-  const MILESTONES=[10000,25000,50000,75000,100000,150000,250000,500000,1000000];
-  const totalSizeUSD=getTotalSizeUSD();
-  const totalCAD=totalSizeUSD*fxRate+cash;
-
-  // Calcul CAGR depuis le premier snapshot
-  let cagrPct=null,cagrLabel='';
-  if(portfolioHistory.length>=2){
-    const first=portfolioHistory[0],last=portfolioHistory[portfolioHistory.length-1];
-    const v0=first.value,v1=last.value||totalCAD;
-    const d0=new Date(first.date),d1=new Date();
-    const years=(d1-d0)/(1000*60*60*24*365.25);
-    if(years>=0.05&&v0>0&&v1>0){
-      cagrPct=Math.pow(v1/v0,1/years)-1;
-      cagrLabel=`CAGR ${(cagrPct*100).toFixed(1)}%/an`;
-    }
-  }
-  const badge=document.getElementById('milestone-cagr-badge');
-  if(badge)badge.textContent=cagrLabel;
-
-  const fmtM=v=>v>=1000000?`${(v/1000000).toFixed(v%1000000===0?0:1)}M CAD`:`${(v/1000).toFixed(0)}k CAD`;
-  // Trouver le prochain milestone non-atteint
-  const nextTarget=MILESTONES.find(t=>totalCAD<t);
-  const rows=MILESTONES.map(target=>{
-    const pct=totalCAD>=target?100:Math.max(0,(totalCAD/target)*100);
-    const done=totalCAD>=target;
-    const isNext=target===nextTarget;
-    const remaining=Math.max(0,target-totalCAD);
-    let etaStr='';
-    if(!done&&cagrPct&&cagrPct>0){
-      const yearsLeft=Math.log(target/totalCAD)/Math.log(1+cagrPct);
-      if(yearsLeft<100){const months=Math.round(yearsLeft*12);etaStr=months<24?`~${months} mois`:`~${(yearsLeft).toFixed(1)} ans`;}
-    }
-    const barColor=done?'var(--green)':isNext?'var(--cyan)':pct>50?'var(--blue)':'rgba(255,255,255,0.15)';
-    const glowStyle=isNext?'box-shadow:0 0 0 1px rgba(0,212,255,0.3);border-color:rgba(0,212,255,0.3);':'';
-    return `<div style="background:var(--bg3);border:0.5px solid ${done?'rgba(0,255,136,0.25)':isNext?'rgba(0,212,255,0.25)':'var(--border)'};border-radius:10px;padding:12px 16px;${done?'opacity:0.6;':''}${glowStyle}">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:14px;">${done?'':isNext?'':''}</span>
-          <span style="font-family:var(--mono);font-weight:700;font-size:13px;color:${done?'var(--green)':isNext?'var(--cyan)':'var(--text)'};">${fmtM(target)}</span>
-          ${isNext?'<span style="font-size:9px;font-weight:700;background:rgba(0,212,255,0.15);color:var(--cyan);padding:1px 6px;border-radius:3px;letter-spacing:1px;">PROCHAIN</span>':''}
-        </div>
-        <div style="text-align:right;">
-          <span style="font-family:var(--mono);font-size:13px;font-weight:600;color:${done?'var(--green)':'var(--text2)'};">${pct<100?pct.toFixed(1)+'%':'OK Atteint'}</span>
-          ${!done&&etaStr?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${etaStr}</div>`:''}
-        </div>
-      </div>
-      <div style="height:6px;background:var(--bg4);border-radius:3px;overflow:hidden;">
-        <div style="height:100%;width:${pct.toFixed(1)}%;background:${barColor};border-radius:3px;transition:width 0.6s ease;${isNext?'box-shadow:0 0 8px rgba(0,212,255,0.5);':''}"></div>
-      </div>
-      ${!done&&remaining>0?`<div style="font-size:10px;color:var(--text3);margin-top:6px;">Reste ${Math.round(remaining).toLocaleString('fr-FR')} $ CAD</div>`:''}
-    </div>`;
-  }).join('');
-  body.innerHTML=rows;
-}
-function computeAnalytics(history){
-  // Besoin d'au moins 30 points
-  if(!history||history.length<10)return null;
-  const vals=history.map(h=>h.value).filter(v=>v>0);
-  if(vals.length<10)return null;
-
-  // Rendements journaliers
-  const returns=[];
-  for(let i=1;i<vals.length;i++){
-    if(vals[i-1]>0)returns.push((vals[i]-vals[i-1])/vals[i-1]);
-  }
-  if(!returns.length)return null;
-
-  // Volatilité annualisée (std dev journalière × √252)
-  const mean=returns.reduce((s,r)=>s+r,0)/returns.length;
-  const variance=returns.reduce((s,r)=>s+Math.pow(r-mean,2),0)/(returns.length-1);
-  const stdDaily=Math.sqrt(variance);
-  const volAnnual=stdDaily*Math.sqrt(252)*100; // %
-
-  // CAGR
-  const first=vals[0],last=vals[vals.length-1];
-  const d0=new Date(history[0].date),d1=new Date(history[history.length-1].date);
-  const years=(d1-d0)/(1000*60*60*24*365.25);
-  const cagr=years>=0.1?( Math.pow(last/first,1/years)-1)*100:null;
-
-  // Sharpe (taux sans risque 4%/an → journalier)
-  const rfDaily=0.04/252;
-  const excessMean=mean-rfDaily;
-  const sharpe=stdDaily>0?(excessMean/stdDaily)*Math.sqrt(252):null;
-
-  // Max Drawdown
-  let peak=vals[0],maxDD=0,peakDate=history[0].date,troughDate=history[0].date,ddPeakDate=history[0].date;
-  for(let i=1;i<vals.length;i++){
-    if(vals[i]>peak){peak=vals[i];ddPeakDate=history[i].date;}
-    const dd=(peak-vals[i])/peak*100;
-    if(dd>maxDD){maxDD=dd;peakDate=ddPeakDate;troughDate=history[i].date;}
-  }
-
-  // ATH actuel vs valeur courante
-  const ath=Math.max(...vals);
-  const athDrawdown=last<ath?(ath-last)/ath*100:0;
-
-  const nbDays=Math.round((d1-d0)/(1000*60*60*24));
-  return{volAnnual,cagr,sharpe,maxDD,peakDate,troughDate,athDrawdown,ath,nbDays,nbPoints:vals.length};
-}
-
-function renderAnalytics(){
-  const analytics=computeAnalytics(portfolioHistory);
-  const cagrEl=document.getElementById('analytics-cagr');
-  const volEl=document.getElementById('analytics-vol');
-  const sharpeEl=document.getElementById('analytics-sharpe');
-  const mddEl=document.getElementById('analytics-mdd');
-  const mddSub=document.getElementById('analytics-mdd-sub');
-  const periodLabel=document.getElementById('analytics-period-label');
-  const noteEl=document.getElementById('analytics-note');
-
-  if(!analytics){
-    [cagrEl,volEl,sharpeEl,mddEl].forEach(el=>{if(el)el.textContent='—';});
-    if(noteEl)noteEl.textContent="Pas assez de données (min. 10 snapshots). L'historique se construit automatiquement chaque soir.";
-    return;
-  }
-
-  const{volAnnual,cagr,sharpe,maxDD,peakDate,troughDate,athDrawdown,nbDays,nbPoints}=analytics;
-
-  if(periodLabel)periodLabel.textContent=`${nbPoints} snapshots · ${nbDays} jours d'historique`;
-  if(noteEl)noteEl.textContent=`Calculé sur ${nbPoints} snapshots quotidiens (${nbDays} jours). Sharpe avec taux sans risque 4%/an.`;
-
-  // CAGR
-  if(cagrEl&&cagr!==null){
-    cagrEl.textContent=(cagr>=0?'+':'')+cagr.toFixed(1)+'%';
-    cagrEl.style.color=cagr>=0?'var(--green)':'var(--red)';
-  }
-  // Volatilité
-  if(volEl){
-    volEl.textContent=volAnnual.toFixed(1)+'%';
-    volEl.style.color=volAnnual<20?'var(--green)':volAnnual<40?'var(--amber)':'var(--red)';
-  }
-  // Sharpe
-  if(sharpeEl&&sharpe!==null){
-    sharpeEl.textContent=sharpe.toFixed(2);
-    sharpeEl.style.color=sharpe>=1?'var(--green)':sharpe>=0?'var(--amber)':'var(--red)';
-  }
-  // Max Drawdown
-  if(mddEl){
-    mddEl.textContent='-'+maxDD.toFixed(1)+'%';
-    mddEl.style.color=maxDD<10?'var(--green)':maxDD<25?'var(--amber)':'var(--red)';
-  }
-  if(mddSub&&peakDate&&troughDate){
-    mddSub.textContent=`pic ${peakDate} → creux ${troughDate}`;
-  }
-}
+// renderMilestones() (« Objectifs financiers ») retiré le 2026-10-03 à la demande de Cédric.
+// renderAnalytics() retiré le 2026-10-03 : CAGR/volatilité/Sharpe/drawdown vivent maintenant dans la
+// fiche du gestionnaire (renderManager), calculés sur la série TWR (dépôts exclus).
 
 // ─── COTISATIONS & DROITS ─────────────────────────────────────────────────
 const CELI_LIMITS={2009:5000,2010:5000,2011:5000,2012:5000,2013:5500,2014:5500,2015:10000,2016:5500,2017:5500,2018:5500,2019:6000,2020:6000,2021:6000,2022:6000,2023:6500,2024:7000,2025:7000,2026:7000};
@@ -4619,11 +4529,265 @@ async function deleteCotisation(idx){
 document.addEventListener('click',function(e){if(e.target===document.getElementById('cotisation-modal-overlay'))closeCotisationModal();});
 // ─── FIN COTISATIONS ──────────────────────────────────────────────────────
 
-function renderAll(){updateKPIs();try{renderFundingUI();}catch(e){}renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderStratPerf();renderMilestones();renderAnalytics();renderContributions();}
+// ═══ FICHE DU GESTIONNAIRE (onglet Allocation, 2026-10-03) ══════════════════════════════════
+// Demande de Cédric : « démontrer mes stats de gestionnaire comme dans un jeu vidéo pour voir
+// si je suis bon ou pas ». Tout est calculé à la volée depuis portfolioHistory + trades —
+// aucune donnée persistée en plus.
+//
+// Série de rendement : TWR quotidien, r_i = (V_i − flux_i) / V_{i−1} − 1 où flux_i = dépôts −
+// retraits datés dans ]date_{i−1}, date_i]. Contrairement à l'ancien computeAnalytics() (qui
+// travaillait sur les valeurs brutes), un dépôt n'est donc PAS compté comme une performance.
+function mgrLerp(x,knots){
+  if(x===null||x===undefined||!isFinite(x))return null;
+  if(x<=knots[0][0])return knots[0][1];
+  for(let i=1;i<knots.length;i++){
+    const[x1,y1]=knots[i],[x0,y0]=knots[i-1];
+    if(x<=x1)return y0+(y1-y0)*(x-x0)/(x1-x0);
+  }
+  return knots[knots.length-1][1];
+}
+function mgrDays(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
+function computeManagerStats(spyRaw){
+  const out={};
+  // ── 1. Série TWR quotidienne ─────────────────────────────────────────
+  const today=localToday();
+  const liveVal=getTotalSizeUSD()*fxRate+cash;
+  let hist=[...portfolioHistory].filter(h=>h&&h.value>0&&h.date).sort((a,b)=>a.date.localeCompare(b.date));
+  if(liveVal>0){
+    if(hist.length&&hist[hist.length-1].date===today)hist[hist.length-1]={...hist[hist.length-1],value:liveVal};
+    else if(hist.length)hist.push({date:today,value:liveVal});
+  }
+  const flows=trades.filter(t=>t.type==='Dépôt'||t.type==='Retrait').map(t=>({date:t.date,amt:(t.type==='Dépôt'?1:-1)*(t.size||0)}));
+  const rets=[],idx=[1];
+  for(let i=1;i<hist.length;i++){
+    const prev=hist[i-1],cur=hist[i];
+    const f=flows.filter(x=>x.date>prev.date&&x.date<=cur.date).reduce((s,x)=>s+x.amt,0);
+    let r=prev.value>0?(cur.value-f)/prev.value-1:0;
+    if(!isFinite(r))r=0;
+    rets.push(r);idx.push(idx[idx.length-1]*(1+r));
+  }
+  out.nbPoints=hist.length;
+  out.days=hist.length>1?mgrDays(hist[0].date,hist[hist.length-1].date):0;
+  out.startDate=hist[0]?.date||null;
+  if(rets.length>=5){
+    out.twr=idx[idx.length-1]-1;
+    const years=out.days/365.25;
+    // Annualisation « tempérée » : jamais sur moins de 6 mois, pour ne pas transformer un bon
+    // mois en +200 %/an. Au-delà d'un an, c'est un CAGR TWR classique.
+    out.twrAnn=Math.pow(1+out.twr,1/Math.max(years,0.5))-1;
+    out.twrAnnRaw=years>=1?Math.pow(1+out.twr,1/years)-1:null;
+    const mean=rets.reduce((s,r)=>s+r,0)/rets.length;
+    const sd=Math.sqrt(rets.reduce((s,r)=>s+(r-mean)**2,0)/Math.max(1,rets.length-1));
+    out.vol=sd*Math.sqrt(252);
+    out.sharpe=sd>0?((mean-0.04/252)/sd)*Math.sqrt(252):null;
+    let peak=idx[0],mdd=0;
+    idx.forEach(v=>{if(v>peak)peak=v;const dd=(peak-v)/peak;if(dd>mdd)mdd=dd;});
+    out.mdd=mdd;
+  }
+  // ── 2. S&P 500 sur la même fenêtre ────────────────────────────────────
+  if(spyRaw&&spyRaw.length&&out.twr!==undefined&&hist.length>1){
+    const m=new Map(spyRaw.map(p=>[p.date,p.close]));
+    const s0=findSpyPrice(m,hist[0].date);
+    const s1=findSpyPrice(m,hist[hist.length-1].date)||spyRaw[spyRaw.length-1].close;
+    if(s0&&s1){
+      out.spy=s1/s0-1;
+      const years=out.days/365.25;
+      out.spyAnn=Math.pow(1+out.spy,1/Math.max(years,0.5))-1;
+      out.alpha=out.twr-out.spy;
+      out.alphaAnn=out.twrAnn-out.spyAnn;
+    }
+  }
+  // ── 3. Trades fermés ──────────────────────────────────────────────────
+  const sales=trades.filter(t=>t.type==='Vente').map((t,i)=>{
+    const pCAD=toUSD(t.profit||0,getTradeCurrency(t))*fxRate;
+    const roi=t.size>0?(t.profit||0)/t.size*100:0;
+    return{t,i,pCAD,roi,date:t.date||''};
+  }).sort((a,b)=>a.date.localeCompare(b.date)||b.i-a.i);
+  const n=sales.length,winsL=sales.filter(s=>s.pCAD>0),lossL=sales.filter(s=>s.pCAD<=0);
+  out.nTrades=n;out.wins=winsL.length;out.losses=lossL.length;
+  out.winRate=n?winsL.length/n:null;
+  // Win rate « bayésien » : 5 trades fictifs à 50 % -> un 3/3 ne vaut pas 100 %.
+  out.winRateAdj=(winsL.length+2.5)/(n+5);
+  out.grossWin=winsL.reduce((s,x)=>s+x.pCAD,0);
+  out.grossLoss=-lossL.reduce((s,x)=>s+x.pCAD,0);
+  out.pf=out.grossLoss>0.005?out.grossWin/out.grossLoss:(out.grossWin>0?Infinity:null);
+  const pfCap=out.pf===Infinity?5:Math.min(out.pf??1,5);
+  out.pfAdj=n?1+(pfCap-1)*n/(n+5):null;
+  out.avgWin=winsL.length?winsL.reduce((s,x)=>s+x.roi,0)/winsL.length:null;
+  out.avgLoss=lossL.length?lossL.reduce((s,x)=>s+x.roi,0)/lossL.length:null;
+  out.best=n?sales.reduce((a,b)=>b.roi>a.roi?b:a):null;
+  out.worst=n?sales.reduce((a,b)=>b.roi<a.roi?b:a):null;
+  out.realized=sales.reduce((s,x)=>s+x.pCAD,0);
+  let cur=0,bestW=0,run=0;
+  sales.forEach(s=>{if(s.pCAD>0){run=run>0?run+1:1;}else{run=run<0?run-1:-1;}if(run>bestW)bestW=run;});
+  cur=run;out.streak=cur;out.bestStreak=bestW;
+  out.dividends=trades.filter(t=>t.type==='Dividende').reduce((s,t)=>s+fxConvert(t.size||0,getTradeCurrency(t),'CAD'),0);
+  out.nDividends=trades.filter(t=>t.type==='Dividende').length;
+  out.depositMonths=new Set(flows.filter(f=>f.amt>0).map(f=>f.date.slice(0,7))).size;
+  // ── 4. Diversification (positions hors cash) ──────────────────────────
+  const pv=positions.filter(p=>getWeightClass(p.symbol)!=='Cash').map(p=>({p,v:posValueAcct(p),c:getWeightClass(p.symbol)})).filter(x=>x.v>0);
+  const pTot=pv.reduce((s,x)=>s+x.v,0);
+  out.classes=new Set(pv.map(x=>x.c)).size;
+  if(pTot>0){const hhi=pv.reduce((s,x)=>s+(x.v/pTot)**2,0);out.effN=1/hhi;const top=pv.reduce((a,b)=>b.v>a.v?b:a);out.topPos={sym:top.p.symbol,w:top.v/pTot};}
+  // ── 5. Attributs (0–99) ───────────────────────────────────────────────
+  const A=[
+    {k:'RDT',name:'Rendement',w:0.20,score:mgrLerp(out.twrAnn,[[-0.3,15],[-0.1,35],[0,48],[0.08,62],[0.15,74],[0.25,84],[0.5,94],[1,99]]),
+      raw:out.twrAnn!==undefined?`TWR ${fmtSignedPct(out.twr*100)}${out.days>=365?' · '+fmtSignedPct(out.twrAnnRaw*100)+'/an':''}`:'Historique insuffisant'},
+    {k:'ALP',name:'Alpha',w:0.20,score:mgrLerp(out.alphaAnn,[[-0.3,15],[-0.1,35],[0,52],[0.05,65],[0.1,75],[0.2,86],[0.4,96]]),
+      raw:out.alpha!==undefined?`${fmtSignedPct(out.alpha*100,' pts')} vs S&P 500`:(spyRaw?'Données S&P 500 indisponibles':'Chargement du S&P 500…')},
+    {k:'EFF',name:'Efficience',w:0.20,score:mgrLerp(out.sharpe,[[-1,15],[0,35],[0.5,52],[1,66],[1.5,77],[2,85],[3,95]]),
+      raw:out.sharpe!=null?`Sharpe ${out.sharpe.toFixed(2)} · σ ${(out.vol*100).toFixed(1)} %`:'Historique insuffisant'},
+    {k:'DÉF',name:'Défense',w:0.15,score:mgrLerp(out.mdd!=null?out.mdd*100:null,[[0,97],[5,88],[10,76],[20,60],[30,45],[50,25],[70,12]]),
+      raw:out.mdd!=null?`Max drawdown −${(out.mdd*100).toFixed(1)} %`:'Historique insuffisant'},
+    {k:'GES',name:'Gestion des gains',w:0.15,score:n?mgrLerp(out.pfAdj,[[0,10],[0.5,28],[1,48],[1.5,64],[2,75],[3,87],[5,96]]):null,
+      raw:n?`Profit factor ${out.pf===Infinity?'∞':(out.pf??0).toFixed(2)}`:'Aucune vente fermée'},
+    {k:'PRÉ',name:'Précision',w:0.10,score:n?mgrLerp(out.winRateAdj*100,[[0,10],[30,30],[45,50],[55,63],[65,76],[75,87],[90,96]]):null,
+      raw:n?`Win rate ${(out.winRate*100).toFixed(1)} % (${out.wins}V–${out.losses}D)`:'Aucune vente fermée'},
+  ];
+  A.forEach(a=>{if(a.score!=null)a.score=Math.max(1,Math.min(99,Math.round(a.score)));});
+  out.attrs=A;
+  const sc=A.filter(a=>a.score!=null),wsum=sc.reduce((s,a)=>s+a.w,0);
+  out.ovr=wsum>0?Math.round(sc.reduce((s,a)=>s+a.score*a.w,0)/wsum):null;
+  // ── 6. Rang, archétype, niveau ────────────────────────────────────────
+  const TIERS=[[90,'Légende','#f472b6'],[80,'Diamant','#60a5fa'],[70,'Platine','#2dd4bf'],[60,'Or','#f5c542'],[50,'Argent','#b8c2cf'],[0,'Bronze','#cd7f32']];
+  const t=TIERS.find(x=>(out.ovr??0)>=x[0]);
+  let div='';
+  if(out.ovr!=null&&t[0]>=50&&t[0]<90){const r=out.ovr-t[0];div=r>=7?' I':r>=4?' II':' III';}
+  out.tier={name:t[1]+div,color:t[2]};
+  const ARCH={RDT:'Chasseur de rendement',ALP:"Batteur d'indice",EFF:'Stratège efficient','DÉF':'Gardien du capital',GES:'Maître du risque/récompense','PRÉ':"Tireur d'élite"};
+  const top=sc.slice().sort((a,b)=>b.score-a.score)[0];
+  out.archetype=top?ARCH[top.k]:'Recrue';
+  const xp=Math.round(n*120+out.wins*40+out.days*2+Math.max(0,out.realized)/10+out.depositMonths*25+out.nDividends*15);
+  let lvl=1,need=400,acc=xp;
+  while(acc>=need){acc-=need;lvl++;need=400+150*(lvl-1);}
+  out.xp=xp;out.level=lvl;out.xpIn=acc;out.xpNeed=need;
+  out.reliability=out.days<90?'faible':out.days<365?'moyenne':'élevée';
+  // ── 7. Succès ─────────────────────────────────────────────────────────
+  out.achievements=[
+    {ic:'blood',name:'Premier sang',desc:'Fermer un premier trade gagnant',ok:out.wins>=1},
+    {ic:'flame',name:'Série chaude',desc:'3 trades gagnants d’affilée',ok:out.bestStreak>=3,prog:Math.min(1,out.bestStreak/3)},
+    {ic:'target',name:'Sniper',desc:'Un trade fermé à +25 % ou plus',ok:!!(out.best&&out.best.roi>=25)},
+    {ic:'medal',name:'Vétéran',desc:'25 trades fermés',ok:n>=25,prog:Math.min(1,n/25)},
+    {ic:'trend',name:'Bat le marché',desc:'Rendement TWR supérieur au S&P 500 depuis le début',ok:(out.alpha??-1)>0},
+    {ic:'shield',name:'Main de fer',desc:'Max drawdown sous 10 % sur 90 jours et plus',ok:out.days>=90&&out.mdd!=null&&out.mdd<0.10,prog:Math.min(1,out.days/90)},
+    {ic:'gauge',name:'Ratio pro',desc:'Sharpe ≥ 1 sur 90 jours et plus',ok:out.days>=90&&(out.sharpe??0)>=1},
+    {ic:'scale',name:'Asymétrie',desc:'Profit factor ≥ 2 sur 10 trades et plus',ok:n>=10&&(out.pf??0)>=2,prog:Math.min(1,n/10)},
+    {ic:'coin',name:'Rentier',desc:'Recevoir un premier dividende',ok:out.nDividends>=1},
+    {ic:'layers',name:'Diversifié',desc:'Détenir 4 classes d’actifs ou plus',ok:out.classes>=4,prog:Math.min(1,out.classes/4)},
+    {ic:'cal',name:'Épargnant régulier',desc:'Des dépôts dans 6 mois différents',ok:out.depositMonths>=6,prog:Math.min(1,out.depositMonths/6)},
+    {ic:'clock',name:'Centurion',desc:'100 jours de suivi du portefeuille',ok:out.days>=100,prog:Math.min(1,out.days/100)},
+  ];
+  return out;
+}
+function fmtSignedPct(v,unit){if(v==null||!isFinite(v))return'—';return(v>=0?'+':'−')+Math.abs(v).toFixed(1)+(unit||' %');}
+function mgrScoreColor(s){if(s==null)return'var(--text3)';const L=document.documentElement.getAttribute('data-theme')==='light';return s>=80?(L?'#0891b2':'#22d3ee'):s>=70?(L?'#059669':'#34d399'):s>=60?(L?'#65a30d':'#a3e635'):s>=50?(L?'#d97706':'#fbbf24'):(L?'#e11d48':'#fb7185');}
+const MGR_ICONS={
+  blood:'<path d="M12 3c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z"/>',
+  flame:'<path d="M12 3c1 3 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-5 1-8.5z"/>',
+  target:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.8"/>',
+  medal:'<circle cx="12" cy="14" r="5"/><path d="M9 9.5 6.5 3h4L12 7l1.5-4h4L15 9.5"/>',
+  trend:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  shield:'<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/>',
+  gauge:'<path d="M4 16a8 8 0 1 1 16 0"/><path d="M12 16l4-5"/>',
+  scale:'<path d="M12 4v16M5 20h14M6 8h12"/><path d="M6 8l-3 6h6zM18 8l-3 6h6z"/>',
+  coin:'<circle cx="12" cy="12" r="8"/><path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.5 0-2.5.8-2.5 2s1 1.7 2.5 2 2.5.8 2.5 2-1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v11"/>',
+  layers:'<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+  cal:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+  clock:'<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+};
+function mgrIcon(k){return`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${MGR_ICONS[k]||MGR_ICONS.medal}</svg>`;}
+let _mgrSpy=null,_mgrSpyLoading=false;
+function renderManager(){
+  const root=document.getElementById('mgr-hero');if(!root)return;
+  if(!_mgrSpy&&!_mgrSpyLoading&&typeof fetchSpyHistory==='function'){
+    _mgrSpyLoading=true;
+    fetchSpyHistory('5y').then(d=>{_mgrSpy=d||[];_mgrSpyLoading=false;renderManager();}).catch(()=>{_mgrSpy=[];_mgrSpyLoading=false;});
+  }
+  const S=computeManagerStats(_mgrSpy);
+  const $=id=>document.getElementById(id);
+  // Emblème
+  const tab=$('tab-allocation');(tab||root).style.setProperty('--tier',S.tier.color);
+  if($('mgr-ovr'))$('mgr-ovr').textContent=S.ovr!=null?S.ovr:'—';
+  if($('mgr-tier'))$('mgr-tier').textContent=S.ovr!=null?S.tier.name:'Non classé';
+  if($('mgr-archetype'))$('mgr-archetype').textContent=S.archetype;
+  if($('mgr-level-lbl'))$('mgr-level-lbl').textContent='Niveau '+S.level;
+  if($('mgr-xp-lbl'))$('mgr-xp-lbl').textContent=S.xpIn.toLocaleString('fr-FR')+' / '+S.xpNeed.toLocaleString('fr-FR')+' XP';
+  if($('mgr-xp-fill'))$('mgr-xp-fill').style.width=(S.xpIn/S.xpNeed*100).toFixed(1)+'%';
+  if($('mgr-reliab'))$('mgr-reliab').innerHTML=`Fiabilité <b>${S.reliability}</b> · ${S.days} jours · ${S.nTrades} vente${S.nTrades>1?'s':''} fermée${S.nTrades>1?'s':''}`;
+  // Attributs
+  const at=$('mgr-attrs');
+  if(at)at.innerHTML=S.attrs.map(a=>{
+    const c=mgrScoreColor(a.score);
+    return`<div class="mgr-attr"><div class="mgr-attr-top"><span class="mgr-attr-k" style="color:${c};">${a.k}</span><span class="mgr-attr-name">${a.name}</span><span class="mgr-attr-raw" data-sensitive>${escapeHtml(a.raw)}</span><span class="mgr-attr-score" style="color:${c};">${a.score??'—'}</span></div><div class="mgr-attr-bar"><div style="width:${a.score??0}%;background:${c};"></div></div></div>`;
+  }).join('');
+  // Radar
+  const cv=$('managerRadar');
+  if(cv&&typeof Chart!=='undefined'){
+    const labels=S.attrs.map(a=>a.name),data=S.attrs.map(a=>a.score??0);
+    const tierC=S.tier.color;
+    if(!managerRadarChart){
+      managerRadarChart=new Chart(cv,{type:'radar',data:{labels,datasets:[{data,borderColor:tierC,backgroundColor:tierC+'33',borderWidth:2,pointRadius:3,pointBackgroundColor:tierC,pointBorderWidth:0}]},
+        options:{responsive:true,maintainAspectRatio:false,animation:{duration:500},plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.label+' : '+c.raw}}},
+          scales:{r:{min:0,max:100,ticks:{display:false,stepSize:25},grid:{color:()=>themeRgba('text',0.08)},angleLines:{color:()=>themeRgba('text',0.08)},pointLabels:{color:()=>themeHex('text2'),font:{size:11,weight:'600'}}}}}});
+    }else{
+      const d=managerRadarChart.data.datasets[0];
+      managerRadarChart.data.labels=labels;d.data=data;d.borderColor=tierC;d.backgroundColor=tierC+'33';d.pointBackgroundColor=tierC;
+      managerRadarChart.update();
+    }
+  }
+  // Duel
+  const du=$('mgr-duel');
+  if(du){
+    if(S.twr===undefined){du.innerHTML='<div class="alloc-empty-state">Il faut au moins une semaine d’historique quotidien.</div>';}
+    else{
+      const me=S.twr*100,spy=S.spy!=null?S.spy*100:null;
+      const mx=Math.max(Math.abs(me),Math.abs(spy??0),1);
+      const bar=(lbl,v,col)=>`<div class="mgr-duel-row"><span class="mgr-duel-lbl">${lbl}</span><div class="mgr-duel-track"><div class="mgr-duel-fill" style="width:${v==null?0:Math.abs(v)/mx*100}%;background:${col};"></div></div><span class="mgr-duel-val" style="color:${v==null?'var(--text3)':v>=0?'var(--pos)':'var(--neg)'};">${v==null?'…':fmtSignedPct(v)}</span></div>`;
+      const alpha=S.alpha!=null?S.alpha*100:null;
+      const verdict=alpha==null?'Chargement du S&P 500…':alpha>=0?`Tu bats l’indice de <b class="pos">${alpha.toFixed(1)} pts</b>`:`L’indice te devance de <b class="neg">${Math.abs(alpha).toFixed(1)} pts</b>`;
+      du.innerHTML=bar('Toi',me,'var(--tier)')+bar('S&P 500',spy,'var(--text3)')+`<div class="mgr-duel-verdict">${verdict}</div><div class="mgr-duel-foot">Rendement pondéré dans le temps (dépôts exclus) depuis le ${S.startDate||'—'}</div>`;
+    }
+  }
+  // Saison
+  const se=$('mgr-season');
+  if($('mgr-season-lbl'))$('mgr-season-lbl').textContent=S.startDate?'depuis le '+S.startDate:'';
+  if(se){
+    const streakTxt=S.streak>0?`${S.streak} V`:S.streak<0?`${-S.streak} D`:'—';
+    const tile=(l,v,sub,cls)=>`<div class="mgr-stat"><div class="mgr-stat-l">${l}</div><div class="mgr-stat-v ${cls||''}" data-sensitive>${v}</div>${sub?`<div class="mgr-stat-s">${sub}</div>`:''}</div>`;
+    se.innerHTML=[
+      tile('Trades fermés',S.nTrades,`${S.wins} V · ${S.losses} D`),
+      tile('Win rate',S.winRate!=null?(S.winRate*100).toFixed(1)+' %':'—','',S.winRate!=null?(S.winRate>=0.5?'pos':'neg'):''),
+      tile('Série actuelle',streakTxt,`record : ${S.bestStreak} V`,S.streak>0?'pos':S.streak<0?'neg':''),
+      tile('Profit factor',S.pf==null?'—':S.pf===Infinity?'∞':S.pf.toFixed(2),'gains ÷ pertes',S.pf!=null&&S.pf>=1?'pos':S.pf!=null?'neg':''),
+      tile('Meilleur trade',S.best?fmtSignedPct(S.best.roi):'—',S.best?escapeHtml(S.best.t.symbol||''):'',S.best&&S.best.roi>=0?'pos':'neg'),
+      tile('Pire trade',S.worst?fmtSignedPct(S.worst.roi):'—',S.worst?escapeHtml(S.worst.t.symbol||''):'',S.worst&&S.worst.roi>=0?'pos':'neg'),
+      tile('Gain moyen',S.avgWin!=null?fmtSignedPct(S.avgWin):'—','par trade gagnant','pos'),
+      tile('Perte moyenne',S.avgLoss!=null?fmtSignedPct(S.avgLoss):'—','par trade perdant','neg'),
+      tile('P&L réalisé',(S.realized>=0?'+':'−')+fmtAmtRound(Math.abs(S.realized)),S.nDividends?`+ ${fmtAmtRound(S.dividends)} de dividendes`:'',S.realized>=0?'pos':'neg'),
+      tile('Volatilité',S.vol!=null?(S.vol*100).toFixed(1)+' %':'—','annualisée'),
+      tile('Diversification',S.effN?S.effN.toFixed(1):'—',S.topPos?`positions effectives · top ${escapeHtml(S.topPos.sym)} ${(S.topPos.w*100).toFixed(0)} %`:'positions effectives'),
+      tile('Classes détenues',S.classes||0,'hors cash'),
+    ].join('');
+  }
+  // Succès
+  const ac=$('mgr-achievements');
+  if(ac){
+    const got=S.achievements.filter(a=>a.ok).length;
+    if($('mgr-ach-count'))$('mgr-ach-count').textContent=`${got} / ${S.achievements.length} débloqués`;
+    ac.innerHTML=S.achievements.map(a=>`<div class="mgr-ach ${a.ok?'ok':''}" title="${escapeHtml(a.desc)}"><div class="mgr-ach-ic">${mgrIcon(a.ic)}</div><div class="mgr-ach-txt"><div class="mgr-ach-name">${escapeHtml(a.name)}</div><div class="mgr-ach-desc">${escapeHtml(a.desc)}</div>${!a.ok&&a.prog!=null?`<div class="mgr-ach-prog"><div style="width:${(a.prog*100).toFixed(0)}%;"></div></div>`:''}</div></div>`).join('');
+  }
+}
+
+function renderAll(){updateKPIs();try{renderFundingUI();}catch(e){}renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderStratPerf();try{renderManager();}catch(e){console.error('[manager]',e);}renderContributions();}
 
 function initCharts(){
   if(chartsInitialized)return;chartsInitialized=true;
-  const cd={color:'#606075',font:{size:10,family:'DM Mono'}},gc='rgba(255,255,255,0.03)',bc='rgba(255,255,255,0.04)';
+  // Police/couleurs des axes (2026-10-03) : même famille que l'UI (Inter / SF Pro) et couleur
+  // lue dynamiquement dans le thème (scriptable) -> suit le basculement clair/sombre sans
+  // recréer les charts. Avant : 'DM Mono' (jamais chargée) en gris #606075 quasi illisible.
+  const uiFont=(getComputedStyle(document.documentElement).getPropertyValue('--sans')||'').trim()||'Inter, system-ui, sans-serif';
+  try{Chart.defaults.font.family=uiFont;Chart.defaults.color=themeHex('text3');}catch(e){}
+  const cd={color:()=>themeHex('text3'),font:{size:10.5,family:uiFont}},gc=()=>themeRgba('text',0.05),bc=()=>themeRgba('text',0.08);
   const chartDefaults={responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{display:false}}};
 
   const safeNew=(id,cfg)=>{const el=document.getElementById(id);return el?new Chart(el,cfg):null;};
@@ -4645,8 +4809,8 @@ function initCharts(){
   // Double anneau : dataset 0 = anneau extérieur (détail), dataset 1 = anneau intérieur (Positions/Cash).
   {const el=document.getElementById('cashAllocChart');
    cashAllocChart=el?new Chart(el,{type:'doughnut',data:{labels:[],datasets:[
-     {data:[],backgroundColor:[],borderWidth:1,borderColor:themeHex('bg2')||'#000',hoverOffset:10,weight:1.4},
-     {data:[],backgroundColor:[],borderWidth:1,borderColor:themeHex('bg2')||'#000',hoverOffset:6,weight:1}
+     {data:[],backgroundColor:[],borderWidth:2,borderColor:()=>themeHex('bg2')||'#000',hoverOffset:10,weight:1.4},
+     {data:[],backgroundColor:[],borderWidth:2,borderColor:()=>themeHex('bg2')||'#000',hoverOffset:6,weight:1}
    ]},options:{responsive:true,maintainAspectRatio:false,cutout:'38%',layout:{padding:12},plugins:{legend:{display:false},tooltip:{enabled:false,external:externalDonutTooltip,callbacks:{label:cashAllocTooltipLabel}}}}}):null;}
   allocSymChart=mkDonut('allocSymChart',[],[],[]);
   allocCatChart=mkDonut('allocCatChart',[],[],[]);
@@ -4654,6 +4818,8 @@ function initCharts(){
   celiappChart=mkDonut('celiappChart',[],[],[]);
   cryptoAllocChart=mkDonut('cryptoAllocChart',[],[],[]);
   cashLotsChart=mkDonut('cashLotsChart',[],[],[],{hoverOffset:14,cutout:'62%',label:cashLotsTooltipLabel});
+  // La webfont (Inter) arrive souvent après le 1er rendu canvas -> redessiner une fois chargée.
+  try{document.fonts&&document.fonts.ready.then(()=>{[perfChart,pnlBarChart,assetPerfChart,sectorVarChart,managerRadarChart].forEach(c=>{try{c&&c.update('none');}catch(e){}});});}catch(e){}
 }
 
 document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelClose();});

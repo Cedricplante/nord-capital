@@ -102,7 +102,7 @@ try{E('renderAll()');ok(true,'renderAll() sans erreur');}catch(e){ok(false,'rend
 const rows=E("document.querySelectorAll('#pos-body tr.pos-cash-row').length");ok(rows>0,'lignes CASH affichées: '+rows);
 // Filtre compte
 E("document.getElementById('pos-filter-account').value='CELIAPP (USD)';renderPosTable()");
-ok(/TOTAL \(filtré\)/.test(E("document.getElementById('pos-foot').textContent")),'filtre -> TOTAL (filtré)');
+ok(/Total \(filtré\)/i.test(E("document.getElementById('pos-foot').textContent")),'filtre -> TOTAL (filtré)');
 // ---- K: date de vente + survente
 E(`positions.push({symbol:'KTEST',dir:'Long',avgEntry:10,current:12,shares:5,totalSize:50,currency:'USD',account:'CELIAPP (USD)',entries:[{price:10,shares:5,size:50,date:'2026-09-28'}]})`);
 E("closeTarget=positions.length-1;document.getElementById('modal-exit').value='12';document.getElementById('modal-shares').value='6';document.getElementById('modal-date').value='2026-09-29';__alerts.length=0;");

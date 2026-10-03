@@ -243,7 +243,7 @@
                 <button class="btn-export" onclick="resetPosFilters()" style="padding:6px 14px;">Réinitialiser</button>
               </div>
             </div>
-            <div class="pos-table-inner"><table><thead><tr>
+            <div class="pos-table-inner"><table class="nc-table pos-table"><thead><tr>
               <th>#</th>
               <th class="sortable" onclick="sortBy('symbol')">Symbole<span class="sort-arrow" id="sort-symbol">⇅</span></th>
               <th class="sortable" onclick="sortBy('account')">Compte<span class="sort-arrow" id="sort-account">⇅</span></th>
@@ -315,20 +315,21 @@
     <!-- LEDGER (2026-10-03) : registre des transactions déplacé tel quel depuis Historique,
          avec ses filtres mois/actif. -->
     <div id="tab-ledger" class="section">
-      <div class="toolbar" style="margin-bottom:10px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <select id="filter-month" onchange="renderHistory()" class="filter-select"><option value="">Tous les mois</option></select>
-          <select id="filter-asset" onchange="renderHistory()" class="filter-select"><option value="">Tous les actifs</option></select>
-          <button class="btn-ghost" onclick="resetFilters()" style="padding:5px 12px;font-size:11px;">Reset</button>
+      <!-- Refonte 2026-10-03 : filtres alignés à l'horizontale dans l'en-tête du registre
+           (avant : empilés verticalement au-dessus), transactions séparées par mois/année. -->
+      <div class="card ledger-card">
+        <div class="card-title ledger-head">
+          <span>Registre des transactions <span id="hist-count-label" class="ledger-count"></span></span>
+          <div class="ledger-filters">
+            <button class="btn-ghost undo-btn" type="button" onclick="undoLast()" style="display:none;padding:5px 12px;font-size:11px;">↶ Annuler la dernière opération</button>
+            <select id="filter-month" onchange="renderHistory()" class="filter-select"><option value="">Tous les mois</option></select>
+            <select id="filter-asset" onchange="renderHistory()" class="filter-select"><option value="">Tous les actifs</option></select>
+            <select id="filter-type" onchange="renderHistory()" class="filter-select"><option value="">Tous les types</option><option value="Achat">Achats</option><option value="Vente">Ventes</option><option value="Dépôt">Dépôts</option><option value="Retrait">Retraits</option><option value="Dividende">Dividendes</option></select>
+            <button class="btn-export" onclick="resetFilters()">Réinitialiser</button>
+          </div>
         </div>
-      </div>
-      <!-- Transaction table -->
-      <div class="card">
-        <div class="card-title">
-          <span>Registre des transactions — <span id="hist-count-label" style="color:var(--text3);font-weight:500;font-size:11px;text-transform:none;letter-spacing:0;"></span></span> <button class="btn-ghost undo-btn" type="button" onclick="undoLast()" style="display:none;padding:2px 10px;font-size:10px;">↶ Annuler la dernière opération</button>
-        </div>
-        <div class="pos-table-inner" style="max-height:calc(100vh - 220px);">
-          <table style="min-width:700px;">
+        <div class="pos-table-inner ledger-scroll">
+          <table class="nc-table ledger-table" style="min-width:700px;">
             <thead><tr>
               <th>Date</th><th>Symbole</th><th>Type</th>
               <th>Prix</th><th>Montant initial</th><th>Montant final</th>
@@ -393,105 +394,50 @@
 
     <!-- ALLOCATION -->
     <div id="tab-allocation" class="section">
-      <!-- Hero header avec valeur totale -->
-      <div class="alloc-hero">
-        <div class="alloc-hero-left">
-          <div class="alloc-hero-label">Valeur du portefeuille</div>
-          <div class="alloc-hero-val" id="alloc-hero-total" data-sensitive>—</div>
-          <div class="alloc-hero-meta">
-            <span><span class="alloc-hero-dot" style="background:var(--green);"></span>Positions <span id="alloc-hero-pos">—</span></span>
-            <span><span class="alloc-hero-dot" style="background:var(--cyan);"></span>Cash <span id="alloc-hero-cash">—</span></span>
-            <span class="neu">·</span>
-            <span class="neu" id="alloc-hero-nbpos">— positions actives</span>
+      <!-- Refonte 2026-10-03 (demande de Cédric) : « Objectifs financiers » retiré ; le haut de
+           l'onglet devient une fiche de gestionnaire façon jeu vidéo — note globale (OVR), rang,
+           niveau/XP, 6 attributs notés sur 99 (radar), duel contre le S&P 500, stats de saison
+           et succès à débloquer. La composition du portefeuille suit plus bas. -->
+      <div class="mgr-hero" id="mgr-hero">
+        <div class="mgr-emblem-col">
+          <div class="mgr-emblem" id="mgr-emblem">
+            <div class="mgr-ovr" id="mgr-ovr" data-sensitive>—</div>
+            <div class="mgr-ovr-lbl">OVR</div>
           </div>
-        </div>
-        <div class="alloc-hero-right">
-          <div class="alloc-mini-stat">
-            <div class="alloc-mini-label">Win rate</div>
-            <div class="alloc-mini-val" id="alloc-mini-winrate">—</div>
+          <div class="mgr-tier" id="mgr-tier">—</div>
+          <div class="mgr-archetype" id="mgr-archetype">—</div>
+          <div class="mgr-level">
+            <div class="mgr-level-row"><span id="mgr-level-lbl">Niveau —</span><span id="mgr-xp-lbl" class="mgr-xp-num">— XP</span></div>
+            <div class="mgr-xp-bar"><div class="mgr-xp-fill" id="mgr-xp-fill"></div></div>
           </div>
-          <div class="alloc-mini-stat">
-            <div class="alloc-mini-label">P&L réalisé</div>
-            <div class="alloc-mini-val" id="alloc-mini-pnlreal">—</div>
-          </div>
+          <div class="mgr-reliab" id="mgr-reliab"></div>
         </div>
-      </div>
-
-      <!-- Milestones / Objectifs financiers -->
-      <div class="card" style="margin-bottom:1.25rem;" id="milestones-card">
-        <div class="card-title" style="margin-bottom:1rem;">
-          <span>Objectifs financiers</span>
-          <span id="milestone-cagr-badge" style="font-size:11px;color:var(--green);font-weight:600;letter-spacing:0;text-transform:none;background:rgba(0,255,136,0.08);padding:2px 8px;border-radius:4px;"></span>
+        <div class="mgr-radar-col">
+          <div class="mgr-radar-wrap"><canvas id="managerRadar"></canvas></div>
         </div>
-        <div id="milestones-body" style="display:flex;flex-direction:column;gap:10px;"></div>
-      </div>
-
-      <!-- Analytics avancés -->
-
-      <!-- Cotisations & Droits -->
-      <div class="card" style="margin-bottom:1.25rem;" id="contributions-card">
-        <div class="card-title" style="margin-bottom:1rem;">
-          <span>Cotisations &amp; Droits</span>
-          <button class="btn-accent-soft" onclick="openCotisationModal()">+ Cotisation</button>
-        </div>
-        <div id="contributions-trackers" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;"></div>
-        <div id="contributions-history" style="display:none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;margin-top:4px;cursor:pointer;user-select:none;" onclick="toggleCotisHistory()">
-            <span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;">Historique des cotisations</span>
-            <div style="display:flex;align-items:center;gap:8px;">
-              <select class="filter-select" id="cotis-hist-filter-acct" onclick="event.stopPropagation()" onchange="renderContributions()" style="font-size:10px;padding:3px 8px;">
-                <option value="">Tous les comptes</option>
-                <option value="CELI">CELI</option>
-                <option value="CELIAPP">CELIAPP</option>
-                <option value="REER">REER</option>
-                <option value="REEE">REEE</option>
-              </select>
-              <button id="cotis-hist-toggle" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0 4px;transition:transform 0.2s;line-height:1;" title="Réduire/Agrandir">&#9650;</button>
-            </div>
-          </div>
-          <div id="contributions-history-body">
-            <div id="contributions-history-table"></div>
-          </div>
-        </div>
-        <div id="contributions-reer-limit-wrap" style="display:none;margin-top:12px;padding:10px 14px;background:var(--bg3);border-radius:6px;display:flex;align-items:center;gap:10px;">
-          <span style="font-size:10px;color:var(--text3);">Plafond REER :</span>
-          <input type="number" id="contributions-reer-limit-input" placeholder="ex: 31560" style="flex:1;padding:6px 10px;font-size:12px;max-width:140px;" />
-          <button onclick="saveReerLimit()" style="background:var(--bg4);border:0.5px solid var(--border2);color:var(--text2);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:11px;">Sauvegarder</button>
+        <div class="mgr-attr-col">
+          <div class="mgr-col-title">Attributs <span class="info-badge" style="--tip-left:auto;--tip-transform:translateX(-85%);" data-tip="Chaque attribut est noté de 0 à 99 à partir de tes vraies données : rendement et risque sur la série quotidienne du portefeuille (corrigée des dépôts/retraits, méthode TWR), alpha contre le S&amp;P 500 sur la même période, précision et gestion des gains sur tes ventes fermées. Avec moins d'un an d'historique, le rendement est annualisé sur au moins 6 mois pour ne pas extrapoler un bon mois. Win rate et profit factor sont tirés vers la moyenne tant que l'échantillon de trades est petit. OVR = moyenne pondérée (Rendement 20 %, Alpha 20 %, Efficience 20 %, Défense 15 %, Gestion 15 %, Précision 10 %).">i</span></div>
+          <div id="mgr-attrs" class="mgr-attrs"></div>
         </div>
       </div>
 
-      <div class="card" style="margin-bottom:1.25rem;" id="analytics-card">
-        <div class="card-title" style="margin-bottom:1rem;">
-          <span>Analytics avancés</span>
-          <span style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;" id="analytics-period-label"></span>
+      <div class="mgr-grid">
+        <div class="mgr-panel" id="mgr-duel-panel">
+          <div class="mgr-panel-title">Duel <span>Toi vs S&amp;P 500</span></div>
+          <div id="mgr-duel"></div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;" id="analytics-grid">
-          <div class="kpi-tile">
-            <div class="kpi-tile-label">CAGR</div>
-            <div class="kpi-tile-val" style="font-size:22px;" id="analytics-cagr" data-sensitive>—</div>
-            <div class="kpi-tile-sub">rendement annualisé</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-tile-label">Volatilité</div>
-            <div class="kpi-tile-val" style="font-size:22px;" id="analytics-vol" data-sensitive>—</div>
-            <div class="kpi-tile-sub">annualisée (σ)</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-tile-label">Sharpe ratio</div>
-            <div class="kpi-tile-val" style="font-size:22px;" id="analytics-sharpe" data-sensitive>—</div>
-            <div class="kpi-tile-sub">taux sans risque 4%</div>
-          </div>
-          <div class="kpi-tile">
-            <div class="kpi-tile-label">Max Drawdown</div>
-            <div class="kpi-tile-val" style="font-size:22px;" id="analytics-mdd" data-sensitive>—</div>
-            <div class="kpi-tile-sub" id="analytics-mdd-sub">depuis ATH</div>
-          </div>
-        </div>
-        <div style="margin-top:12px;padding:10px 14px;background:var(--bg3);border-radius:6px;font-size:10px;color:var(--text3);line-height:1.6;" id="analytics-note">
-          Calculé depuis les snapshots quotidiens du portfolio. Min. 30 jours de données requis.
+        <div class="mgr-panel mgr-panel-wide">
+          <div class="mgr-panel-title">Stats de saison <span id="mgr-season-lbl"></span></div>
+          <div id="mgr-season" class="mgr-season"></div>
         </div>
       </div>
 
+      <div class="mgr-panel" style="margin-bottom:1.5rem;">
+        <div class="mgr-panel-title">Succès <span id="mgr-ach-count"></span></div>
+        <div id="mgr-achievements" class="mgr-ach-grid"></div>
+      </div>
+
+      <div class="alloc-section-title alloc-section-divider">Composition du portefeuille</div>
       <!-- Section principale : 2 grands donuts -->
       <div class="alloc-section-title">Répartition globale</div>
       <div class="alloc-grid-2">
@@ -549,6 +495,39 @@
           <div class="chart-wrap" style="height:180px;margin-top:1rem;"><canvas id="sectorVarChart"></canvas></div>
         </div>
       </div>
+      <div class="alloc-section-title">Cotisations</div>
+      <!-- Cotisations & Droits -->
+      <div class="card" style="margin-bottom:0;" id="contributions-card">
+        <div class="card-title" style="margin-bottom:1rem;">
+          <span>Cotisations &amp; Droits</span>
+          <button class="btn-accent-soft" onclick="openCotisationModal()">+ Cotisation</button>
+        </div>
+        <div id="contributions-trackers" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;"></div>
+        <div id="contributions-history" style="display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;margin-top:4px;cursor:pointer;user-select:none;" onclick="toggleCotisHistory()">
+            <span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;">Historique des cotisations</span>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <select class="filter-select" id="cotis-hist-filter-acct" onclick="event.stopPropagation()" onchange="renderContributions()" style="font-size:10px;padding:3px 8px;">
+                <option value="">Tous les comptes</option>
+                <option value="CELI">CELI</option>
+                <option value="CELIAPP">CELIAPP</option>
+                <option value="REER">REER</option>
+                <option value="REEE">REEE</option>
+              </select>
+              <button id="cotis-hist-toggle" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:0 4px;transition:transform 0.2s;line-height:1;" title="Réduire/Agrandir">&#9650;</button>
+            </div>
+          </div>
+          <div id="contributions-history-body">
+            <div id="contributions-history-table"></div>
+          </div>
+        </div>
+        <div id="contributions-reer-limit-wrap" style="display:none;margin-top:12px;padding:10px 14px;background:var(--bg3);border-radius:6px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:10px;color:var(--text3);">Plafond REER :</span>
+          <input type="number" id="contributions-reer-limit-input" placeholder="ex: 31560" style="flex:1;padding:6px 10px;font-size:12px;max-width:140px;" />
+          <button onclick="saveReerLimit()" style="background:var(--bg4);border:0.5px solid var(--border2);color:var(--text2);border-radius:6px;padding:6px 12px;cursor:pointer;font-size:11px;">Sauvegarder</button>
+        </div>
+      </div>
+
     </div>
     <!-- WATCHLIST -->
     <div id="tab-watchlist" class="section">
