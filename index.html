@@ -11,6 +11,7 @@
 
 <div class="auth-screen" id="auth-screen">
   <div class="auth-box">
+    <div class="auth-emblem"><svg class="nc-emblem" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="ncEmbG2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent-hot)"/><stop offset="1" stop-color="var(--accent-deep)"/></linearGradient></defs><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="url(#ncEmbG2)"/><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="none" stroke="rgba(255,255,255,.35)" stroke-width=".8"/><path d="M10.5 21.5v-11l11 11v-11" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="square" stroke-linejoin="miter"/></svg></div>
     <div class="auth-logo">NORD <span>CAPITAL</span></div>
     <div class="auth-subtitle">Portfolio Tracker · v15</div>
     <div class="auth-tabs">
@@ -68,9 +69,21 @@
   </div>
 </div>
 
+<!-- Séquence de lancement (2026-10-03) : ~1,2 s, une fois par session, sautée si l'OS
+     demande moins d'animations. Cliquer la ferme immédiatement. -->
+<div id="nc-splash" aria-hidden="true" onclick="this.classList.add('done')">
+  <div class="nc-splash-core">
+    <div class="nc-splash-emblem"><svg class="nc-emblem" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="ncEmbG3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent-hot)"/><stop offset="1" stop-color="var(--accent-deep)"/></linearGradient></defs><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="url(#ncEmbG3)"/><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="none" stroke="rgba(255,255,255,.35)" stroke-width=".8"/><path d="M10.5 21.5v-11l11 11v-11" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="square" stroke-linejoin="miter"/></svg></div>
+    <div class="nc-splash-word">NORD<span>CAPITAL</span></div>
+    <div class="nc-splash-bar"><div></div></div>
+    <div class="nc-splash-sub">Initialisation du portefeuille</div>
+  </div>
+  <div class="nc-splash-scan"></div>
+</div>
+
 <div class="app" id="main-app" style="display:none;">
   <nav>
-    <div class="logo"><span class="logo-dot"></span>NORD <span>CAPITAL</span></div>
+    <div class="logo"><svg class="nc-emblem" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="ncEmbG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent-hot)"/><stop offset="1" stop-color="var(--accent-deep)"/></linearGradient></defs><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="url(#ncEmbG)"/><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="none" stroke="rgba(255,255,255,.35)" stroke-width=".8"/><path d="M10.5 21.5v-11l11 11v-11" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="square" stroke-linejoin="miter"/></svg><span class="logo-word">NORD<span>CAPITAL</span></span></div>
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
       <button class="nav-tab" onclick="switchTab('positions',this)">Positions</button>
@@ -174,8 +187,8 @@
             </div>
           </div>
           <div class="bench-legend">
-            <span><span class="bench-dot" style="background:var(--green);"></span>Portfolio</span>
-            <span><span class="bench-dot" style="background:var(--cyan);border-top:2px dashed var(--cyan);height:0;width:14px;border-radius:0;"></span>S&amp;P 500 (simulé)<span class="info-badge" style="--tip-left:0; --tip-transform:none;" data-tip="Simule ce que tes dépôts et retraits auraient valu s'ils avaient été investis dans le S&amp;P 500 (SPY) au même moment plutôt que dans ton portefeuille réel — même calendrier de cash-flows, prix SPY du jour de chaque dépôt/retrait. En mode $ Valeur, la ligne pointillée est cette valeur simulée en dollars. En mode % Variation, c'est plutôt le rendement pur du SPY depuis le début (TWR, non affecté par les dépôts) comparé au rendement pur (TWR) de ton portefeuille. Si ta ligne verte est au-dessus de la pointillée : tu bats l'indice. En dessous : tu ferais mieux en indiciel passif.">i</span></span>
+            <span><span class="bench-dot" style="background:var(--accent);box-shadow:0 0 8px var(--accent);"></span>Portfolio</span>
+            <span><span class="bench-dot" style="background:transparent;border-top:2px dashed var(--steel);height:0;width:14px;border-radius:0;"></span>S&amp;P 500 (simulé)<span class="info-badge" style="--tip-left:0; --tip-transform:none;" data-tip="Simule ce que tes dépôts et retraits auraient valu s'ils avaient été investis dans le S&amp;P 500 (SPY) au même moment plutôt que dans ton portefeuille réel — même calendrier de cash-flows, prix SPY du jour de chaque dépôt/retrait. En mode $ Valeur, la ligne pointillée est cette valeur simulée en dollars. En mode % Variation, c'est plutôt le rendement pur du SPY depuis le début (TWR, non affecté par les dépôts) comparé au rendement pur (TWR) de ton portefeuille. Si ta ligne verte est au-dessus de la pointillée : tu bats l'indice. En dessous : tu ferais mieux en indiciel passif.">i</span></span>
           </div>
           <div class="chart-wrap perf-chart-wrap"><canvas id="perfChart"></canvas></div>
         </div>
@@ -776,7 +789,7 @@
     </div>
     <div id="csv-step-preview" style="display:none;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.75rem;">
-        <div id="csv-format-badge" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:4px;background:rgba(0,255,136,0.12);color:var(--green);border:0.5px solid rgba(0,255,136,0.3);"></div>
+        <div id="csv-format-badge" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:4px;background:var(--accent-dim);color:var(--accent);border:0.5px solid rgba(var(--accent-rgb),0.3);"></div>
         <div id="csv-summary-text" style="font-size:11px;color:var(--text3);"></div>
       </div>
       <table class="csv-preview-table" id="csv-preview-table">
@@ -951,7 +964,7 @@
     <div style="display:flex;gap:10px;margin-top:18px;">
       <button class="btn-ghost" id="strat-prev-btn" onclick="stratStep(-1)" style="padding:9px 16px;display:none;">← Retour</button>
       <button class="btn" id="strat-next-btn" onclick="stratStep(1)" style="flex:1;padding:9px;">Continuer →</button>
-      <button class="btn" id="strat-save-btn" onclick="saveStratFromModal()" style="flex:1;padding:9px;display:none;background:var(--green);color:#000;">Sauvegarder</button>
+      <button class="btn" id="strat-save-btn" onclick="saveStratFromModal()" style="flex:1;padding:9px;display:none;">Sauvegarder</button>
       <button class="btn-ghost" onclick="closeStratModal()" style="padding:9px 16px;">Annuler</button>
     </div>
   </div>
@@ -969,15 +982,15 @@
     <!-- ONBOARDING MODAL (1re connexion) -->
     <div id="onboarding-modal-overlay" class="modal-overlay" style="display:none;z-index:999;">
       <div class="modal" style="max-width:460px;">
-        <div class="modal-title">Bienvenue sur NORD <span style="color:var(--green);">CAPITAL</span></div>
+        <div class="modal-title">Bienvenue sur NORD <span style="color:var(--accent);">CAPITAL</span></div>
         <div style="font-family:var(--sans);font-size:12.5px;color:var(--text2);line-height:1.7;margin-top:6px;">
           <p style="margin:0 0 10px;">Petit tour rapide du dashboard :</p>
           <table style="width:100%;border-collapse:collapse;">
-            <tr><td style="padding:5px 8px 5px 0;color:var(--green);font-weight:700;white-space:nowrap;">Dashboard</td><td style="padding:5px 0;color:var(--text2);">Vue d'ensemble — valeur totale, courbe de performance vs S&amp;P 500, allocation.</td></tr>
-            <tr><td style="padding:5px 8px 5px 0;color:var(--green);font-weight:700;white-space:nowrap;">Positions</td><td style="padding:5px 0;color:var(--text2);">Tes positions ouvertes, prix live, P&amp;L par titre.</td></tr>
-            <tr><td style="padding:5px 8px 5px 0;color:var(--green);font-weight:700;white-space:nowrap;">Historique</td><td style="padding:5px 0;color:var(--text2);">Toutes tes transactions, import/export CSV.</td></tr>
-            <tr><td style="padding:5px 8px 5px 0;color:var(--green);font-weight:700;white-space:nowrap;">Allocation</td><td style="padding:5px 0;color:var(--text2);">Répartition par titre, catégorie et compte.</td></tr>
-            <tr><td style="padding:5px 8px 5px 0;color:var(--green);font-weight:700;white-space:nowrap;">Stratégie</td><td style="padding:5px 0;color:var(--text2);">Tes plans d'entrée/sortie et suivi des milestones.</td></tr>
+            <tr><td style="padding:5px 8px 5px 0;color:var(--accent);font-weight:700;white-space:nowrap;">Dashboard</td><td style="padding:5px 0;color:var(--text2);">Vue d'ensemble — valeur totale, courbe de performance vs S&amp;P 500, allocation.</td></tr>
+            <tr><td style="padding:5px 8px 5px 0;color:var(--accent);font-weight:700;white-space:nowrap;">Positions</td><td style="padding:5px 0;color:var(--text2);">Tes positions ouvertes, prix live, P&amp;L par titre.</td></tr>
+            <tr><td style="padding:5px 8px 5px 0;color:var(--accent);font-weight:700;white-space:nowrap;">Historique</td><td style="padding:5px 0;color:var(--text2);">Toutes tes transactions, import/export CSV.</td></tr>
+            <tr><td style="padding:5px 8px 5px 0;color:var(--accent);font-weight:700;white-space:nowrap;">Allocation</td><td style="padding:5px 0;color:var(--text2);">Répartition par titre, catégorie et compte.</td></tr>
+            <tr><td style="padding:5px 8px 5px 0;color:var(--accent);font-weight:700;white-space:nowrap;">Stratégie</td><td style="padding:5px 0;color:var(--text2);">Tes plans d'entrée/sortie et suivi des milestones.</td></tr>
           </table>
           <p style="margin:12px 0 0;color:var(--text3);font-size:11.5px;">Astuce : appuie sur <kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);">?</kbd> à tout moment pour voir tous les raccourcis clavier.</p>
         </div>

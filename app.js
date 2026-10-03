@@ -280,7 +280,9 @@ function fmtCpnl(n,posCur){const v=toUSD(n,posCur||'USD')*fxRate;return(v>=0?'+'
 // thème clair, en désaccord avec le reste de l'UI (qui suit bien var(--green) partout ailleurs).
 // themeHex() lit la vraie valeur CSS active pour le thème courant, themeRgba() en dérive une
 // version semi-transparente pour les remplissages de zone.
-function themeHex(name){return(getComputedStyle(document.documentElement).getPropertyValue('--'+name)||'').trim()||'#00ff88';}
+function themeHex(name){return(getComputedStyle(document.documentElement).getPropertyValue('--'+name)||'').trim()||'#ff1f2f';}
+// Dégradé vertical accent -> transparent pour le remplissage sous la courbe du portefeuille.
+function accentAreaFill(ctx){const ch=ctx.chart,a=ch&&ch.chartArea;if(!a)return themeRgba('accent',0.1);const g=ch.ctx.createLinearGradient(0,a.top,0,a.bottom);g.addColorStop(0,themeRgba('accent',0.30));g.addColorStop(0.55,themeRgba('accent',0.07));g.addColorStop(1,themeRgba('accent',0));return g;}
 function themeRgba(name,alpha){
   const hex=themeHex(name).replace('#','');
   const full=hex.length===3?hex.split('').map(c=>c+c).join(''):hex;
@@ -393,10 +395,10 @@ function setTheme(theme){
   // chargement de la page, avant initCharts()), il n'y a rien à recolorer.
   if(typeof chartsInitialized!=='undefined'&&chartsInitialized){
     if(perfChart){
-      perfChart.data.datasets[0].borderColor=themeHex('green');
-      perfChart.data.datasets[0].backgroundColor=themeRgba('green',0.08);
-      perfChart.data.datasets[0].pointBackgroundColor=themeHex('green');
-      perfChart.data.datasets[1].borderColor=themeHex('cyan');
+      perfChart.data.datasets[0].borderColor=themeHex('accent');
+      perfChart.data.datasets[0].backgroundColor=accentAreaFill;
+      perfChart.data.datasets[0].pointBackgroundColor=themeHex('accent');
+      perfChart.data.datasets[1].borderColor=themeHex('steel');
       perfChart.update();
     }
     renderAllocDashboard();
@@ -2447,7 +2449,40 @@ async function checkPriceAlerts(){
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────
+// ─── EFFETS DE LANCEMENT (2026-10-03) ─────────────────────────────────────────────────────
+const NC_REDUCED_MOTION=(()=>{try{return window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){return false;}})();
+function playLaunchIntro(){
+  const el=document.getElementById('nc-splash');if(!el)return;
+  let seen=false;try{seen=sessionStorage.getItem('nc_intro_seen')==='1';sessionStorage.setItem('nc_intro_seen','1');}catch(e){}
+  if(seen||NC_REDUCED_MOTION){el.classList.add('done');return;}
+  el.classList.add('play');
+  setTimeout(()=>el.classList.add('done'),1250);
+}
+// Compteur animé : part de 0 et monte jusqu'au texte final de l'élément (format fr conservé).
+// Si le texte change pendant l'animation (refresh des prix), l'animation s'arrête net.
+function countUpText(el,ms){
+  if(!el||NC_REDUCED_MOTION)return;
+  const final=el.textContent;const m=final.match(/^([^\d−-]*)([+\-−]?)([\d\s\u202f\u00a0]+)(?:,(\d+))?(.*)$/);
+  if(!m)return;
+  const target=parseFloat(m[3].replace(/[\s\u202f\u00a0]/g,'')+(m[4]?'.'+m[4]:''));if(!isFinite(target)||target===0)return;
+  const tail=m[4]?'':((m[3].match(/[\s\u202f\u00a0]+$/)||[''])[0]);m[5]=tail+(m[5]||'');
+  const dec=m[4]?m[4].length:0,t0=performance.now();let last=final;
+  const step=now=>{
+    if(el.textContent!==last)return; // mis à jour ailleurs entre-temps
+    const k=Math.min(1,(now-t0)/ms),e=1-Math.pow(1-k,3);
+    last=k>=1?final:m[1]+m[2]+(target*e).toLocaleString('fr-FR',{minimumFractionDigits:dec,maximumFractionDigits:dec})+(m[5]||'');
+    el.textContent=last;if(k<1)requestAnimationFrame(step);
+  };
+  el.textContent=last=m[1]+m[2]+(0).toLocaleString('fr-FR',{minimumFractionDigits:dec,maximumFractionDigits:dec})+(m[5]||'');
+  requestAnimationFrame(step);
+}
+function animateSectionIn(sec){
+  if(!sec||NC_REDUCED_MOTION)return;
+  sec.classList.remove('tab-enter');void sec.offsetWidth;sec.classList.add('tab-enter');
+  setTimeout(()=>sec.classList.remove('tab-enter'),900);
+}
 async function startApp(){
+  playLaunchIntro();
   document.getElementById('nav-email').textContent=currentUser.email;
   const username=currentUser.user_metadata?.username||currentUser.email.split('@')[0];
   const unEl=document.getElementById('nav-username');if(unEl)unEl.textContent=username.charAt(0).toUpperCase()+username.slice(1);
@@ -2498,6 +2533,7 @@ async function startApp(){
   // rend l'ACB $CA stable dans le temps au lieu de dériver avec le taux du jour à chaque login.
   if(backfillEntryFxSnapshots())await saveData();
   renderAll();
+  setTimeout(()=>{['kpi-total','kpi-invested','kpi-pnl-open','kpi-pnl-real','kpi-cash'].forEach(id=>countUpText(document.getElementById(id),900));animateSectionIn(document.getElementById('tab-dashboard'));},NC_REDUCED_MOTION?0:520);
   if(portfolioHistory.length===0&&positions.length>0){
     const firstTradeDate=trades.length>0?[...trades].sort((a,b)=>a.date.localeCompare(b.date))[0].date:localToday();
     const today=localToday();
@@ -2784,7 +2820,7 @@ function posRow(p,idx,displayIdx){
   if(isSelected){
     const noteVal=escapeHtml(p.note||'');
     html+=`<tr class="pos-note-row">
-      <td colspan="15" style="padding:6px 12px 10px 12px;background:rgba(0,255,136,0.04);border-top:none;">
+      <td colspan="15" style="padding:6px 12px 10px 12px;background:rgba(var(--accent-rgb),0.04);border-top:none;">
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;white-space:nowrap;">Note</span>
           <input type="text"
@@ -2794,7 +2830,7 @@ function posRow(p,idx,displayIdx){
             onclick="event.stopPropagation()"
             style="flex:1;background:transparent;border:none;border-bottom:0.5px solid var(--border2);color:var(--text2);font-size:12px;font-family:var(--sans);padding:3px 0;outline:none;min-width:0;"
           />
-          ${p.note?`<span style="font-size:9px;color:var(--green);">Sauvegardé</span>`:''}
+          ${p.note?`<span style="font-size:9px;color:var(--accent);">Sauvegardé</span>`:''}
         </div>
       </td>
     </tr>`;
@@ -2948,8 +2984,9 @@ function renderPosTable(){
   renderPosFooter(filtered,cashIdx,!!(catFilter||accountFilter||periodFilter));
 }
 // Couleur d'identité par classe d'actif (en-têtes de section Positions, 2026-10-03).
-const CLASS_COLORS={'Cash':'#3b82f6','ETF Levier':'#f43f5e','ETF':'#10b981','Action':'#a78bfa','Crypto':'#f59e0b','Forex':'#06b6d4','Commodité':'#eab308'};
-function classColor(c){return CLASS_COLORS[c]||'#94a3b8';}
+// Séparateurs de classe : une seule couleur, le rouge d'accent (demande de Cédric 2026-10-03,
+// « toutes séparées par une ligne rouge, pas une couleur par classe »).
+function classColor(c){return'var(--accent)';}
 // Refonte 2026-10-03 (Cédric : « difficile de différencier classe et sous-total ») :
 // - EN-TÊTE = grand titre coloré (pastille + soulignement couleur de la classe), sans fond ;
 // - SOUS-TOTAL = bande teintée discrète, libellé « Total <classe> », chiffres en gras.
@@ -3528,6 +3565,7 @@ async function updateCash(){
 function switchTab(name,el){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');el.classList.add('active');
+  animateSectionIn(document.getElementById('tab-'+name));
   if(name==='watchlist'){renderWatchlist();refreshWatchlist();}
   if(name==='strategie'){renderStratPerf();}
   if(name==='allocation'){try{renderManager();}catch(e){}}
@@ -3781,7 +3819,9 @@ function renderPerfVariation(points,twrMap,portStart,curDiv){
 }
 
 // ─── ALLOCATION ───────────────────────────────────────────────────
-const COLORS=['#00ff88','#00e5ff','#ffaa00','#ff2d55','#a78bfa','#fb923c','#4ade80','#e879f9','#f43f5e','#6ee7b7','#fcd34d','#94a3b8'];
+// Palette catégorielle « Cybertron » (2026-10-03) : rouge, bleu Optimus, acier, ambre, puis tons
+// secondaires — remplace l'ancienne palette verte/néon.
+const COLORS=['#ff1f2f','#3b7bff','#c3cad6','#ffb020','#ff7a45','#8b6cff','#2ee59d','#ff5c9a','#5ad1ff','#8892a6','#ffd166','#b5172a'];
 // Tooltip externe en HTML pour les petits donuts (ex. cashLotsChart 90x90px) — demandé par
 // Cédric 2026-08-03 : le tooltip natif de Chart.js est dessiné DANS le canvas, donc
 // physiquement coupé quand le canvas est petit ou logé dans une carte overflow:hidden.
@@ -3932,9 +3972,11 @@ function renderCashLotsChart(){
     const acctTotal=principalCAD+profitCAD;
     const pct=total>0?acctTotal/total*100:0;
     const native=fmtLotsNative([...state.principal,...state.profit]);
-    labels.push(name);values.push(parseFloat(pct.toFixed(1)));colors.push(COLORS[i%COLORS.length]);amounts.push(native);
+    labels.push(name);values.push(parseFloat(pct.toFixed(1)));amounts.push(native);
     _cashLotsMeta.push({name,native,pct,total:acctTotal,principalCAD,profitCAD,principalNative:fmtLotsNative(state.principal),profitNative:fmtLotsNative(state.profit)});
   });
+  // Cash = bleu partout dans l'app (même code couleur que l'anneau Cash vs Positions).
+  colors.push(...optimusRamp('blue',labels.length));
   updateDonut(cashLotsChart,labels,values,colors);
   // Légende sur 2 lignes (nom / montant · %) : lisible même quand la colonne est étroite.
   const legEl=document.getElementById('cash-lots-chart-legend');
@@ -3968,10 +4010,7 @@ function shadeList(hex,n){
 }
 // Palette « Optimus Prime » : rouge camion / bleu cabine. Version claire et version sombre
 // (le sombre a besoin de tons un peu plus lumineux pour rester lisible sur fond noir).
-function optimusBase(){
-  const light=document.documentElement.getAttribute('data-theme')==='light';
-  return light?{red:'#c8102e',blue:'#1d4fb8'}:{red:'#e8283c',blue:'#2f6fe4'};
-}
+function optimusBase(){return{red:themeHex('accent'),blue:themeHex('blue')};}
 // n tons d'une même famille, du plus saturé/profond au plus clair : la teinte glisse un peu
 // (rouge -> cramoisi / bleu roi -> bleu ciel) en plus de la luminosité, pour que des tranches
 // voisines restent faciles à distinguer même à 10+ éléments.
@@ -4056,12 +4095,12 @@ function renderAllocDashboard(){
 // Chart.js, donc le navigateur les résout tout seul selon le thème actif -- aucun besoin de
 // themeHex() ici, contrairement aux couleurs passées à Chart.js plus haut dans le fichier.
 const ACCT_COLORS=[
-  {bg:'rgba(0,255,136,0.12)',text:'var(--green)',bar:'var(--green)'},
-  {bg:'rgba(0,229,255,0.12)',text:'var(--cyan)',bar:'var(--cyan)'},
+  {bg:'rgba(var(--accent-rgb),0.12)',text:'var(--accent)',bar:'var(--accent)'},
+  {bg:'rgba(59,123,255,0.14)',text:'var(--blue)',bar:'var(--blue)'},
   {bg:'rgba(255,170,0,0.12)',text:'var(--amber)',bar:'var(--amber)'},
   {bg:'rgba(167,139,250,0.12)',text:'var(--purple)',bar:'var(--purple)'},
   {bg:'rgba(255,45,85,0.12)',text:'var(--red)',bar:'var(--red)'},
-  {bg:'rgba(96,165,250,0.12)',text:'var(--blue)',bar:'var(--blue)'},
+  {bg:'rgba(154,163,178,0.14)',text:'var(--steel)',bar:'var(--steel)'},
 ];
 
 // Destroy per-account sparkline charts between renders
@@ -4225,7 +4264,7 @@ function renderAllocCharts(){
     sectorVarChart.data.labels=sectorEntries.map(s=>s.cat);
     const pcts=sectorEntries.map(s=>s.pct);
     sectorVarChart.data.datasets[0].data=pcts;
-    sectorVarChart.data.datasets[0].backgroundColor=pcts.map(v=>v>=0?'rgba(0,255,136,0.75)':'rgba(255,45,85,0.75)');
+    sectorVarChart.data.datasets[0].backgroundColor=pcts.map(v=>v>=0?themeRgba('pos',0.8):themeRgba('neg',0.8));
     sectorVarChart.update();
   }
 }
@@ -4787,13 +4826,20 @@ function initCharts(){
   // recréer les charts. Avant : 'DM Mono' (jamais chargée) en gris #606075 quasi illisible.
   const uiFont=(getComputedStyle(document.documentElement).getPropertyValue('--sans')||'').trim()||'Inter, system-ui, sans-serif';
   try{Chart.defaults.font.family=uiFont;Chart.defaults.color=themeHex('text3');}catch(e){}
+  // Lueur « énergon » sous la courbe du portefeuille (dataset marqué ncGlow) + tooltip sombre.
+  try{
+    if(!Chart.registry.plugins.get('ncGlow'))Chart.register({id:'ncGlow',
+      beforeDatasetDraw(chart,args){const ds=chart.data.datasets[args.index];if(!ds||!ds.ncGlow)return;const c=chart.ctx;c.save();c.shadowColor=themeRgba('accent',0.65);c.shadowBlur=14;c.shadowOffsetY=4;},
+      afterDatasetDraw(chart,args){const ds=chart.data.datasets[args.index];if(ds&&ds.ncGlow)chart.ctx.restore();}});
+    Object.assign(Chart.defaults.plugins.tooltip,{backgroundColor:'rgba(10,11,14,0.94)',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,padding:10,cornerRadius:10,titleColor:'#fff',bodyColor:'#e6e6ea',displayColors:false});
+  }catch(e){}
   const cd={color:()=>themeHex('text3'),font:{size:10.5,family:uiFont}},gc=()=>themeRgba('text',0.05),bc=()=>themeRgba('text',0.08);
   const chartDefaults={responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{display:false}}};
 
   const safeNew=(id,cfg)=>{const el=document.getElementById(id);return el?new Chart(el,cfg):null;};
   perfChart=safeNew('perfChart',{type:'line',data:{labels:[],datasets:[
-    {label:'Portfolio',data:[],borderColor:themeHex('green'),backgroundColor:themeRgba('green',0.08),borderWidth:2,pointRadius:2,pointHoverRadius:5,pointBackgroundColor:themeHex('green'),fill:true,tension:0.4,spanGaps:true},
-    {label:'S&P 500',data:[],borderColor:themeHex('cyan'),backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,pointHoverRadius:3,fill:false,tension:0.4,borderDash:[5,3],spanGaps:true}
+    {label:'Portfolio',data:[],borderColor:themeHex('accent'),backgroundColor:accentAreaFill,borderWidth:2.2,pointRadius:0,pointHoverRadius:5,pointHoverBorderWidth:2,pointHoverBorderColor:'#fff',pointBackgroundColor:themeHex('accent'),fill:true,tension:0.35,spanGaps:true,ncGlow:true},
+    {label:'S&P 500',data:[],borderColor:themeHex('steel'),backgroundColor:'transparent',borderWidth:1.4,pointRadius:0,pointHoverRadius:3,fill:false,tension:0.35,borderDash:[5,4],spanGaps:true}
   ]},options:{...chartDefaults,interaction:{mode:'index',intersect:false},scales:{x:{ticks:{...cd},grid:{color:gc},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
 
   pnlBarChart=safeNew('pnlBarChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
