@@ -265,7 +265,9 @@ function fmtAmt(n){if(!isFinite(n)||isNaN(n))return '—';return n.toLocaleStrin
 function fmtAmtRound(n){if(!isFinite(n)||isNaN(n))return '—';return Math.round(n).toLocaleString('fr-FR')+' $';}
 function fmt$(n){return fmtAmt(Math.abs(n)*fxRate);}
 function fmtPnl$(n){return(n>=0?'+':'-')+fmtAmt(Math.abs(n*fxRate));}
-function fmtPct(n){return(n>=0?'+':'')+n.toFixed(2)+'%';}
+function fmtPct(n){return(n>=0?'+':'')+n.toFixed(1)+'%';}
+// % non signé à 1 décimale (règle app-wide du 2026-10-03 : une seule décimale pour tous les %).
+function fmtPct1(n){return(isFinite(n)?n:0).toFixed(1)+' %';}
 function fmtPrice(p){if(p===null||p===undefined||isNaN(p))return '—';return p>100?p.toFixed(2):p.toFixed(4);}
 function fmtC(n,posCur){return fmtAmt(toUSD(n,posCur||'USD')*fxRate);}
 function fmtCpnl(n,posCur){const v=toUSD(n,posCur||'USD')*fxRate;return(v>=0?'+':'-')+fmtAmt(Math.abs(v));}
@@ -665,7 +667,7 @@ function renderStratPerf(){
     const amtCurS=s.amount_currency||getStratCurrency(s);totalAlloc+=ep.filter(e=>!e.executed).reduce((sum,e)=>sum+toUSD(parseFloat(e.amount)||0,amtCurS)*fxRate,0);
   });
 
-  const pct=totalPaliers>0?Math.round(donePaliers/totalPaliers*100):0;
+  const pct=totalPaliers>0?donePaliers/totalPaliers*100:0;
   const clr=v=>v>=0?'var(--green)':'var(--red)';
   const fmt=v=>(v>=0?'+':'')+fmtAmtRound(v);
 
@@ -701,7 +703,7 @@ function renderStratPerf(){
     ${totalPaliers>0?`<div class="strat-paliers-row">
       <span class="strat-paliers-label">${donePaliers}/${totalPaliers} paliers exécutés</span>
       <div class="strat-paliers-bar"><div class="strat-paliers-fill" style="width:${Math.max(2,pct)}%;"></div></div>
-      <span class="strat-paliers-pct">${pct}%</span>
+      <span class="strat-paliers-pct">${pct.toFixed(1)}%</span>
     </div>`:''}
   `;
 }
@@ -981,7 +983,7 @@ function updateEntryLevel(i,field,val){
   if(field==='price'&&stratDraft.ath){
     const pr=parseFloat(val);
     if(!isNaN(pr)&&pr>0){
-      const pct=((pr-stratDraft.ath)/stratDraft.ath*100).toFixed(2);
+      const pct=((pr-stratDraft.ath)/stratDraft.ath*100).toFixed(1);
       e.retracement_pct=pct;
       const row=document.querySelectorAll('#strat-entries-list .strat-level-row')[i];
       if(row){const inp=row.querySelectorAll('input')[1];if(inp)inp.value=pct;}
@@ -1308,7 +1310,7 @@ function renderStratDetails(id){
   if(totalDeployedAmt>0)stats.push({label:'Capital déployé',val:fmtC(totalDeployedAmt,amtCur),color:''});
   if(livePnlPrice!==null){
     const pnlStr=(livePnlPrice>=0?'+':'')+fmtC(livePnlPrice,priceCur);
-    const pctStr=livePnlPct!==null?` (${livePnlPct>=0?'+':''}${livePnlPct.toFixed(2)}%)`:'';
+    const pctStr=livePnlPct!==null?` (${livePnlPct>=0?'+':''}${livePnlPct.toFixed(1)}%)`:'';
     stats.push({label:'P&L live',val:pnlStr+pctStr,color:livePnlPrice>=0?'var(--green)':'var(--red)'});
   }
 
@@ -1739,6 +1741,18 @@ const CASH_LOTS_SEED=[
   {account:'CELIAPP (CAD)',currency:'CAD',amount:15415.43},
   {account:'CELIAPP (USD)',currency:'USD',amount:2516.18},
 ];
+// Anciens noms de compte sans devise ('Comptant', 'CELI', 'CELIAPP'), d'avant la séparation
+// CAD/USD du 2026-08-04 -- ex. vente ZMMK.TO du 2026-08-14 taguée 'Comptant' : son produit
+// (2 994,39 $) atterrissait dans un compte fantôme 'Comptant' que le formulaire de retrait ne
+// propose pas (il cherche 'Comptant (CAD)') -> « pas d'argent dans ce compte » (bug signalé par
+// Cédric le 2026-10-02). Normalisé à la lecture selon la devise de la transaction, sans réécrire
+// les données stockées.
+const LEGACY_SPLIT_ACCOUNTS=['Comptant','CELI','CELIAPP'];
+function normAcct(name,currency){
+  if(!name)return'Non spécifié';
+  if(LEGACY_SPLIT_ACCOUNTS.includes(name))return`${name} (${currency==='USD'?'USD':'CAD'})`;
+  return name;
+}
 function reconstructCashLots(deductOnBuy){
   const accounts={};
   const entryFunding={};
@@ -1746,7 +1760,8 @@ function reconstructCashLots(deductOnBuy){
   CASH_LOTS_SEED.forEach(s=>_clAddLot(acct(s.account),'principal',s.amount,s.currency,CASH_LOTS_BASELINE_DATE,[]));
   const chrono=trades.slice().reverse().filter(t=>t.date>=CASH_LOTS_BASELINE_DATE);
   chrono.forEach(t=>{
-    const account=t.accountType||t.account||'Non spécifié';
+    const tCur=(t.type==='Dépôt'||t.type==='Retrait')?(t.originalCurrency||'CAD'):t.type==='Dividende'?(t.originalCurrency||'USD'):(t.currency||'USD');
+    const account=normAcct(t.accountType||t.account,tCur);
     if(t.type==='Dépôt'){
       // t.size est TOUJOURS en CAD (amtCAD dans updateCash()) -- t.currency est la devise
       // d'AFFICHAGE préférée au moment du dépôt (accountCurrency), pas la devise réelle du
@@ -1778,7 +1793,7 @@ function reconstructCashLots(deductOnBuy){
         if(Array.isArray(t.funding)&&t.funding.length){
           t.funding.forEach(f=>{
             const fa=f.srcAmount!=null?f.srcAmount:f.amount,fc=f.srcCurrency||f.currency||cur;
-            consumed.push(..._clConsume(acct(f.account),fa,fc).consumed);
+            consumed.push(..._clConsume(acct(normAcct(f.account,fc)),fa,fc).consumed);
           });
         }else consumed=_clConsume(acct(account),amt,cur).consumed;
       }
@@ -2271,7 +2286,7 @@ function renderWatchlist(){
     const hi52=pd?.high52;const lo52=pd?.low52;
     const volume=pd?.volume;
     const priceStr=price!=null?price.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:4})+' $':'—';
-    const chgStr=chg!=null?`<span style="color:${chg>=0?'var(--green)':'var(--red)'};">${chg>=0?'+':''}${chg.toFixed(2)}%</span>`:'<span style="color:var(--text3);">—</span>';
+    const chgStr=chg!=null?`<span style="color:${chg>=0?'var(--green)':'var(--red)'};">${chg>=0?'+':''}${chg.toFixed(1)}%</span>`:'<span style="color:var(--text3);">—</span>';
     const alsoPort=positions.find(p=>p.symbol===w.symbol);
     const portBadge=alsoPort?'<span style="font-size:9px;background:rgba(96,165,250,0.15);color:var(--blue);padding:1px 5px;border-radius:3px;margin-left:4px;">portfolio</span>':'';
     const target=w.alertTarget||'';const stop=w.alertStop||'';
@@ -2586,7 +2601,7 @@ function updateKPIs(){
   const closedTrades=trades.filter(t=>t.type==='Vente');
   const totalPnlRealUSD=closedTrades.reduce((s,t)=>s+toUSD(t.profit||0,getTradeCurrency(t)),0);
   const wins=closedTrades.filter(t=>(t.profit||0)>0).length,losses=closedTrades.filter(t=>(t.profit||0)<=0).length;
-  const winRate=closedTrades.length>0?Math.round(wins/closedTrades.length*100):0;
+  const winRate=closedTrades.length>0?wins/closedTrades.length*100:0;
   const pnlPct=totalInvestedUSD>0?(totalPnlOpenUSD/totalInvestedUSD)*100:0;
   // Cash en devise native (CAD) + positions converties → total en CAD
   const totalCAD=totalSizeUSD*fxRate+cash;
@@ -2611,7 +2626,7 @@ function updateKPIs(){
   {const _e=document.getElementById('kpi-trades-count');if(_e)_e.textContent=closedTrades.length+' trades fermés';}
   {const _e=document.getElementById('kpi-cash');if(_e)_e.textContent=fmtAmtRound(cash);} // cash déjà en CAD
   {const _e=document.getElementById('kpi-cash-pct');if(_e)_e.textContent=cashPct.toFixed(1)+'% du portefeuille';}
-  const we=document.getElementById('kpi-winrate');we.textContent=winRate+'%';we.className='kpi-val '+(winRate>=50?'pos':'neg');
+  const we=document.getElementById('kpi-winrate');we.textContent=winRate.toFixed(1)+' %';we.className='kpi-val '+(winRate>=50?'pos':'neg');
   {const _e=document.getElementById('kpi-winrate-sub');if(_e)_e.textContent=wins+'W · '+losses+'L';}
   {const _e=document.getElementById('kpi-nb-positions');if(_e)_e.textContent=positions.length;}
 }
@@ -2626,7 +2641,7 @@ let editTarget=null;
 // d'une position ont été (en partie) financées par du profit réinvesti, et d'où ce profit vient.
 function getProvenanceBadge(p){
   // Clé alignée sur reconstructCashLots() (symbole+compte, fix audit 2026-07-30).
-  const list=_cashEntryFunding[p.symbol+'|'+(p.account||'Non spécifié')];
+  const list=_cashEntryFunding[p.symbol+'|'+normAcct(p.account,getPosCurrency(p))];
   if(!list||!list.length)return '';
   let profitShares=0,totalShares=0;const chains=new Set();
   list.forEach(e=>{
@@ -2641,7 +2656,7 @@ function getProvenanceBadge(p){
     }
   });
   if(profitShares<0.0001)return '';
-  const pct=totalShares>0?Math.round(profitShares/totalShares*100):0;
+  const pct=totalShares>0?(profitShares/totalShares*100).toFixed(1):'0.0';
   const chainStr=[...chains].join(' → ')||'inconnue';
   return `<span style="display:inline-block;width:5px;height:5px;background:var(--amber);border-radius:50%;margin-left:5px;vertical-align:middle;" title="Financé à ${pct}% par du profit réinvesti (origine : ${escapeHtml(chainStr)})"></span>`;
 }
@@ -2689,7 +2704,7 @@ function computeWeightTotals(){
   const rawPos=posVals.map(v=>total>0?v/total*100:0);
   const rawCash=cashRows.map(r=>total>0?r.value/total*100:0);
   // Poids pos. arrondi conjointement (positions + lignes cash) → somme affichée = 100,00 %
-  const roundedAll=total>0?roundToTarget([...rawPos,...rawCash],100,2):[...rawPos,...rawCash];
+  const roundedAll=total>0?roundToTarget([...rawPos,...rawCash],100,1):[...rawPos,...rawCash];
   const posWeight=roundedAll.slice(0,posVals.length),cashWeight=roundedAll.slice(posVals.length);
   // Poids classe : arrondi par classe → chaque classe somme à 100,00 %
   const members={};
@@ -2699,13 +2714,13 @@ function computeWeightTotals(){
   Object.entries(members).forEach(([c,arr])=>{
     const tot=byClass[c]||0;
     const raw=arr.map(m=>tot>0?m.v/tot*100:0);
-    const rd=tot>0?roundToTarget(raw,100,2):raw;
+    const rd=tot>0?roundToTarget(raw,100,1):raw;
     arr.forEach((m,j)=>classW[m.k]=rd[j]);
   });
   // Récap des classes (poids de chaque classe dans le portefeuille), somme = 100,00 %
   const classNames=Object.keys(byClass).filter(c=>byClass[c]>0).sort((a,b)=>byClass[b]-byClass[a]);
   const classRaw=classNames.map(c=>total>0?byClass[c]/total*100:0);
-  const classRd=total>0?roundToTarget(classRaw,100,2):classRaw;
+  const classRd=total>0?roundToTarget(classRaw,100,1):classRaw;
   const classSummary=classNames.map((c,i)=>({cls:c,value:byClass[c],weight:classRd[i],rawWeight:classRaw[i]}));
   return{
     total,posTotal,cashTotal,byClass,cashRows,classSummary,
@@ -2723,7 +2738,7 @@ function getPositionWeights(p,wt){
   if(i==null||i<0){const v=posValueAcct(p),ct=wt.byClass[cat]||0;return{weight:wt.total>0?v/wt.total*100:0,weightClass:ct>0?v/ct*100:0,cat};}
   return{weight:wt.posWeight[i]||0,weightRaw:wt.posRaw[i]||0,weightClass:wt.posClassWeight[i]||0,cat};
 }
-function fmtW(v){return (v||0).toLocaleString('fr-CA',{minimumFractionDigits:2,maximumFractionDigits:2})+' %';}
+function fmtW(v){return (v||0).toLocaleString('fr-CA',{minimumFractionDigits:1,maximumFractionDigits:1})+' %';}
 function posRow(p,idx,displayIdx){
   const shares=p.shares||0,valeurMarche=shares*p.current;
   // P&L calculé en devise de la position (prix courant × shares vs avgEntry × shares)
@@ -2733,7 +2748,6 @@ function posRow(p,idx,displayIdx){
   const pct=coutPnl>0?(pnl/coutPnl)*100:0,cls=pnl>=0?'pos':'neg';
   // Coût total affiché = somme réelle des achats (peut être en devise différente si DCA mixte)
   const coutTotal=p.entries&&p.entries.length?p.entries.reduce((s,e)=>s+(e.size||0),0):coutPnl;
-  const acbCAD=getPositionAcbCAD(p);
   const w=getPositionWeights(p);
   const isDca=p.entries&&p.entries.length>1,firstDate=p.entries&&p.entries[0]?p.entries[0].date:'—';
   // Le badge DCA×N se met à jour automatiquement via entries.length après FIFO
@@ -2753,7 +2767,6 @@ function posRow(p,idx,displayIdx){
     <td style="color:var(--text2);">${sharesStr}</td>
     <td>${fmtPrice(p.avgEntry)}</td>
     <td style="color:var(--text3);">${fmtC(coutTotal,getPosCurrency(p))}</td>
-    <td data-sensitive style="color:var(--text3);">${fmtAmtRound(acbCAD)}</td>
     <td>${fmtPrice(p.current)}</td>
     <td>${fmtC(valeurMarche,getPosCurrency(p))}</td>
     <td class="${cls}">${fmtCpnl(pnl,getPosCurrency(p))}</td>
@@ -2769,7 +2782,7 @@ function posRow(p,idx,displayIdx){
   if(isSelected){
     const noteVal=escapeHtml(p.note||'');
     html+=`<tr class="pos-note-row">
-      <td colspan="16" style="padding:6px 12px 10px 12px;background:rgba(0,255,136,0.04);border-top:none;">
+      <td colspan="15" style="padding:6px 12px 10px 12px;background:rgba(0,255,136,0.04);border-top:none;">
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;white-space:nowrap;">Note</span>
           <input type="text"
@@ -2807,9 +2820,8 @@ function posRow(p,idx,displayIdx){
         <td style="color:var(--text3);">${fmtC(e.size,getPosCurrency(p))}</td>
         <td></td>
         <td></td>
-        <td></td>
         <td class="${entryPnlCls}">${fmtCpnl(entryPnlAbs,getPosCurrency(p))}</td>
-        <td class="${entryPnlCls}">${entryPnlPct>=0?'+':''}${entryPnlPct.toFixed(2)}%</td>
+        <td class="${entryPnlCls}">${entryPnlPct>=0?'+':''}${entryPnlPct.toFixed(1)}%</td>
         <td></td>
         <td></td>
         <td></td>
@@ -2871,7 +2883,6 @@ function getFilteredSortedPositions(){
         case'value':return toUSD((p.shares||0)*p.current,getPosCurrency(p));
         case'pnl':return calcPnlUSD(p);
         case'pnlPct':{const c=(p.shares||0)*p.avgEntry;return c>0?(calcPnl(p)/c)*100:0;}
-        case'acb':return getPositionAcbCAD(p);
         case'weight':return getPositionWeights(p,wt).weight;
         case'weightClass':return getPositionWeights(p,wt).weightClass;
         default:return 0;
@@ -2908,11 +2919,53 @@ function renderPosTable(){
   const periodFilter=document.getElementById('pos-filter-period')?.value||'';
   const showCash=!periodFilter&&(!catFilter||catFilter==='Cash');
   const cashIdx=showCash?wt.cashRows.map((r,i)=>i).filter(i=>!accountFilter||wt.cashRows[i].account===accountFilter):[];
-  let html=filtered.map((p,displayIdx)=>posRow(p,p._origIdx,displayIdx)).join('');
-  html+=cashIdx.map(i=>cashWeightRow(wt,i)).join('');
-  if(!filtered.length&&!cashIdx.length)html=`<tr><td colspan="16" class="empty">Aucune position${positions.length?' (filtrée)':' ouverte'}</td></tr>`;
+  // Sections par classe d'actif (demande 2026-10-03) : titre au-dessus, positions triées par
+  // valeur de marché live CROISSANTE dans chaque classe (sauf si l'utilisateur a cliqué un
+  // en-tête de tri -- ce tri s'applique alors à l'intérieur de chaque section), puis une ligne
+  // sous-total avec le poids de la classe dans le portefeuille et le poids dans la classe.
+  // Classes ordonnées par poids décroissant dans le portefeuille.
+  const groups={};
+  const grp=c=>groups[c]||(groups[c]={pos:[],cash:[]});
+  filtered.forEach(p=>grp(getWeightClass(p.symbol)).pos.push(p));
+  cashIdx.forEach(i=>grp('Cash').cash.push(i));
+  const classOrder=Object.keys(groups).sort((a,b)=>(wt.byClass[b]||0)-(wt.byClass[a]||0));
+  let n=0,html='';
+  classOrder.forEach(c=>{
+    const g=groups[c];
+    const items=[
+      ...g.pos.map(p=>({v:posValueAcct(p),render:()=>posRow(p,p._origIdx,n++)})),
+      ...g.cash.map(i=>({v:wt.cashRows[i].value,render:()=>cashWeightRow(wt,i)}))
+    ];
+    if(!sortColumn)items.sort((a,b)=>a.v-b.v);
+    html+=posClassHeadRow(c,g);
+    items.forEach(it=>{html+=it.render();});
+    html+=posClassSubtotalRow(c,g,wt);
+  });
+  if(!filtered.length&&!cashIdx.length)html=`<tr><td colspan="15" class="empty">Aucune position${positions.length?' (filtrée)':' ouverte'}</td></tr>`;
   t.innerHTML=html;
   renderPosFooter(filtered,cashIdx,!!(catFilter||accountFilter||periodFilter));
+}
+function posClassHeadRow(c,g){
+  const nPos=g.pos.length,nCash=g.cash.length;
+  const parts=[];if(nPos)parts.push(nPos+' position'+(nPos>1?'s':''));if(nCash)parts.push(nCash+' compte'+(nCash>1?'s':'')+' de cash');
+  return `<tr class="pos-class-head"><td colspan="15">${escapeHtml(c)}<span class="pos-class-count">${parts.join(' · ')}</span></td></tr>`;
+}
+function posClassSubtotalRow(c,g,wt){
+  let val=0,pnl=0,w=0,wc=0;
+  g.pos.forEach(p=>{val+=posValueAcct(p);pnl+=calcPnlUSD(p)*(fxRate||1);w+=wt.posRaw[p._origIdx]||0;});
+  g.cash.forEach(i=>{val+=wt.cashRows[i].value;w+=wt.cashRaw[i]||0;});
+  const clsTot=wt.byClass[c]||0;wc=clsTot>0?val/clsTot*100:0;
+  const pnlCls=pnl>=0?'pos':'neg';
+  return `<tr class="pos-class-sub">
+    <td></td><td class="sym" style="color:var(--text2);">Sous-total</td>
+    <td colspan="7" class="pos-class-weights">Poids portefeuille <b>${fmtW(w)}</b><span style="margin:0 8px;color:var(--border2);">|</span>Poids dans la classe <b>${fmtW(wc)}</b></td>
+    <td data-sensitive>${fmtAmt(val)}</td>
+    <td class="${g.pos.length?pnlCls:''}">${g.pos.length?(pnl>=0?'+':'-')+fmtAmt(Math.abs(pnl)):'—'}</td>
+    <td></td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text);">${fmtW(w)}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text3);">${fmtW(wc)}</td>
+    <td></td>
+  </tr>`;
 }
 function cashWeightRow(wt,i){
   const r=wt.cashRows[i];
@@ -2922,7 +2975,7 @@ function cashWeightRow(wt,i){
     <td><span class="badge-dca ${getAcctClass(r.account)}">${escapeHtml(r.account)}</span></td>
     <td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td>
     <td style="color:var(--text3);font-size:10px;" colspan="2">${escapeHtml(r.native||'')}</td>
-    <td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td>
+    <td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td>
     <td data-sensitive>${fmtAmt(r.value)}</td>
     <td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td>
     <td style="color:var(--text2);font-family:var(--mono);font-size:11px;">${fmtW(wt.cashWeight[i])}</td>
@@ -2937,24 +2990,19 @@ function renderPosFooter(filtered,cashIdx,isFiltered){
   let val=0,wSum=0,pnl=0;
   filtered.forEach(p=>{val+=posValueAcct(p);wSum+=(wt.posWeight[p._origIdx]||0);pnl+=calcPnlUSD(p)*(fxRate||1);});
   cashIdx.forEach(i=>{val+=wt.cashRows[i].value;wSum+=wt.cashWeight[i]||0;});
-  wSum=Math.round(wSum*100)/100;
-  const ok=Math.abs(wSum-100)<0.005;
+  wSum=Math.round(wSum*10)/10;
+  const ok=Math.abs(wSum-100)<0.05;
   const pnlCls=pnl>=0?'pos':'neg';
-  const recap=wt.classSummary.map(c=>`<span style="white-space:nowrap;">${escapeHtml(c.cls)} <b style="color:var(--text2);">${fmtW(c.weight)}</b></span>`).join(' · ');
-  const recapSum=Math.round(wt.classSummary.reduce((s,c)=>s+c.weight,0)*100)/100;
   f.innerHTML=`<tr class="pos-total-row" style="font-weight:600;border-top:2px solid var(--border2);">
     <td></td><td class="sym">${isFiltered?'TOTAL (filtré)':'TOTAL'}</td>
-    <td colspan="8" style="color:var(--text3);font-size:10px;font-weight:500;">Positions + cash dispo · dénominateur = valeur totale du portefeuille (${fmtAmtRound(wt.total)})</td>
+    <td colspan="7" style="color:var(--text3);font-size:10px;font-weight:500;">Positions + cash dispo · dénominateur = valeur totale du portefeuille (${fmtAmtRound(wt.total)})</td>
     <td data-sensitive>${fmtAmt(val)}</td>
     <td class="${pnlCls}">${(pnl>=0?'+':'-')+fmtAmt(Math.abs(pnl))}</td>
     <td></td>
     <td style="font-family:var(--mono);font-size:11px;color:${ok||isFiltered?'var(--text)':'var(--red)'};">${fmtW(wSum)}</td>
     <td style="font-family:var(--mono);font-size:10px;color:var(--text3);font-weight:500;">100 % / classe</td>
     <td></td>
-  </tr>
-  <tr class="pos-class-recap"><td></td><td colspan="15" style="font-size:10px;color:var(--text3);padding-top:4px;padding-bottom:8px;">
-    Répartition par classe : ${recap||'—'} <span style="margin-left:6px;color:var(--text2);">= ${fmtW(recapSum)}</span>
-  </td></tr>`;
+  </tr>`;
 }
 
 function openEditModal(idx){
@@ -2998,7 +3046,7 @@ function setPartial(pct){const p=positions[closeTarget];if(!p)return;document.ge
 function updatePartialSize(){
   if(closeTarget===null)return;const p=positions[closeTarget];
   const shares=parseFloat(document.getElementById('modal-shares').value),exitPrice=parseFloat(document.getElementById('modal-exit').value),totalShares=p.shares||0;
-  if(!isNaN(shares)&&!isNaN(exitPrice)&&totalShares>0){const pct=shares/totalShares,sizeToClose=(p.shares||0)*p.avgEntry*pct;const profit=p.dir==='Long'?(exitPrice-p.avgEntry)/p.avgEntry*sizeToClose:(p.avgEntry-exitPrice)/p.avgEntry*sizeToClose;document.getElementById('modal-preview').textContent='Vendre '+shares+' / '+totalShares+' shares ('+Math.round(pct*100)+'%) · P&L estimé : '+fmtCpnl(profit,getPosCurrency(p))+'  ·  Cash récupéré : '+fmtAmtRound(parseFloat((toUSD(sizeToClose+profit,getPosCurrency(p))*fxRate).toFixed(0)))+' CAD';}
+  if(!isNaN(shares)&&!isNaN(exitPrice)&&totalShares>0){const pct=shares/totalShares,sizeToClose=(p.shares||0)*p.avgEntry*pct;const profit=p.dir==='Long'?(exitPrice-p.avgEntry)/p.avgEntry*sizeToClose:(p.avgEntry-exitPrice)/p.avgEntry*sizeToClose;document.getElementById('modal-preview').textContent='Vendre '+shares+' / '+totalShares+' shares ('+(pct*100).toFixed(1)+'%) · P&L estimé : '+fmtCpnl(profit,getPosCurrency(p))+'  ·  Cash récupéré : '+fmtAmtRound(parseFloat((toUSD(sizeToClose+profit,getPosCurrency(p))*fxRate).toFixed(0)))+' CAD';}
   else document.getElementById('modal-preview').textContent='—';
 }
 function cancelClose(){closeTarget=null;document.getElementById('modal-overlay').classList.remove('open');}
@@ -3109,12 +3157,12 @@ function renderAnnualPnl(){
   el.innerHTML=`<table style="min-width:550px;"><thead><tr>
     <th>Année</th><th>Trades</th><th>P&L réalisé (CAD)</th><th>Win rate</th><th>Meilleur trade</th>
   </tr></thead><tbody>${years.map(yr=>{
-    const d=byYear[yr],cls=d.pnlCAD>=0?'pos':'neg',wr=d.count>0?Math.round(d.wins/d.count*100):0;
+    const d=byYear[yr],cls=d.pnlCAD>=0?'pos':'neg',wr=d.count>0?d.wins/d.count*100:0;
     return`<tr>
       <td style="font-weight:600;color:var(--text1);">${yr}</td>
       <td style="color:var(--text2);">${d.count}</td>
       <td class="${cls}" data-sensitive>${fmtCpnl(d.pnlCAD,'CAD')}</td>
-      <td style="color:${wr>=50?'var(--green)':'var(--amber)'};">${wr}%</td>
+      <td style="color:${wr>=50?'var(--green)':'var(--amber)'};">${wr.toFixed(1)}%</td>
       <td style="color:var(--text2);" data-sensitive>${d.bestSymbol} (${d.best>0?'+':''}${fmtAmtRound(d.best)})</td>
     </tr>`;}).join('')}</tbody></table>`;
 }
@@ -3534,6 +3582,7 @@ function updatePerfChart(){
   const filtered=getFilteredHistory();
   const existingMsg=document.getElementById('perf-chart-empty');if(existingMsg)existingMsg.remove();
   if(filtered.length<2){
+    renderPerfVariation(null);
     perfChart.data.labels=[];
     perfChart.data.datasets[0].data=[];
     if(perfChart.data.datasets[1])perfChart.data.datasets[1].data=[];
@@ -3663,8 +3712,41 @@ function updatePerfChart(){
       }):[];
       perfChart.options.scales.y.ticks.callback=v=>v.toFixed(1)+'%';
     }
+    // Tooltip : % à 1 décimale, $ arrondi (règle app-wide 2026-10-03).
+    perfChart.options.plugins.tooltip={...(perfChart.options.plugins.tooltip||{}),callbacks:{label:ctx=>{
+      const v=ctx.parsed.y;if(v==null)return'';
+      const name=ctx.dataset.label||'';
+      if(benchmarkMode!=='absolute')return ` ${name} : ${v>=0?'+':''}${v.toFixed(1)} %`;
+      return ` ${name} : `+(chartCurrency==='USD'?Math.round(v).toLocaleString('fr-FR')+' US$':fmtAmtRound(v));
+    }}};
+    // ── Variation sur la période sélectionnée (demande 2026-10-03) ──────────────────────
+    // $ Valeur : gain NET des dépôts/retraits = (valeur fin − valeur début) − flux nets de la
+    //            période (un dépôt n'est pas de la performance). % Variation : TWR de la période
+    //            = indice TWR fin / indice TWR début − 1 (même méthode que la courbe).
+    renderPerfVariation(sampledWithLive,twrMap,portStart,curDiv);
     perfChart.update();
   }).catch(e=>console.warn("[chart] updatePerfChart error:",e));
+}
+
+const PERIOD_LABELS={'1W':'1 semaine','1M':'1 mois','3M':'3 mois','YTD':'depuis le 1er janvier','ALL':'depuis le début'};
+function renderPerfVariation(points,twrMap,portStart,curDiv){
+  const el=document.getElementById('perf-variation');if(!el)return;
+  if(!points||points.length<2){el.innerHTML='';return;}
+  const first=points[0],last=points[points.length-1];
+  const lbl=`<span class="pv-label">${PERIOD_LABELS[activePeriod]||activePeriod}</span>`;
+  if(benchmarkMode==='absolute'){
+    const flows=trades.filter(t=>(t.type==='Dépôt'||t.type==='Retrait')&&t.date>first.date&&t.date<=last.date)
+      .reduce((s2,t)=>s2+(t.type==='Dépôt'?1:-1)*(t.size||0),0);
+    const gain=((last.value-first.value)-flows)/(curDiv||1);
+    const txt=chartCurrency==='USD'?Math.round(Math.abs(gain)).toLocaleString('fr-FR')+' US$':fmtAmtRound(Math.abs(gain));
+    const tip=`Variation nette des dépôts/retraits : (valeur fin − valeur début) − flux nets de la période (${fmtAmtRound(flows/(curDiv||1))}).`;
+    el.innerHTML=`<span class="${gain>=0?'pos':'neg'}" title="${escapeHtml(tip)}">${gain>=0?'+':'−'}${txt}</span>${lbl}`;
+  }else{
+    const idx=h=>{const e=twrMap.get(h.date);return e?e.f*(h.value/e.base):(portStart>0?h.value/portStart:1);};
+    const i0=idx(first),i1=idx(last);
+    const pct=i0>0?(i1/i0-1)*100:0;
+    el.innerHTML=`<span class="${pct>=0?'pos':'neg'}" title="Rendement pondéré dans le temps (TWR) de la période, dépôts exclus.">${pct>=0?'+':''}${pct.toFixed(1)} %</span>${lbl}`;
+  }
 }
 
 // ─── ALLOCATION ───────────────────────────────────────────────────
@@ -3741,14 +3823,19 @@ document.addEventListener('mouseout',e=>{
   const el=getInfoBadgeTooltipEl();
   el.style.opacity='0';el.style.visibility='hidden';
 });
-function mkDonut(id,labels,data,colors){
+function mkDonut(id,labels,data,colors,opts){
   const el=document.getElementById(id);if(!el)return null;
+  opts=opts||{};
   // layout.padding ajouté 2026-08-03 (bug signalé par Cédric) : hoverOffset:6 fait "sortir"
   // la tranche survolée de 6px vers l'extérieur, mais le canvas dessine le donut collé à ses
   // propres bords -- sans marge, le cercle survolé se fait couper net par le bord du canvas
   // (surtout visible sur cashLotsChart, 90x90px). Le padding réserve la marge nécessaire à
   // l'intérieur du canvas, sans changer la taille du conteneur ni la taille apparente du cercle.
-  return new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',layout:{padding:8},plugins:{legend:{display:false},tooltip:{enabled:false,external:externalDonutTooltip,callbacks:{label:ctx=>' '+ctx.label+': '+ctx.parsed.toFixed(1)+'%'}}}}});
+  // opts (2026-10-03) : hoverOffset/padding/cutout/label personnalisables -- ex. cashLotsChart
+  // dont la tranche survolée grossit nettement (hoverOffset 14) et dont le tooltip détaille la
+  // composition cash/profit du compte.
+  const hov=opts.hoverOffset!=null?opts.hoverOffset:6;
+  return new Chart(el,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:hov}]},options:{responsive:true,maintainAspectRatio:false,cutout:opts.cutout||'68%',layout:{padding:opts.padding!=null?opts.padding:Math.max(8,hov+2)},plugins:{legend:{display:false},tooltip:{enabled:false,external:externalDonutTooltip,callbacks:{label:opts.label||(ctx=>' '+ctx.label+': '+ctx.parsed.toFixed(1)+'%')}}}}});
 }
 function mkDonutData(items,totalUSD){
   const labels=items.map(i=>i.label);
@@ -3760,7 +3847,7 @@ function buildLegend(containerId,labels,values,colors,amounts){
   // amounts (optionnel, ex: ["42,43 $ CAD"]) -- ajouté 2026-08-03 pour la légende Cash
   // disponible (demande de Cédric : voir le montant, pas juste le %). Rétrocompatible :
   // les autres appelants qui ne passent pas amounts gardent l'affichage % seul.
-  el.innerHTML=labels.map((l,i)=>`<div class="donut-leg-row"><span class="donut-dot" style="background:${colors[i]||'#fff'};"></span>${l}<span class="donut-pct">${amounts&&amounts[i]?amounts[i]+' · ':''}${values[i]}%</span></div>`).join('');
+  el.innerHTML=labels.map((l,i)=>`<div class="donut-leg-row"><span class="donut-dot" style="background:${colors[i]||'#fff'};"></span>${l}<span class="donut-pct">${amounts&&amounts[i]?amounts[i]+' · ':''}${(+values[i]||0).toFixed(1)}%</span></div>`).join('');
 }
 function updateDonut(chart,labels,values,colors){
   if(!chart)return;chart.data.labels=labels;chart.data.datasets[0].data=values;chart.data.datasets[0].backgroundColor=colors;chart.update();
@@ -3778,22 +3865,49 @@ function fmtLotsNative(lots){
   return Object.entries(byCur).filter(([,amt])=>Math.abs(amt)>0.01)
     .map(([cur,amt])=>fmtAmtRound(amt)+' '+cur).join(' + ')||'—';
 }
+// Refonte 2026-10-03 (demande de Cédric) : UNE tranche par compte (plus de lignes « — Profit »
+// séparées), comptes triés par montant décroissant. La composition cash déposé / profit
+// réinvesti de chaque compte s'affiche au survol du pie (tooltip), et la tranche survolée
+// grossit (hoverOffset). _cashLotsMeta garde le détail par tranche pour le tooltip.
+let _cashLotsMeta=[];
+function cashLotsTooltipLabel(ctx){
+  const m=_cashLotsMeta[ctx.dataIndex];
+  if(!m)return ' '+ctx.label;
+  const lines=[`${m.name} — ${m.native} (${fmtPct1(m.pct)})`];
+  if(m.principalCAD>0.01)lines.push(`Cash : ${m.principalNative} · ${fmtPct1(m.total>0?m.principalCAD/m.total*100:0)}`);
+  if(m.profitCAD>0.01)lines.push(`Profit : ${m.profitNative} · ${fmtPct1(m.total>0?m.profitCAD/m.total*100:0)}`);
+  return lines;
+}
+// Survol d'une ligne de légende -> même effet que survoler la tranche (grossit + tooltip).
+function highlightCashSlice(i){
+  if(!cashLotsChart)return;
+  try{
+    if(i<0){cashLotsChart.setActiveElements([]);cashLotsChart.tooltip.setActiveElements([],{x:0,y:0});}
+    else{const a=[{datasetIndex:0,index:i}];cashLotsChart.setActiveElements(a);cashLotsChart.tooltip.setActiveElements(a,{x:0,y:0});}
+    cashLotsChart.update();
+  }catch(e){}
+}
 function renderCashLotsChart(){
   if(!cashLotsChart)return;
   const{accounts}=reconstructCashLots(true);
   const acctNames=Object.keys(accounts).filter(name=>_clAccountTotalCAD(accounts[name])>0.01).sort((a,b)=>_clAccountTotalCAD(accounts[b])-_clAccountTotalCAD(accounts[a]));
   const total=acctNames.reduce((s,name)=>s+_clAccountTotalCAD(accounts[name]),0);
   const labels=[],values=[],colors=[],amounts=[];
+  _cashLotsMeta=[];
   acctNames.forEach((name,i)=>{
     const state=accounts[name];
     const principalCAD=state.principal.reduce((s,l)=>s+fxConvert(l.amount,l.currency,'CAD'),0);
     const profitCAD=state.profit.reduce((s,l)=>s+fxConvert(l.amount,l.currency,'CAD'),0);
-    const baseColor=COLORS[i%COLORS.length];
-    if(principalCAD>0.01){labels.push(`${name} — Principal`);values.push(total>0?parseFloat((principalCAD/total*100).toFixed(1)):0);colors.push(baseColor);amounts.push(fmtLotsNative(state.principal));}
-    if(profitCAD>0.01){labels.push(`${name} — Profit`);values.push(total>0?parseFloat((profitCAD/total*100).toFixed(1)):0);colors.push(baseColor+'70');amounts.push(fmtLotsNative(state.profit));}
+    const acctTotal=principalCAD+profitCAD;
+    const pct=total>0?acctTotal/total*100:0;
+    const native=fmtLotsNative([...state.principal,...state.profit]);
+    labels.push(name);values.push(parseFloat(pct.toFixed(1)));colors.push(COLORS[i%COLORS.length]);amounts.push(native);
+    _cashLotsMeta.push({name,native,pct,total:acctTotal,principalCAD,profitCAD,principalNative:fmtLotsNative(state.principal),profitNative:fmtLotsNative(state.profit)});
   });
   updateDonut(cashLotsChart,labels,values,colors);
-  buildLegend('cash-lots-chart-legend',labels,values,colors,amounts);
+  // Légende sur 2 lignes (nom / montant · %) : lisible même quand la colonne est étroite.
+  const legEl=document.getElementById('cash-lots-chart-legend');
+  if(legEl)legEl.innerHTML=labels.map((l,i)=>`<div class="cash-leg-row" onmouseenter="highlightCashSlice(${i})" onmouseleave="highlightCashSlice(-1)"><span class="donut-dot" style="background:${colors[i]};"></span><div class="cash-leg-txt"><div class="cash-leg-name">${escapeHtml(l)}</div><div class="cash-leg-amt" data-sensitive>${amounts[i]} · ${values[i].toFixed(1)} %</div></div></div>`).join('')||'<div class="cash-leg-amt">Aucun cash</div>';
   // Ventilation par devise native (pas convertie) — demandé par Cédric 2026-08-03.
   const splitEl=document.getElementById('kpi-cash-currency-split');
   if(splitEl){
@@ -3811,6 +3925,42 @@ function renderCashLotsChart(){
     const fmt=n=>n.toLocaleString('fr-CA',{minimumFractionDigits:0,maximumFractionDigits:0});
     splitEl.textContent=`${fmt(cad)} $ CAD · ${fmt(usd)} $ USD`+(other>0.5?` · ${fmt(other)} $ autre`:'');
   }
+}
+// Cash vs Positions en double anneau (demande 2026-10-03) : anneau intérieur = Positions / Cash,
+// anneau extérieur = chaque position (tons verts) et chaque compte de cash (tons cyan), dans le
+// même ordre pour que les deux anneaux restent alignés. Valeurs en CAD.
+let _cashAllocMeta={outer:[],inner:[],total:0};
+function shadeList(hex,n){
+  // n teintes du même hex, de l'opaque vers le plus transparent (alpha hex 2 chiffres).
+  if(n<=0)return[];
+  return Array.from({length:n},(_,i)=>{const a=Math.round(255-(n>1?i/(n-1):0)*150);return hex+a.toString(16).padStart(2,'0');});
+}
+function cashAllocTooltipLabel(ctx){
+  const m=ctx.datasetIndex===0?_cashAllocMeta.outer[ctx.dataIndex]:_cashAllocMeta.inner[ctx.dataIndex];
+  if(!m)return ' '+ctx.label;
+  const t=_cashAllocMeta.total;
+  const lines=[`${m.label} — ${fmtAmtRound(m.value)} (${fmtPct1(t>0?m.value/t*100:0)})`];
+  if(m.group){const g=_cashAllocMeta.inner.find(x=>x.label===m.group);if(g&&g.value>0)lines.push(`${fmtPct1(m.value/g.value*100)} de ${m.group}`);}
+  return lines;
+}
+function renderCashAllocDouble(){
+  if(!cashAllocChart)return;
+  const posItems=positions.map(p=>({label:p.symbol+(p.account?' · '+p.account:''),value:posValueAcct(p),group:'Positions'})).filter(x=>x.value>0.005).sort((a,b)=>b.value-a.value);
+  const cashItems=getCashByAccount().map(r=>({label:'Cash · '+r.account,value:r.value,group:'Cash'}));
+  const posTot=posItems.reduce((s,x)=>s+x.value,0),cashTot=cashItems.reduce((s,x)=>s+x.value,0),total=posTot+cashTot;
+  if(!(total>0))return;
+  const green=themeHex('green'),cyan=themeHex('cyan');
+  const outer=[...posItems,...cashItems];
+  const outerColors=[...shadeList(green,posItems.length),...shadeList(cyan,cashItems.length)];
+  const inner=[{label:'Positions',value:posTot},{label:'Cash',value:cashTot}];
+  _cashAllocMeta={outer,inner,total};
+  const ds=cashAllocChart.data.datasets;
+  cashAllocChart.data.labels=outer.map(x=>x.label);
+  ds[0].data=outer.map(x=>x.value);ds[0].backgroundColor=outerColors;
+  if(ds[1]){ds[1].data=[posTot,cashTot];ds[1].backgroundColor=[green,cyan];}
+  cashAllocChart.update();
+  const pcts=inner.map(x=>parseFloat((x.value/total*100).toFixed(1)));
+  buildLegend('cash-alloc-legend',['Positions ('+posItems.length+')','Cash ('+cashItems.length+' comptes)'],pcts,[green,cyan],[fmtAmtRound(posTot),fmtAmtRound(cashTot)]);
 }
 function renderAllocDashboard(){
   if(!cashAllocChart)return;
@@ -3833,14 +3983,8 @@ function renderAllocDashboard(){
     buildLegend('alloc-cat-dash-legend',labels,values,COLORS.slice(0,labels.length));
   }
 
-  // Cash vs Positions
-  const totalCADDash=totalSizeUSD*fxRate+cash;
-  if(totalCADDash>0){
-    const labels=['Positions','Cash'];
-    const values=[parseFloat((totalSizeUSD*fxRate/totalCADDash*100).toFixed(1)),parseFloat((cash/totalCADDash*100).toFixed(1))];
-    updateDonut(cashAllocChart,labels,values,[themeHex('green'),themeHex('cyan')]);
-    buildLegend('cash-alloc-legend',labels,values,[themeHex('green'),themeHex('cyan')]);
-  }
+  // Cash vs Positions -- double anneau (positions + comptes de cash détaillés)
+  renderCashAllocDouble();
 
   // P&L par classe (dashboard)
   if(assetPerfDashChart){
@@ -3972,10 +4116,10 @@ function renderAllocCharts(){
   // Mini stats
   const closedTrades=trades.filter(t=>t.type==='Vente');
   const wins=closedTrades.filter(t=>(t.profit||0)>0).length;
-  const winRate=closedTrades.length>0?Math.round(wins/closedTrades.length*100):0;
+  const winRate=closedTrades.length>0?wins/closedTrades.length*100:0;
   const totalPnlRealUSD=closedTrades.reduce((s,t)=>s+toUSD(t.profit||0,getTradeCurrency(t)),0);
   const wr=document.getElementById('alloc-mini-winrate');
-  if(wr){wr.textContent=winRate+'%';wr.className='alloc-mini-val '+(winRate>=50?'pos':winRate>0?'neg':'');}
+  if(wr){wr.textContent=winRate.toFixed(1)+' %';wr.className='alloc-mini-val '+(winRate>=50?'pos':winRate>0?'neg':'');}
   const pr=document.getElementById('alloc-mini-pnlreal');
   if(pr){pr.textContent=(totalPnlRealUSD>=0?'+':'-')+fmtAmt(Math.abs(totalPnlRealUSD*fxRate));pr.className='alloc-mini-val '+(totalPnlRealUSD>=0?'pos':'neg');}
 
@@ -4021,7 +4165,7 @@ function renderAllocCharts(){
     });
     const sectorEntries=Object.entries(sectorPnl)
       .filter(([c])=>sectorCost[c]>0)
-      .map(([c,pnl])=>({cat:c,pct:parseFloat((pnl/sectorCost[c]*100).toFixed(2))}))
+      .map(([c,pnl])=>({cat:c,pct:parseFloat((pnl/sectorCost[c]*100).toFixed(1))}))
       .sort((a,b)=>b.pct-a.pct);
     sectorVarChart.data.labels=sectorEntries.map(s=>s.cat);
     const pcts=sectorEntries.map(s=>s.pct);
@@ -4498,13 +4642,18 @@ function initCharts(){
 
   allocChart=mkDonut('allocChart',[],[],[]);
   allocCatDashChart=mkDonut('allocCatDashChart',[],[],[]);
-  cashAllocChart=mkDonut('cashAllocChart',[],[],[]);
+  // Double anneau : dataset 0 = anneau extérieur (détail), dataset 1 = anneau intérieur (Positions/Cash).
+  {const el=document.getElementById('cashAllocChart');
+   cashAllocChart=el?new Chart(el,{type:'doughnut',data:{labels:[],datasets:[
+     {data:[],backgroundColor:[],borderWidth:1,borderColor:themeHex('bg2')||'#000',hoverOffset:10,weight:1.4},
+     {data:[],backgroundColor:[],borderWidth:1,borderColor:themeHex('bg2')||'#000',hoverOffset:6,weight:1}
+   ]},options:{responsive:true,maintainAspectRatio:false,cutout:'38%',layout:{padding:12},plugins:{legend:{display:false},tooltip:{enabled:false,external:externalDonutTooltip,callbacks:{label:cashAllocTooltipLabel}}}}}):null;}
   allocSymChart=mkDonut('allocSymChart',[],[],[]);
   allocCatChart=mkDonut('allocCatChart',[],[],[]);
   celiChart=mkDonut('celiChart',[],[],[]);
   celiappChart=mkDonut('celiappChart',[],[],[]);
   cryptoAllocChart=mkDonut('cryptoAllocChart',[],[],[]);
-  cashLotsChart=mkDonut('cashLotsChart',[],[],[]);
+  cashLotsChart=mkDonut('cashLotsChart',[],[],[],{hoverOffset:14,cutout:'62%',label:cashLotsTooltipLabel});
 }
 
 document.getElementById('modal-overlay').addEventListener('click',function(e){if(e.target===this)cancelClose();});
@@ -4522,6 +4671,7 @@ document.addEventListener('keydown',e=>{
   else if(key==='a'){switchTab('allocation',document.querySelector('[onclick*="allocation"]'));}
   else if(key==='s'){switchTab('strategie',document.querySelector('[onclick*="strategie"]'));}
   else if(key==='w'){switchTab('watchlist',document.querySelector('[onclick*="watchlist"]'));}
+  else if(key==='l'){switchTab('ledger',document.querySelector('[onclick*="\'ledger\'"]'));}
   else if(key==='n'){switchTab('positions',document.querySelector('[onclick*="positions"]'));setTimeout(()=>{const sym=document.getElementById('f-symbol');if(sym){sym.focus();sym.select();}},100);}
   else if(key==='t'){const cur=document.documentElement.getAttribute('data-theme')||'dark';setTheme(cur==='dark'?'light':'dark');}
   else if(e.key==='?'){showShortcutsHelp();}

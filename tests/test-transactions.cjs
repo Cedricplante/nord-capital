@@ -92,7 +92,7 @@ wt.cashClassWeight.forEach(v=>per.Cash=(per.Cash||0)+v);
 ok(Object.values(per).every(v=>r2(v)===100),'A chaque classe somme à 100,00 % : '+JSON.stringify(Object.fromEntries(Object.entries(per).map(([k,v])=>[k,r2(v)]))));
 ok(r2(wt.classSummary.reduce((s,c)=>s+c.weight,0))===100,'A récap des classes = 100,00 %');
 const foot=E("document.getElementById('pos-foot').textContent.replace(/\\s+/g,' ')");
-ok(/100,00\s?%/.test(foot),'A pied de tableau affiche le total 100,00 % : '+foot.slice(0,160));
+ok(/100,0\s?%/.test(foot),'A pied de tableau affiche le total 100,0 % : '+foot.slice(0,160));
 // CASH.TO dans classe Cash
 E(`positions.push({symbol:'CASH.TO',dir:'Long',avgEntry:50,current:50,shares:10,totalSize:500,currency:'CAD',account:'CELIAPP (CAD)',entries:[]})`);
 ok(E("getWeightClass('CASH.TO')")==='Cash','A CASH.TO classé Cash');

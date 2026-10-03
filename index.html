@@ -76,6 +76,7 @@
       <button class="nav-tab" onclick="switchTab('positions',this)">Positions</button>
       <button class="nav-tab" onclick="switchTab('strategie',this)" style="position:relative;">Stratégie<span id="strat-badge" style="display:none;position:absolute;top:2px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);"></span></button>
       <button class="nav-tab" onclick="switchTab('historique',this)">Historique</button>
+      <button class="nav-tab" onclick="switchTab('ledger',this)">Ledger</button>
       <button class="nav-tab" onclick="switchTab('allocation',this)">Allocation</button>
       <button class="nav-tab" onclick="switchTab('watchlist',this)">Watchlist</button>
     </div>
@@ -124,23 +125,21 @@
         <div class="kpi"><div class="kpi-label">P&amp;L réalisé</div><div class="kpi-val" id="kpi-pnl-real" data-sensitive>—</div><div class="kpi-sub neu" id="kpi-trades-count">—</div></div>
       </div>
       <div class="kpi-grid-2">
-        <div class="kpi" style="flex-direction:row;align-items:stretch;gap:16px;">
-          <div style="flex:1;min-width:120px;display:flex;flex-direction:column;justify-content:center;">
+        <div class="kpi kpi-cash-tile">
+          <div class="cash-tile-left">
             <div class="kpi-label" style="display:flex;align-items:center;gap:6px;">
               <span>Cash disponible</span>
-              <span class="info-badge" id="cash-info-badge" data-tip-js="Calculé à partir d'une ligne de départ vérifiée le 2026-07-30 (solde réel Disnat + exchanges), puis de tous les dépôts, retraits, achats et ventes depuis cette date. Le profit réalisé et réinvesti (ex. SOXL → TSLA) est tracké séparément du capital déposé et consommé en premier au rachat. Achats et retraits sont bloqués si le cash disponible du compte visé est insuffisant.">i</span>
+              <span class="info-badge" id="cash-info-badge" data-tip-js="Calculé à partir d'une ligne de départ vérifiée le 2026-07-30 (solde réel Disnat + exchanges), puis de tous les dépôts, retraits, achats et ventes depuis cette date. Le profit réalisé et réinvesti (ex. SOXL → TSLA) est tracké séparément du capital déposé et consommé en premier au rachat. Survole le pie pour voir la composition cash/profit de chaque compte. Achats et retraits sont bloqués si le cash disponible du compte visé est insuffisant.">i</span>
             </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <div class="kpi-val" id="kpi-cash" style="flex:unset;">—</div>
-              <button onclick="toggleCashPopup(event)" title="Modifier" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color 0.15s;" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">Modifier</button>
-            </div>
-            <div class="kpi-sub neu" id="kpi-cash-pct">—% du portefeuille</div>
-            <div class="kpi-sub neu" id="kpi-cash-currency-split" style="margin-top:4px;">—</div>
+            <div class="cash-tile-amount" id="kpi-cash" data-sensitive>—</div>
+            <div class="kpi-sub neu cash-tile-sub" id="kpi-cash-pct">—% du portefeuille</div>
+            <div class="kpi-sub neu cash-tile-sub" id="kpi-cash-currency-split">—</div>
+            <button class="cash-tile-edit" onclick="toggleCashPopup(event)" title="Dépôt / retrait">Modifier</button>
           </div>
-          <div style="width:1px;background:var(--border);flex-shrink:0;"></div>
-          <div style="flex:1.6;display:flex;align-items:center;gap:10px;min-width:0;">
-            <div style="position:relative;width:90px;height:90px;flex-shrink:0;"><canvas id="cashLotsChart"></canvas></div>
-            <div class="donut-leg" id="cash-lots-chart-legend" style="max-height:160px;overflow-y:auto;flex:1;min-width:0;margin-top:0;"></div>
+          <div class="cash-tile-divider"></div>
+          <div class="cash-tile-right">
+            <div class="cash-tile-pie"><canvas id="cashLotsChart"></canvas></div>
+            <div class="donut-leg cash-tile-leg" id="cash-lots-chart-legend"></div>
           </div>
         </div>
         <div class="kpi"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div><div class="kpi-sub neu">actives</div></div>
@@ -150,7 +149,10 @@
       <div class="grid-2-1">
         <div class="card" style="grid-column:span 2;">
           <div class="card-title" style="align-items:flex-start;">
-            <span>Valeur du portefeuille</span>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <span>Valeur du portefeuille</span>
+              <span class="perf-variation" id="perf-variation" data-sensitive></span>
+            </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
               <div class="period-btns">
                 <button class="period-btn" onclick="setPeriod('1W',this)">1S</button>
@@ -175,12 +177,12 @@
             <span><span class="bench-dot" style="background:var(--green);"></span>Portfolio</span>
             <span><span class="bench-dot" style="background:var(--cyan);border-top:2px dashed var(--cyan);height:0;width:14px;border-radius:0;"></span>S&amp;P 500 (simulé)<span class="info-badge" style="--tip-left:0; --tip-transform:none;" data-tip="Simule ce que tes dépôts et retraits auraient valu s'ils avaient été investis dans le S&amp;P 500 (SPY) au même moment plutôt que dans ton portefeuille réel — même calendrier de cash-flows, prix SPY du jour de chaque dépôt/retrait. En mode $ Valeur, la ligne pointillée est cette valeur simulée en dollars. En mode % Variation, c'est plutôt le rendement pur du SPY depuis le début (TWR, non affecté par les dépôts) comparé au rendement pur (TWR) de ton portefeuille. Si ta ligne verte est au-dessus de la pointillée : tu bats l'indice. En dessous : tu ferais mieux en indiciel passif.">i</span></span>
           </div>
-          <div class="chart-wrap" style="flex:1;min-height:200px;"><canvas id="perfChart"></canvas></div>
+          <div class="chart-wrap perf-chart-wrap"><canvas id="perfChart"></canvas></div>
         </div>
         <div class="card">
-          <div class="card-title">Cash vs Positions</div>
-          <div class="chart-wrap" style="flex:1;min-height:140px;"><canvas id="cashAllocChart"></canvas></div>
-          <div class="donut-leg" id="cash-alloc-legend" style="max-height:80px;"></div>
+          <div class="card-title">Cash vs Positions <span style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;">survole pour le détail</span></div>
+          <div class="chart-wrap cash-alloc-wrap"><canvas id="cashAllocChart"></canvas></div>
+          <div class="donut-leg" id="cash-alloc-legend" style="max-height:none;flex-shrink:0;"></div>
         </div>
       </div>
     </div>
@@ -222,11 +224,11 @@
                 <span style="font-size:10px;color:var(--text3);">(coche un ou plusieurs comptes ; le #1 est vidé en premier, puis le #2…)</span>
                 <button class="btn-ghost" type="button" onclick="useAllFundingCash()" style="padding:4px 10px;font-size:10px;margin-left:auto;" title="Calcule les shares pour utiliser tout le cash des comptes cochés">Tout le cash</button>
               </div>
-              <div id="funding-list" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div id="funding-list" style="display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0;"></div>
+                <div class="dca-hint" style="margin:0;text-align:right;flex-shrink:0;max-width:48%;">Si le symbole existe déjà, le prix moyen sera recalculé (DCA). Montant = shares × prix achat.</div>
+              </div>
               <div id="funding-status" style="font-size:11px;font-family:var(--mono);margin-top:6px;"></div>
-            </div>
-            <div class="form-grid" style="grid-template-columns:1fr;margin-top:6px;">
-              <div class="field" style="display:flex;align-items:flex-end;"><div class="dca-hint" style="margin:0;">Si le symbole existe déjà, le prix moyen sera recalculé (DCA). Montant = shares × prix achat.</div></div>
             </div>
           </div></div>
         </div>
@@ -250,7 +252,6 @@
               <th class="sortable" onclick="sortBy('shares')">Shares<span class="sort-arrow" id="sort-shares">⇅</span></th>
               <th class="sortable" onclick="sortBy('avgEntry')">Prix moy.<span class="sort-arrow" id="sort-avgEntry">⇅</span></th>
               <th class="sortable" onclick="sortBy('cost')">Coût total<span class="sort-arrow" id="sort-cost">⇅</span></th>
-              <th class="sortable" onclick="sortBy('acb')">ACB $CA<span class="sort-arrow" id="sort-acb">⇅</span></th>
               <th class="sortable" onclick="sortBy('current')">Prix actuel<span class="sort-arrow" id="sort-current">⇅</span></th>
               <th class="sortable" onclick="sortBy('value')">Valeur<span class="sort-arrow" id="sort-value">⇅</span></th>
               <th class="sortable" onclick="sortBy('pnl')">P&amp;L $<span class="sort-arrow" id="sort-pnl">⇅</span></th>
@@ -284,9 +285,6 @@
       <!-- Toolbar -->
       <div class="toolbar" style="margin-bottom:10px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <select id="filter-month" onchange="renderHistory()" class="filter-select"><option value="">Tous les mois</option></select>
-          <select id="filter-asset" onchange="renderHistory()" class="filter-select"><option value="">Tous les actifs</option></select>
-          <button class="btn-ghost" onclick="resetFilters()" style="padding:5px 12px;font-size:11px;">Reset</button>
           <button class="btn-accent-soft" onclick="openDividendModal()">+ Dividende</button>
         </div>
         <div style="display:flex;gap:8px;">
@@ -312,6 +310,18 @@
         <div id="annual-pnl-body" style="overflow-x:auto;"></div>
       </div>
 
+    </div>
+
+    <!-- LEDGER (2026-10-03) : registre des transactions déplacé tel quel depuis Historique,
+         avec ses filtres mois/actif. -->
+    <div id="tab-ledger" class="section">
+      <div class="toolbar" style="margin-bottom:10px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <select id="filter-month" onchange="renderHistory()" class="filter-select"><option value="">Tous les mois</option></select>
+          <select id="filter-asset" onchange="renderHistory()" class="filter-select"><option value="">Tous les actifs</option></select>
+          <button class="btn-ghost" onclick="resetFilters()" style="padding:5px 12px;font-size:11px;">Reset</button>
+        </div>
+      </div>
       <!-- Transaction table -->
       <div class="card">
         <div class="card-title">
@@ -1014,6 +1024,7 @@
             <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">A</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Allocation</td></tr>
             <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">S</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Stratégie</td></tr>
             <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">W</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Watchlist</td></tr>
+            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">L</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Ledger</td></tr>
             <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">N</kbd></td><td style="padding:6px 8px;color:var(--text2);">Nouvelle position (focus symbole)</td></tr>
             <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">T</kbd></td><td style="padding:6px 8px;color:var(--text2);">Basculer thème clair/sombre</td></tr>
             <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">?</kbd></td><td style="padding:6px 8px;color:var(--text2);">Afficher cette aide</td></tr>

@@ -80,7 +80,6 @@
      mobiles .kpi{height:auto} (specificité 0,0,1,0) des media queries ci-dessous, peu importe
      leur ordre dans la feuille de style -- bug trouvé à l'audit du 2026-08-03, jamais visible
      en desktop donc pas remarqué avant. */
-  @media (min-width: 769px) { .kpi-grid-2 .kpi { height: clamp(220px, 13vw, 270px); } }
   .kpi { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.1rem 1.5rem; position: relative; overflow: hidden; display: flex; flex-direction: column; height: clamp(130px, 7.5vw, 155px); transition: all 0.25s ease; }
   .kpi:hover { border-color: var(--border2); }
   /* Hover vert intense uniquement sur KPIs Dashboard et Cards Allocation */
@@ -106,9 +105,58 @@
   /* CARDS */
   .grid-2-1 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; align-items: stretch; }
   .grid-2-1 .card { min-height: clamp(200px, 14vw, 260px); height: auto; margin-bottom: 0; }
-  #tab-dashboard.section.active { display: flex; flex-direction: column; height: calc(100vh - 96px); overflow: hidden; }
-  #tab-dashboard .grid-2-1 { flex: 1; margin-bottom: 0; }
   .grid-2-1 .card .chart-wrap { flex: 1; }
+
+  /* ── DASHBOARD PLEIN ÉCRAN (refonte 2026-10-03) ──────────────────────────────────────
+     Avant : hauteurs basées sur la LARGEUR (vw) + section à calc(100vh - 96px) alors que nav
+     (60px) + padding (2 × 1.5rem) ≈ 108px -> sur un écran large mais peu haut (ultrawide,
+     zoom Chrome > 100 %), la somme dépassait la fenêtre et overflow:hidden coupait le bas du
+     chart « Valeur du portefeuille ». Maintenant : la section fait exactement la hauteur
+     disponible, les rangées KPI sont dimensionnées en vh et le chart prend le reste
+     (min-height:0 partout pour qu'il puisse rétrécir au lieu de déborder). Les montants
+     grossissent avec la fenêtre (vw + vh) : plus besoin de jouer avec le zoom de Chrome. */
+  @media (min-width: 769px) {
+    #tab-dashboard.section.active { display: flex; flex-direction: column; height: calc(100vh - 60px - 3rem); overflow: hidden; gap: 10px; }
+    #tab-dashboard .kpi-grid, #tab-dashboard .kpi-grid-2 { margin-bottom: 0; flex-shrink: 0; }
+    #tab-dashboard .kpi-grid .kpi { height: clamp(96px, 13vh, 170px); }
+    #tab-dashboard .kpi-grid-2 .kpi { height: clamp(150px, 24vh, 330px); }
+    #tab-dashboard .grid-2-1 { flex: 1; min-height: 0; margin-bottom: 0; }
+    #tab-dashboard .grid-2-1 .card { min-height: 0; overflow: hidden; }
+    #tab-dashboard .grid-2-1 .card .chart-wrap { min-height: 0; }
+    #tab-dashboard .kpi-val { font-size: clamp(20px, calc(0.75vw + 1.1vh), 44px); }
+    #tab-dashboard .kpi-val-hero { font-size: clamp(30px, calc(1.1vw + 1.7vh), 66px); }
+    #tab-dashboard .kpi-label { font-size: clamp(11px, calc(0.25vw + 0.35vh), 15px); }
+    #tab-dashboard .kpi-sub { font-size: clamp(11px, calc(0.22vw + 0.35vh), 15px); height: auto; min-height: 16px; }
+  }
+  /* Fenêtre très basse (< 640px) : on laisse défiler plutôt que de tout écraser. */
+  @media (min-width: 769px) and (max-height: 640px) {
+    #tab-dashboard.section.active { height: auto; overflow: visible; }
+    #tab-dashboard .grid-2-1 { min-height: 340px; }
+  }
+  .perf-chart-wrap { flex: 1; min-height: 160px; }
+  .cash-alloc-wrap { flex: 1; min-height: 120px; }
+  .perf-variation { font-size: 13px; font-family: var(--mono); font-weight: 700; letter-spacing: 0; text-transform: none; }
+  .perf-variation .pv-label { color: var(--text3); font-weight: 500; font-family: var(--sans); font-size: 11px; margin-left: 6px; }
+
+  /* Tuile Cash disponible : section gauche élargie (titre / montant / Modifier), pie plus gros. */
+  .kpi.kpi-cash-tile { flex-direction: row; align-items: stretch; gap: clamp(12px, 1.2vw, 28px); }
+  .cash-tile-left { flex: 1; min-width: 150px; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
+  .cash-tile-amount { font-family: var(--mono); font-weight: 700; color: var(--text); letter-spacing: -1px; font-size: clamp(26px, calc(0.95vw + 1.5vh), 56px); line-height: 1.1; margin: 6px 0 2px; }
+  .cash-tile-sub { height: auto !important; }
+  .cash-tile-edit { align-self: flex-start; margin-top: 8px; background: var(--bg3); border: 0.5px solid var(--border2); color: var(--text2); border-radius: 6px; padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--sans); transition: all 0.15s; }
+  .cash-tile-edit:hover { color: var(--green); border-color: var(--green); }
+  .cash-tile-divider { width: 1px; background: var(--border); flex-shrink: 0; }
+  .cash-tile-right { flex: 1.5; display: flex; align-items: center; gap: clamp(10px, 1vw, 22px); min-width: 0; }
+  .cash-tile-pie { position: relative; height: 100%; aspect-ratio: 1 / 1; max-height: 100%; max-width: 52%; flex-shrink: 1; }
+  .cash-tile-leg { flex: 1; min-width: 0; margin-top: 0 !important; max-height: 100% !important; }
+  .cash-tile-leg { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+  .cash-leg-row { display: flex; align-items: flex-start; gap: 8px; padding: 3px 6px; border-radius: 6px; cursor: default; transition: background 0.1s; }
+  .cash-leg-row:hover { background: var(--bg3); }
+  .cash-leg-row .donut-dot { margin-top: 5px; }
+  .cash-leg-txt { min-width: 0; }
+  .cash-leg-name { font-size: clamp(11px, calc(0.2vw + 0.4vh), 15px); color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cash-leg-amt { font-size: clamp(10px, calc(0.18vw + 0.35vh), 13px); color: var(--text3); font-family: var(--mono); white-space: nowrap; }
+  @media (min-width: 769px) { #tab-dashboard .kpi-grid-2 { grid-template-columns: 2.6fr 1fr 1fr; } }
   .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
   .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 1.25rem; }
   .card { background: var(--bg2); border: 0.5px solid var(--border); border-radius: var(--r); padding: 1.1rem 1.25rem; margin-bottom: 1.25rem; transition: all 0.2s; display: flex; flex-direction: column; }
@@ -414,6 +462,10 @@
     .kpi-grid-2 > .kpi:first-child { grid-column: span 2; }
     .kpi { height: auto; min-height: 80px; padding: 0.9rem 1rem; }
     .kpi-val-hero { font-size: 26px !important; }
+    .kpi.kpi-cash-tile { flex-wrap: wrap; }
+    .cash-tile-divider { display: none; }
+    .cash-tile-right { flex-basis: 100%; }
+    .cash-tile-pie { height: 150px; }
 
     /* Dashboard chart grid */
     .grid-2-1 { grid-template-columns: 1fr; }
@@ -494,3 +546,10 @@
     .pos-table-inner { max-height: none !important; overflow: visible !important; }
     @page { margin: 1.5cm; }
   }
+
+  /* Positions groupées par classe d'actif (2026-10-03) */
+  tr.pos-class-head td { background: color-mix(in srgb, var(--green) 7%, var(--bg3)); color: var(--text); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; padding-top: 9px; padding-bottom: 9px; border-top: 1px solid var(--border2); }
+  tr.pos-class-head .pos-class-count { margin-left: 10px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--text3); font-size: 10px; }
+  tr.pos-class-sub td { font-size: 11px; font-weight: 600; background: rgba(127,127,127,0.05); border-bottom: 1px solid var(--border2); }
+  tr.pos-class-sub .pos-class-weights { color: var(--text3); font-weight: 500; font-size: 11px; }
+  tr.pos-class-sub .pos-class-weights b { color: var(--text); font-family: var(--mono); font-weight: 700; margin-left: 4px; }

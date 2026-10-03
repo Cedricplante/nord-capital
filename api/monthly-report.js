@@ -66,7 +66,7 @@ function fmt(n, decimals = 0) {
   return n.toLocaleString('fr-CA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 function fmtSign(n) { return (n >= 0 ? '+' : '') + fmt(n, 0); }
-function fmtPct(n)  { return (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
+function fmtPct(n)  { return (n >= 0 ? '+' : '') + n.toFixed(1) + '%'; }
 
 function positionPnl(pos, prices, usdcad) {
   const sym   = getYahooTicker(pos.symbol || '');
