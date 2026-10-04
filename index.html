@@ -91,9 +91,13 @@
       <button class="nav-tab" onclick="switchTab('historique',this)">Historique</button>
       <button class="nav-tab" onclick="switchTab('ledger',this)">Ledger</button>
       <button class="nav-tab" onclick="switchTab('allocation',this)">Allocation</button>
+      <button class="nav-tab" onclick="switchTab('analyse',this)">Analyse</button>
       <button class="nav-tab" onclick="switchTab('watchlist',this)">Watchlist</button>
     </div>
-    <div style="display:flex;align-items:center;gap:12px;">
+    <div class="nav-right" style="display:flex;align-items:center;gap:10px;">
+      <button class="nav-search" type="button" onclick="openCmdK()" title="Palette de commandes (Ctrl+K)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="nav-search-lbl">Rechercher</span><kbd>Ctrl K</kbd></button>
+      <button class="nav-pill" id="pill-ips" type="button" onclick="goToIps()" title="Conformité à ta politique de placement"><span class="nav-pill-dot"></span><span class="nav-pill-txt">IPS</span></button>
+      <button class="nav-pill" id="pill-data" type="button" onclick="goToTab('controle')" title="Contrôle des données"><span class="nav-pill-dot"></span><span class="nav-pill-txt">Données</span></button>
       <button class="btn-eye" id="btn-eye" onclick="toggleHideAmounts()" title="Cacher/afficher les montants"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;display:inline-block;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
       <div id="live-indicator" style="font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;align-items:center;">
         <span class="live-dot" id="live-dot" style="background:var(--text3);"></span>
@@ -450,6 +454,34 @@
         <div id="mgr-achievements" class="mgr-ach-grid"></div>
       </div>
 
+      <!-- POLITIQUE DE PLACEMENT (IPS) — 2026-10-03 : cibles et bandes tirées du « Game plan —
+           Portefeuille personnel » (30 sept. 2026), modifiables via « Modifier l'IPS ». -->
+      <div class="alloc-section-title alloc-section-divider ips-title" id="ips-anchor">
+        <span>Politique de placement <span class="ips-title-sub">(IPS)</span></span>
+        <span class="ips-title-right"><span id="ips-source" class="ips-source"></span><button class="btn-ghost" type="button" onclick="openIpsEditor()">Modifier l'IPS</button></span>
+      </div>
+      <div class="ips-wrap">
+        <div class="mgr-panel ips-main">
+          <div class="mgr-panel-title">Conformité <span id="ips-status-lbl"></span><span class="ips-next" id="ips-next"></span></div>
+          <div id="ips-sleeves" class="ips-sleeves"></div>
+          <div class="ips-legend"><span><i class="ips-lg-band"></i>Bande min–max</span><span><i class="ips-lg-target"></i>Cible</span><span><i class="ips-lg-actual"></i>Poids actuel</span></div>
+        </div>
+        <div class="ips-side">
+          <div class="mgr-panel">
+            <div class="mgr-panel-title">Rééquilibrage <span>pour revenir à la cible</span></div>
+            <div id="ips-orders"></div>
+          </div>
+          <div class="mgr-panel">
+            <div class="mgr-panel-title">Garde-fous</div>
+            <div id="ips-guards"></div>
+          </div>
+        </div>
+      </div>
+      <div class="mgr-panel" style="margin-bottom:14px;">
+        <div class="mgr-panel-title">Poche crypto <span>cibles internes de la poche</span></div>
+        <div id="ips-crypto"></div>
+      </div>
+
       <div class="alloc-section-title alloc-section-divider">Composition du portefeuille</div>
       <!-- Section principale : 2 grands donuts -->
       <div class="alloc-section-title">Répartition globale</div>
@@ -490,24 +522,6 @@
       <canvas id="celiappChart" style="display:none;"></canvas>
       <canvas id="cryptoAllocChart" style="display:none;"></canvas>
 
-      <!-- Performance par classe -->
-      <div class="alloc-section-title">Performance</div>
-      <div class="alloc-grid-2">
-        <div class="alloc-panel">
-          <div class="alloc-panel-header">
-            <div class="alloc-panel-title">P&amp;L par classe d'actif</div>
-            <div class="alloc-panel-sub">Positions ouvertes · $</div>
-          </div>
-          <div class="chart-wrap" style="height:180px;margin-top:1rem;"><canvas id="assetPerfChart"></canvas></div>
-        </div>
-        <div class="alloc-panel">
-          <div class="alloc-panel-header">
-            <div class="alloc-panel-title">Variation relative par secteur</div>
-            <div class="alloc-panel-sub">Depuis coût moyen · %</div>
-          </div>
-          <div class="chart-wrap" style="height:180px;margin-top:1rem;"><canvas id="sectorVarChart"></canvas></div>
-        </div>
-      </div>
       <div class="alloc-section-title">Cotisations</div>
       <!-- Cotisations & Droits -->
       <div class="card" style="margin-bottom:0;" id="contributions-card">
@@ -542,6 +556,87 @@
       </div>
 
     </div>
+    <!-- ANALYSE (2026-10-03) : 01 Risque · 02 Attribution · 03 TWR vs MWR. Tout est calculé dans
+         pro.js à partir des snapshots quotidiens, des transactions et des prix historiques. -->
+    <div id="tab-analyse" class="section">
+      <div class="an-head">
+        <div>
+          <div class="an-title">Analyse du portefeuille</div>
+          <div class="an-sub" id="an-sub">—</div>
+        </div>
+        <div class="an-controls">
+          <div class="period-btns" id="an-period">
+            <button class="period-btn" data-p="1M" onclick="setAnPeriod('1M')">1M</button>
+            <button class="period-btn" data-p="3M" onclick="setAnPeriod('3M')">3M</button>
+            <button class="period-btn" data-p="6M" onclick="setAnPeriod('6M')">6M</button>
+            <button class="period-btn" data-p="YTD" onclick="setAnPeriod('YTD')">YTD</button>
+            <button class="period-btn" data-p="1Y" onclick="setAnPeriod('1Y')">1A</button>
+            <button class="period-btn active" data-p="ALL" onclick="setAnPeriod('ALL')">Tout</button>
+          </div>
+          <select class="filter-select" id="an-bench" onchange="setAnBench(this.value)" title="Indice de référence">
+            <option value="SPY">vs S&amp;P 500 ($ CA)</option>
+            <option value="QQQ">vs Nasdaq-100 ($ CA)</option>
+            <option value="XIU.TO">vs S&amp;P/TSX 60</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="an-section"><span class="an-num">01</span><span class="an-sec-name">Risque</span><span class="an-sec-desc">Volatilité, rendement ajusté au risque, risque relatif à l'indice et pertes extrêmes</span></div>
+      <div class="an-metric-groups" id="an-metrics"></div>
+      <div class="an-grid-3">
+        <div class="card"><div class="card-title">Rendement cumulé <span class="an-card-sub" id="an-cum-sub"></span></div><div class="chart-wrap an-chart"><canvas id="anCumChart"></canvas></div></div>
+        <div class="card"><div class="card-title">Drawdown <span class="an-card-sub">sous le sommet précédent</span></div><div class="chart-wrap an-chart"><canvas id="anDdChart"></canvas></div></div>
+        <div class="card"><div class="card-title">Volatilité roulante <span class="an-card-sub">21 jours, annualisée</span></div><div class="chart-wrap an-chart"><canvas id="anVolChart"></canvas></div></div>
+      </div>
+      <div class="an-grid-2">
+        <div class="card"><div class="card-title">Exposition &amp; concentration</div><div id="an-exposure"></div></div>
+        <div class="card"><div class="card-title">Scénarios de stress <span class="an-card-sub">chocs instantanés hypothétiques</span></div><div id="an-stress"></div></div>
+      </div>
+
+      <div class="an-section"><span class="an-num">02</span><span class="an-sec-name">Attribution</span><span class="an-sec-desc">D'où vient ton P&amp;L : effet prix, effet de change, réalisé et dividendes</span>
+        <div class="an-seg" id="an-attr-group">
+          <button data-g="asset" class="active" onclick="setAttrGroup('asset')">Actif</button>
+          <button data-g="class" onclick="setAttrGroup('class')">Classe</button>
+          <button data-g="sleeve" onclick="setAttrGroup('sleeve')">Poche IPS</button>
+          <button data-g="account" onclick="setAttrGroup('account')">Compte</button>
+        </div>
+      </div>
+      <div class="an-attr-wrap">
+        <div class="card an-attr-chart-card"><div class="card-title">Pont du P&amp;L <span class="an-card-sub" id="an-attr-total"></span></div><div class="chart-wrap an-attr-chart"><canvas id="anAttrChart"></canvas></div></div>
+        <div class="card an-attr-table-card"><div class="card-title">Détail <span class="an-card-sub">depuis l'achat, en $ CA</span></div><div id="an-attr-table" class="an-table-wrap"></div></div>
+      </div>
+
+      <div class="an-section"><span class="an-num">03</span><span class="an-sec-name">TWR vs MWR</span><span class="an-sec-desc">Ta compétence de gestionnaire vs le rendement réel de ton argent</span></div>
+      <div class="an-ret-wrap">
+        <div class="card"><div id="an-ret-table" class="an-table-wrap"></div></div>
+        <div class="card an-explain">
+          <div class="an-explain-row"><b>TWR</b> — rendement pondéré dans le temps. Neutralise les dépôts et retraits : mesure uniquement tes décisions de placement. C'est le chiffre qu'un gestionnaire publie.</div>
+          <div class="an-explain-row"><b>MWR</b> — rendement pondéré par l'argent (TRI / XIRR). Tient compte du moment et de la taille de tes dépôts : c'est ce que ton argent a réellement fait.</div>
+          <div class="an-explain-row"><b>Effet de timing</b> = MWR − TWR. Positif : tu as ajouté du capital avant les hausses. Négatif : tes dépôts sont arrivés avant des baisses.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONTRÔLE DES DONNÉES (2026-10-03) : intégrité, rapprochement courtier, journal d'audit.
+         Accessible via la pastille « Données » de la barre du haut, le menu et Ctrl+K. -->
+    <div id="tab-controle" class="section">
+      <div class="an-head">
+        <div>
+          <div class="an-title">Contrôle des données</div>
+          <div class="an-sub" id="ctl-sub">—</div>
+        </div>
+        <div class="ctl-score" id="ctl-score"></div>
+      </div>
+      <div class="an-grid-2">
+        <div class="card"><div class="card-title">Contrôles d'intégrité <span class="an-card-sub" id="ctl-checks-sub"></span></div><div id="ctl-checks"></div></div>
+        <div class="card"><div class="card-title">Journal d'audit <span class="an-card-sub" id="ctl-audit-sub"></span></div><div id="ctl-audit" class="ctl-audit"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Rapprochement avec le courtier <span class="an-card-sub" id="ctl-recon-sub">saisis les soldes de ton relevé Disnat / exchange : les écarts s'affichent en direct</span></div>
+        <div id="ctl-recon"></div>
+      </div>
+    </div>
+
     <!-- WATCHLIST -->
     <div id="tab-watchlist" class="section">
       <div class="card card-glow" style="max-width:700px;">
@@ -978,6 +1073,7 @@
 </div>
 
 <script src="app.js"></script>
+<script src="pro.js"></script>
 
     <!-- ONBOARDING MODAL (1re connexion) -->
     <div id="onboarding-modal-overlay" class="modal-overlay" style="display:none;z-index:999;">

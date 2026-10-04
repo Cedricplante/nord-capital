@@ -10,6 +10,7 @@ function load(repo=require('path').join(__dirname,'..')){
   w.Chart=FakeChart;
   w.HTMLCanvasElement.prototype.getContext=()=>({});
   const sc=w.document.createElement('script');sc.textContent=fs.readFileSync(repo+'/app.js','utf8');w.document.body.appendChild(sc);
+  if(fs.existsSync(repo+'/pro.js')){const sp=w.document.createElement('script');sp.textContent=fs.readFileSync(repo+'/pro.js','utf8');w.document.body.appendChild(sp);}
   if(w.__loadErr)throw w.__loadErr;
   w.eval(`accountCurrency='CAD';fxRate=1.35;chartsInitialized=false;`);
   return w;

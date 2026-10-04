@@ -462,6 +462,8 @@ async function saveData(){
     return saveData();
   }
   _savePending=true;
+  // Attendre une écriture annexe en cours (IPS / journal d'audit, pro.js) avant de lire le verrou.
+  if(typeof proPendingWrite!=='undefined'&&proPendingWrite){try{await proPendingWrite;}catch(e){}}
   const nowIso=new Date().toISOString();
   const payload={user_id:currentUser.id,positions:JSON.stringify(positions),trades:JSON.stringify(trades),cash,currency:accountCurrency,watchlist:JSON.stringify(watchlist),reer_limit:reerLimit,celi_join_year:celiJoinYear,updated_at:nowIso};
   try{
@@ -480,6 +482,7 @@ async function saveData(){
     const rows=res.ok?await res.json().catch(()=>[]):[];
     if(res.ok&&rows.length>0){
       lastKnownUpdatedAt=nowIso;showSaving();
+      if(typeof auditOnSaved==='function'){try{auditOnSaved();}catch(e){}}
       return true;
     }else if(lastKnownUpdatedAt){
       // Conflit détecté : quelqu'un d'autre a modifié la ligne depuis notre dernier chargement.
@@ -497,6 +500,7 @@ async function saveData(){
         return false;
       }
       lastKnownUpdatedAt=nowIso;showSaving();
+      if(typeof auditOnSaved==='function'){try{auditOnSaved();}catch(e){}}
       return true;
     }
   }finally{_savePending=false;}
@@ -532,6 +536,7 @@ async function loadData(){
   if(data&&data.length>0){
     const row=data[0];
     lastKnownUpdatedAt=row.updated_at||null;
+    if(typeof proOnRowLoaded==='function'){try{proOnRowLoaded(row);}catch(e){console.error('[pro] row',e);}}
     try{positions=JSON.parse(row.positions)||[];}catch(e){positions=[];}
     try{trades=JSON.parse(row.trades)||[];}catch(e){trades=[];}
     cash=row.cash!==null?parseFloat(row.cash):0;
@@ -2482,6 +2487,7 @@ function animateSectionIn(sec){
   setTimeout(()=>sec.classList.remove('tab-enter'),900);
 }
 async function startApp(){
+  document.body.classList.add('nc-loading');
   playLaunchIntro();
   document.getElementById('nav-email').textContent=currentUser.email;
   const username=currentUser.user_metadata?.username||currentUser.email.split('@')[0];
@@ -2533,6 +2539,7 @@ async function startApp(){
   // rend l'ACB $CA stable dans le temps au lieu de dériver avec le taux du jour à chaque login.
   if(backfillEntryFxSnapshots())await saveData();
   renderAll();
+  document.body.classList.remove('nc-loading');
   setTimeout(()=>{['kpi-total','kpi-invested','kpi-pnl-open','kpi-pnl-real','kpi-cash'].forEach(id=>countUpText(document.getElementById(id),900));animateSectionIn(document.getElementById('tab-dashboard'));},NC_REDUCED_MOTION?0:520);
   if(portfolioHistory.length===0&&positions.length>0){
     const firstTradeDate=trades.length>0?[...trades].sort((a,b)=>a.date.localeCompare(b.date))[0].date:localToday();
@@ -2991,6 +2998,10 @@ function classColor(c){return'var(--accent)';}
 // - EN-TÊTE = grand titre coloré (pastille + soulignement couleur de la classe), sans fond ;
 // - SOUS-TOTAL = bande teintée discrète, libellé « Total <classe> », chiffres en gras.
 // Les deux ne se ressemblent plus du tout.
+// Mobile (< 768 px) : les colonnes secondaires sont masquées en CSS ; les cellules fusionnées
+// (colspan) des sous-totaux doivent alors ne couvrir qu'une colonne pour rester alignées.
+function posIsMobile(){try{return window.matchMedia('(max-width: 768px)').matches;}catch(e){return false;}}
+try{window.matchMedia('(max-width: 768px)').addEventListener('change',()=>{try{renderPosTable();}catch(e){}});}catch(e){}
 function posClassHeadRow(c,g){
   const nPos=g.pos.length,nCash=g.cash.length;
   const parts=[];if(nPos)parts.push(nPos+' position'+(nPos>1?'s':''));if(nCash)parts.push(nCash+' compte'+(nCash>1?'s':'')+' de cash');
@@ -3003,7 +3014,7 @@ function posClassSubtotalRow(c,g,wt){
   const clsTot=wt.byClass[c]||0;wc=clsTot>0?val/clsTot*100:0;
   const pnlCls=pnl>=0?'pos':'neg';
   return `<tr class="pos-class-sub" style="--cls:${classColor(c)};">
-    <td></td><td class="pos-sub-label" colspan="8"><span class="pos-sub-name">Total ${escapeHtml(c)}</span><span class="pos-sub-w">Poids portefeuille <b>${fmtW(w)}</b><span class="pos-sub-sep">·</span>Poids dans la classe <b>${fmtW(wc)}</b></span></td>
+    <td></td><td class="pos-sub-label" colspan="${posIsMobile()?1:8}"><span class="pos-sub-name">Total ${escapeHtml(c)}</span><span class="pos-sub-w">Poids portefeuille <b>${fmtW(w)}</b><span class="pos-sub-sep">·</span>Poids dans la classe <b>${fmtW(wc)}</b></span></td>
     <td class="pos-sub-num" data-sensitive>${fmtAmt(val)}</td>
     <td class="pos-sub-num ${g.pos.length?pnlCls:''}">${g.pos.length?(pnl>=0?'+':'-')+fmtAmt(Math.abs(pnl)):'—'}</td>
     <td></td>
@@ -3019,7 +3030,7 @@ function cashWeightRow(wt,i){
     <td class="sym" style="color:var(--text2);">Cash</td>
     <td><span class="badge-dca ${getAcctClass(r.account)}">${escapeHtml(r.account)}</span></td>
     <td class="muted">—</td><td class="muted">—</td>
-    <td class="muted" colspan="2">${escapeHtml(r.native||'')}</td>
+    <td class="muted">${escapeHtml(r.native||'')}</td><td class="muted"></td>
     <td class="muted">—</td><td class="muted">—</td>
     <td data-sensitive>${fmtAmt(r.value)}</td>
     <td class="muted">—</td><td class="muted">—</td>
@@ -3570,6 +3581,7 @@ function switchTab(name,el){
   if(name==='strategie'){renderStratPerf();}
   if(name==='allocation'){try{renderManager();}catch(e){}}
   if(name==='allocation')renderAllocCharts();
+  if(typeof proOnTab==='function'){try{proOnTab(name);}catch(e){console.error('[pro] tab',e);}}
 }
 function togglePosForm(){
   const body=document.getElementById('pos-form-body');
@@ -4576,6 +4588,29 @@ document.addEventListener('click',function(e){if(e.target===document.getElementB
 // Série de rendement : TWR quotidien, r_i = (V_i − flux_i) / V_{i−1} − 1 où flux_i = dépôts −
 // retraits datés dans ]date_{i−1}, date_i]. Contrairement à l'ancien computeAnalytics() (qui
 // travaillait sur les valeurs brutes), un dépôt n'est donc PAS compté comme une performance.
+// Série de rendement pondéré dans le temps (TWR), source unique pour la fiche du gestionnaire
+// et l'onglet Analyse. hist = snapshots CAD triés (+ point live du jour) ; rets[i] = rendement
+// entre hist[i] et hist[i+1], corrigé des dépôts/retraits datés dans ]date_i, date_{i+1}] ;
+// idx = indice cumulatif (base 1) ; flows = dépôts (+) / retraits (−) en CAD.
+function buildTwrSeries(){
+  const today=localToday();
+  const liveVal=getTotalSizeUSD()*fxRate+cash;
+  let hist=[...portfolioHistory].filter(h=>h&&h.value>0&&h.date).sort((a,b)=>a.date.localeCompare(b.date));
+  if(liveVal>0){
+    if(hist.length&&hist[hist.length-1].date===today)hist[hist.length-1]={...hist[hist.length-1],value:liveVal};
+    else if(hist.length)hist.push({date:today,value:liveVal});
+  }
+  const flows=trades.filter(t=>t.type==='Dépôt'||t.type==='Retrait').map(t=>({date:t.date,amt:(t.type==='Dépôt'?1:-1)*(t.size||0)}));
+  const rets=[],idx=[1],flowAt=[0];
+  for(let i=1;i<hist.length;i++){
+    const prev=hist[i-1],cur=hist[i];
+    const f=flows.filter(x=>x.date>prev.date&&x.date<=cur.date).reduce((s,x)=>s+x.amt,0);
+    let r=prev.value>0?(cur.value-f)/prev.value-1:0;
+    if(!isFinite(r))r=0;
+    rets.push(r);idx.push(idx[idx.length-1]*(1+r));flowAt.push(f);
+  }
+  return{hist,rets,idx,flows,flowAt};
+}
 function mgrLerp(x,knots){
   if(x===null||x===undefined||!isFinite(x))return null;
   if(x<=knots[0][0])return knots[0][1];
@@ -4588,23 +4623,8 @@ function mgrLerp(x,knots){
 function mgrDays(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
 function computeManagerStats(spyRaw){
   const out={};
-  // ── 1. Série TWR quotidienne ─────────────────────────────────────────
-  const today=localToday();
-  const liveVal=getTotalSizeUSD()*fxRate+cash;
-  let hist=[...portfolioHistory].filter(h=>h&&h.value>0&&h.date).sort((a,b)=>a.date.localeCompare(b.date));
-  if(liveVal>0){
-    if(hist.length&&hist[hist.length-1].date===today)hist[hist.length-1]={...hist[hist.length-1],value:liveVal};
-    else if(hist.length)hist.push({date:today,value:liveVal});
-  }
-  const flows=trades.filter(t=>t.type==='Dépôt'||t.type==='Retrait').map(t=>({date:t.date,amt:(t.type==='Dépôt'?1:-1)*(t.size||0)}));
-  const rets=[],idx=[1];
-  for(let i=1;i<hist.length;i++){
-    const prev=hist[i-1],cur=hist[i];
-    const f=flows.filter(x=>x.date>prev.date&&x.date<=cur.date).reduce((s,x)=>s+x.amt,0);
-    let r=prev.value>0?(cur.value-f)/prev.value-1:0;
-    if(!isFinite(r))r=0;
-    rets.push(r);idx.push(idx[idx.length-1]*(1+r));
-  }
+  // ── 1. Série TWR quotidienne (partagée avec l'onglet Analyse via buildTwrSeries) ──
+  const SER=buildTwrSeries();const hist=SER.hist,rets=SER.rets,idx=SER.idx,flows=SER.flows;
   out.nbPoints=hist.length;
   out.days=hist.length>1?mgrDays(hist[0].date,hist[hist.length-1].date):0;
   out.startDate=hist[0]?.date||null;
@@ -4817,7 +4837,7 @@ function renderManager(){
   }
 }
 
-function renderAll(){updateKPIs();try{renderFundingUI();}catch(e){}renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderStratPerf();try{renderManager();}catch(e){console.error('[manager]',e);}renderContributions();}
+function renderAll(){updateKPIs();try{renderFundingUI();}catch(e){}renderDashPos();renderPosTable();renderHistory();updatePnlBar();renderAllocDashboard();renderAllocCharts();updatePerfChart();renderStrategies();renderStratPerf();try{renderManager();}catch(e){console.error('[manager]',e);}renderContributions();if(typeof proRenderAll==='function'){try{proRenderAll();}catch(e){console.error('[pro]',e);}}}
 
 function initCharts(){
   if(chartsInitialized)return;chartsInitialized=true;
@@ -4884,6 +4904,7 @@ document.addEventListener('keydown',e=>{
   else if(key==='s'){switchTab('strategie',document.querySelector('[onclick*="strategie"]'));}
   else if(key==='w'){switchTab('watchlist',document.querySelector('[onclick*="watchlist"]'));}
   else if(key==='l'){switchTab('ledger',document.querySelector('[onclick*="\'ledger\'"]'));}
+  else if(key==='r'){switchTab('analyse',document.querySelector('[onclick*="\'analyse\'"]'));}
   else if(key==='n'){switchTab('positions',document.querySelector('[onclick*="positions"]'));setTimeout(()=>{const sym=document.getElementById('f-symbol');if(sym){sym.focus();sym.select();}},100);}
   else if(key==='t'){const cur=document.documentElement.getAttribute('data-theme')||'dark';setTheme(cur==='dark'?'light':'dark');}
   else if(e.key==='?'){showShortcutsHelp();}
