@@ -247,20 +247,20 @@ async function renderAnalyse(){
     const cs=document.getElementById('an-cum-sub');if(cs)cs.innerHTML=`<span class="an-dot" style="background:var(--accent)"></span>Toi ${fmtP1(M.ret)} <span class="an-dot" style="background:var(--steel);margin-left:8px"></span>${bl} ${fmtP1(M.benchRet)}`;
     proDestroy('cum');
     PRO.charts.cum=new Chart(document.getElementById('anCumChart'),{type:'line',data:{labels,datasets:[
-      {data:cumP,borderColor:themeHex('accent'),backgroundColor:accentAreaFill,fill:true,borderWidth:2,pointRadius:0,tension:0.3,ncGlow:true},
-      {data:cumB,borderColor:themeHex('steel'),borderDash:[5,4],borderWidth:1.4,pointRadius:0,tension:0.3,spanGaps:true}]},
+      {data:cumP,borderColor:themeHex('accent'),backgroundColor:accentAreaFill,fill:true,borderWidth:1.8,pointRadius:0,tension:0.3,ncGlow:true},
+      {data:cumB,borderColor:themeHex('steel'),borderDash:[4,4],borderWidth:1.2,pointRadius:0,tension:0.3,spanGaps:true}]},
       options:{...proChartBase(),plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+(c.datasetIndex?bl:'Portefeuille')+' : '+(c.raw>=0?'+':'')+(+c.raw).toFixed(1)+' %'}}},
         scales:{...proChartBase().scales,y:{...proChartBase().scales.y,ticks:{...proChartBase().scales.y.ticks,callback:v=>v+' %'}}}}});
     proDestroy('dd');
     const ddAll=[];let pk=W.idx[0];W.idx.forEach(v=>{if(v>pk)pk=v;ddAll.push((v/pk-1)*100);});
     PRO.charts.dd=new Chart(document.getElementById('anDdChart'),{type:'line',data:{labels,datasets:[
-      {data:ddAll,borderColor:themeHex('neg'),backgroundColor:themeRgba('neg',0.18),fill:'origin',borderWidth:1.6,pointRadius:0,tension:0.25}]},
+      {data:ddAll,borderColor:themeHex('neg'),backgroundColor:themeRgba('neg',0.10),fill:'origin',borderWidth:1.4,pointRadius:0,tension:0.25}]},
       options:{...proChartBase(),plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+(+c.raw).toFixed(1)+' %'}}},
         scales:{...proChartBase().scales,y:{...proChartBase().scales.y,max:0,ticks:{...proChartBase().scales.y.ticks,callback:v=>v+' %'}}}}});
     proDestroy('vol');
     const win=21,rv=W.rets.map((_,i)=>i+1>=win?proStd(W.rets.slice(i+1-win,i+1))*Math.sqrt(252)*100:null);
     PRO.charts.vol=new Chart(document.getElementById('anVolChart'),{type:'line',data:{labels:labels.slice(1),datasets:[
-      {data:rv,borderColor:themeHex('blue'),backgroundColor:themeRgba('blue',0.12),fill:true,borderWidth:1.8,pointRadius:0,tension:0.3,spanGaps:false}]},
+      {data:rv,borderColor:themeHex('text2'),backgroundColor:themeRgba('text',0.06),fill:true,borderWidth:1.5,pointRadius:0,tension:0.3,spanGaps:false}]},
       options:{...proChartBase(),plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw==null?'':' '+(+c.raw).toFixed(1)+' %'}}},
         scales:{...proChartBase().scales,y:{...proChartBase().scales.y,beginAtZero:true,ticks:{...proChartBase().scales.y.ticks,callback:v=>v+' %'}}}}});
   }
@@ -346,9 +346,9 @@ function renderAttribution(){
   top.sort((a,b)=>b.total-a.total);
   let run=0;const bars=top.map(r=>{const a=run;run+=r.total;return[a,run];});
   const labels=[...top.map(r=>r.key),'Total'];bars.push([0,run]);
-  const colors=[...top.map(r=>r.total>=0?themeHex('pos'):themeHex('neg')),themeHex('accent')];
+  const colors=[...top.map(r=>r.total>=0?themeRgba('pos',0.55):themeRgba('neg',0.55)),themeRgba('text',0.85)];
   proDestroy('attr');
-  PRO.charts.attr=new Chart(document.getElementById('anAttrChart'),{type:'bar',data:{labels,datasets:[{data:bars,backgroundColor:colors,borderRadius:4,borderSkipped:false,maxBarThickness:42}]},
+  PRO.charts.attr=new Chart(document.getElementById('anAttrChart'),{type:'bar',data:{labels,datasets:[{data:bars,backgroundColor:colors,borderRadius:3,borderSkipped:false,maxBarThickness:32}]},
     options:{...proChartBase(),plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const v=c.raw[1]-c.raw[0];return' '+(c.label==='Total'?'Total':'Contribution')+' : '+(v>=0?'+':'−')+fmtAmtRound(Math.abs(v));}}}},
       scales:{x:{...proChartBase().scales.x,ticks:{...proChartBase().scales.x.ticks,maxTicksLimit:14,autoSkip:false,maxRotation:45,minRotation:0}},y:{...proChartBase().scales.y,ticks:{...proChartBase().scales.y.ticks,callback:v=>fmtAmtRound(v)}}}}});
 }
@@ -541,7 +541,7 @@ function renderIps(){
     const C=R.crypto;
     if(!C||C.total<0.5){cbox.innerHTML='<div class="alloc-empty-state">Aucune position crypto.</div>';}
     else cbox.innerHTML=`<table class="nc-table an-table"><thead><tr><th>Actif</th><th>Cible</th><th>Actuel</th><th>Écart</th><th>Montant</th><th>Pour atteindre la cible</th></tr></thead><tbody>${
-      C.tgt.map(t=>{const d=t.w-t.t;return`<tr><td class="sym">${escapeHtml(t.label)}</td><td>${t.t} %</td><td><div class="an-share"><div class="an-share-bar"><div style="width:${Math.min(100,t.w/Math.max(t.t,1)*50)}%;background:${Math.abs(d)<=2?'var(--pos)':d>0?'var(--amber)':'var(--blue)'}"></div></div><span>${t.w.toFixed(1)} %</span></div></td><td class="${Math.abs(d)<=2?'':d>0?'neg':'pos'}">${(d>=0?'+':'−')+Math.abs(d).toFixed(1)} pts</td><td data-sensitive>${fmtAmtRound(t.value)}</td><td data-sensitive>${Math.abs(t.gap)<5?'<span class="muted">—</span>':(t.gap>0?'Acheter ':'Alléger ')+fmtAmtRound(Math.abs(t.gap))}</td></tr>`;}).join('')
+      C.tgt.map(t=>{const d=t.w-t.t;return`<tr><td class="sym">${escapeHtml(t.label)}</td><td>${t.t} %</td><td><div class="an-share"><div class="an-share-bar"><div style="width:${Math.min(100,t.w/Math.max(t.t,1)*50)}%;background:var(--text)"></div></div><span>${t.w.toFixed(1)} %</span></div></td><td class="${Math.abs(d)<=2?'muted':''}">${(d>=0?'+':'−')+Math.abs(d).toFixed(1)} pts</td><td data-sensitive>${fmtAmtRound(t.value)}</td><td data-sensitive>${Math.abs(t.gap)<5?'<span class="muted">—</span>':(t.gap>0?'Acheter ':'Alléger ')+fmtAmtRound(Math.abs(t.gap))}</td></tr>`;}).join('')
     }</tbody></table><div class="an-foot">Base = poche crypto hors legacy (${fmtAmtRound(C.inTarget)}, dont poudre sèche ${fmtAmtRound(C.dry)}). Legacy hors cible : ${fmtAmtRound(C.legacy)} — on n'y touche pas, vente au BE ou au sommet du cycle.</div>`;
   }
   updateNavPills(R);
@@ -735,11 +735,9 @@ function renderControle(){
 
 // ─── G. UX : NAVIGATION, PALETTE Ctrl+K, MOBILE ────────────────────────────────────────────
 function goToTab(name){
-  const btn=document.querySelector(`.nav-tab[onclick*="'${name}'"]`)||document.querySelector(`.nc-bnav button[data-t="${name}"]`)||document.createElement('button');
-  switchTab(name,btn);
-  document.querySelectorAll('.nc-bnav button').forEach(b=>b.classList.toggle('active',b.dataset.t===name));
-  if(name==='controle')document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  window.scrollTo({top:0});
+  switchTab(name);
+  const t=name==='historique'?'analyse':name;
+  document.querySelectorAll('.nc-bnav button').forEach(b=>b.classList.toggle('active',b.dataset.t===t));
 }
 let _pillState={ips:null,data:null};
 function updateNavPills(R,Q){
@@ -753,12 +751,12 @@ function cmdNorm(s){return String(s||'').toLowerCase().normalize('NFD').replace(
 function cmdItems(){
   const T=(name,label,hint,kbd)=>({group:'Aller à',label,hint,kbd,run:()=>goToTab(name)});
   const items=[
-    T('dashboard','Dashboard','Vue d’ensemble','D'),T('positions','Positions','Positions ouvertes','P'),T('strategie','Stratégie','Plans de trading','S'),
-    T('historique','Historique','Rendement par actif, dividendes','H'),T('ledger','Ledger','Registre des transactions','L'),T('allocation','Allocation','Fiche gestionnaire, IPS','A'),
-    T('analyse','Analyse','Risque, attribution, TWR vs MWR','R'),T('watchlist','Watchlist','Tickers suivis','W'),T('controle','Contrôle des données','Intégrité, audit, rapprochement',''),
+    T('dashboard','Aperçu','Vue d’ensemble du portefeuille','D'),T('positions','Positions','Positions ouvertes','P'),T('allocation','Allocation','IPS, composition, comptes, cotisations','A'),
+    T('analyse','Performance','Rendement, risque, attribution, réalisé','R'),{group:'Aller à',label:'Résultats réalisés',hint:'Rendement par actif, P&L par année',kbd:'H',run:()=>goToTab('historique')},
+    T('ledger','Activité','Registre des transactions, dividendes','L'),T('strategie','Stratégies','Plans de trading','S'),T('watchlist','Watchlist','Tickers suivis','W'),T('controle','Contrôle des données','Intégrité, audit, rapprochement',''),
     {group:'Actions',label:'Nouvelle position / DCA',hint:'Ouvre le formulaire d’achat',kbd:'N',run:()=>{goToTab('positions');setTimeout(()=>{const f=document.getElementById('pos-form-body');if(f&&f.classList.contains('collapsed'))togglePosForm();document.getElementById('f-symbol')?.focus();},120);}},
     {group:'Actions',label:'Dépôt ou retrait de cash',run:()=>{goToTab('dashboard');toggleCashPopup({stopPropagation(){}});}},
-    {group:'Actions',label:'Ajouter un dividende',run:()=>{goToTab('historique');typeof openDividendModal==='function'&&openDividendModal();}},
+    {group:'Actions',label:'Ajouter un dividende',run:()=>{goToTab('ledger');typeof openDividendModal==='function'&&openDividendModal();}},
     {group:'Actions',label:'Importer un CSV',run:()=>{typeof openImportModal==='function'&&openImportModal();}},
     {group:'Actions',label:'Exporter le registre en CSV',run:()=>{typeof exportCSV==='function'&&exportCSV();}},
     {group:'Actions',label:'Rafraîchir les prix',run:()=>{typeof fetchLivePrices==='function'&&fetchLivePrices();}},
@@ -810,9 +808,9 @@ document.addEventListener('keydown',e=>{
 // Barre d'onglets mobile (affichée < 768 px par CSS)
 function proInitChrome(){
   if(document.querySelector('.nc-bnav'))return;
-  const ic={dashboard:'<path d="M4 13h6V4H4zM14 20h6v-9h-6zM14 4v4h6V4zM4 20h6v-4H4z"/>',positions:'<path d="M4 6h16M4 12h16M4 18h10"/>',analyse:'<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/>',allocation:'<path d="M12 3v9l7 4"/><circle cx="12" cy="12" r="9"/>',more:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>'};
+  const ic={dashboard:'<path d="M4 13h6V4H4zM14 20h6v-9h-6zM14 4v4h6V4zM4 20h6v-4H4z"/>',positions:'<path d="M4 6h16M4 12h16M4 18h10"/>',analyse:'<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/>',allocation:'<path d="M12 3v9l7 4"/><circle cx="12" cy="12" r="9"/>',ledger:'<path d="M7 4h10M7 9h10M7 14h10M7 19h6"/>',more:'<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>'};
   const b=(t,l)=>`<button data-t="${t}" onclick="${t==='more'?'openCmdK()':`goToTab('${t}')`}"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ic[t]}</svg><span>${l}</span></button>`;
-  const nav=document.createElement('nav');nav.className='nc-bnav';nav.innerHTML=b('dashboard','Accueil')+b('positions','Positions')+b('analyse','Analyse')+b('allocation','Allocation')+b('more','Plus');
+  const nav=document.createElement('nav');nav.className='nc-bnav';nav.innerHTML=b('dashboard','Aperçu')+b('positions','Positions')+b('analyse','Performance')+b('ledger','Activité')+b('more','Plus');
   document.getElementById('main-app')?.appendChild(nav);
   nav.querySelector('[data-t="dashboard"]').classList.add('active');
   // Lien « Contrôle des données » dans le menu

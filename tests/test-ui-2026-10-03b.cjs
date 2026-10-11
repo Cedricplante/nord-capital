@@ -39,9 +39,11 @@ let fails=0;const ok=(c,m)=>{console.log((c?'PASS ':'FAIL ')+m);if(!c)fails++;};
 {
   const w=load();const E=s=>w.eval(s);
   const r=E(`optimusRamp('red',5)`),b=E(`optimusRamp('blue',4)`);
-  ok(r.length===5&&new Set(r).size===5,'5 tons de rouge distincts');
-  ok(r.every(c=>{const h=+c.match(/hsl\((\d+)/)[1];return h>=350||h<=15;}),'tons rouges dans la famille rouge : '+r.join(' '));
-  ok(b.every(c=>{const h=+c.match(/hsl\((\d+)/)[1];return h>=195&&h<=225;}),'tons bleus dans la famille bleue : '+b.join(' '));
+  // Refonte 2026-10-11 : niveaux de gris — positions (clairs) et cash (moyens) restent distincts.
+  ok(r.length===5&&new Set(r).size===5,'5 tons distincts pour les positions');
+  ok(r.concat(b).every(c=>/^hsl\(0 0% \d+%\)$/.test(c)),'rampes en niveaux de gris : '+r.concat(b).join(' '));
+  const L=c=>+c.match(/(\d+)%\)$/)[1];
+  ok(Math.min(...r.map(L))>Math.max(...b.map(L)),'positions plus claires que le cash (thème sombre)');
 }
 // ---- 4. Fiche du gestionnaire : TWR exclut les dépôts, notes bornées
 {
@@ -62,8 +64,8 @@ let fails=0;const ok=(c,m)=>{console.log((c?'PASS ':'FAIL ')+m);if(!c)fails++;};
   ok(T.ovr>=1&&T.ovr<=99&&typeof T.tier.name==='string','OVR '+T.ovr+' / rang '+T.tier.name);
   ok(T.achievements.find(a=>a.name==='Premier sang').ok&&!T.achievements.find(a=>a.name==='Vétéran').ok,'succès débloqués / verrouillés');
   ok(E(`document.getElementById('milestones-card')`)===null,'Objectifs financiers retiré');
-  E(`renderManager()`);
-  ok(E(`document.querySelectorAll('#mgr-attrs .mgr-attr').length`)===6,'6 attributs rendus');
-  ok(E(`document.querySelectorAll('#mgr-achievements .mgr-ach').length`)===12,'12 succès rendus');
+  // Fiche « jeu vidéo » retirée de l'interface le 2026-10-11 (calculs conservés, plus affichés).
+  ok(E(`document.getElementById('mgr-hero')`)===null,'fiche gestionnaire retirée du DOM');
+  E(`renderManager()`);ok(true,'renderManager() sans DOM ne plante pas');
 }
 console.log(fails?`\n${fails} ÉCHEC(S)`:'\nTOUT PASSE');process.exit(fails?1:0);

@@ -280,9 +280,9 @@ function fmtCpnl(n,posCur){const v=toUSD(n,posCur||'USD')*fxRate;return(v>=0?'+'
 // thème clair, en désaccord avec le reste de l'UI (qui suit bien var(--green) partout ailleurs).
 // themeHex() lit la vraie valeur CSS active pour le thème courant, themeRgba() en dérive une
 // version semi-transparente pour les remplissages de zone.
-function themeHex(name){return(getComputedStyle(document.documentElement).getPropertyValue('--'+name)||'').trim()||'#ff1f2f';}
+function themeHex(name){return(getComputedStyle(document.documentElement).getPropertyValue('--'+name)||'').trim()||'#888888';}
 // Dégradé vertical accent -> transparent pour le remplissage sous la courbe du portefeuille.
-function accentAreaFill(ctx){const ch=ctx.chart,a=ch&&ch.chartArea;if(!a)return themeRgba('accent',0.1);const g=ch.ctx.createLinearGradient(0,a.top,0,a.bottom);g.addColorStop(0,themeRgba('accent',0.30));g.addColorStop(0.55,themeRgba('accent',0.07));g.addColorStop(1,themeRgba('accent',0));return g;}
+function accentAreaFill(ctx){const ch=ctx.chart,a=ch&&ch.chartArea;if(!a)return themeRgba('accent',0.1);const g=ch.ctx.createLinearGradient(0,a.top,0,a.bottom);g.addColorStop(0,themeRgba('accent',0.10));g.addColorStop(0.6,themeRgba('accent',0.025));g.addColorStop(1,themeRgba('accent',0));return g;}
 function themeRgba(name,alpha){
   const hex=themeHex(name).replace('#','');
   const full=hex.length===3?hex.split('').map(c=>c+c).join(''):hex;
@@ -365,7 +365,7 @@ let signupThemeChoice='dark';
 function setSignupTheme(theme){
   signupThemeChoice=theme;
   const dark=document.getElementById('signup-theme-dark'),light=document.getElementById('signup-theme-light');
-  if(dark&&light){dark.style.background=theme==='dark'?'var(--blue)':'var(--bg3)';dark.style.color=theme==='dark'?'#fff':'var(--text2)';dark.style.borderColor=theme==='dark'?'var(--blue)':'var(--border2)';light.style.background=theme==='light'?'var(--blue)':'var(--bg3)';light.style.color=theme==='light'?'#fff':'var(--text2)';light.style.borderColor=theme==='light'?'var(--blue)':'var(--border2)';}
+  if(dark&&light){dark.classList.toggle('active',theme==='dark');light.classList.toggle('active',theme==='light');}
   setTheme(theme);
 }
 async function handleSignup(){
@@ -388,7 +388,7 @@ async function handleSignup(){
 function setTheme(theme){
   document.documentElement.setAttribute('data-theme',theme);localStorage.setItem('nc_theme',theme);
   const btnDark=document.getElementById('btn-dark'),btnLight=document.getElementById('btn-light');
-  if(btnDark&&btnLight){btnDark.style.background=theme==='dark'?'var(--blue)':'var(--bg4)';btnDark.style.color=theme==='dark'?'#fff':'var(--text2)';btnDark.style.borderColor=theme==='dark'?'var(--blue)':'var(--border2)';btnLight.style.background=theme==='light'?'var(--blue)':'var(--bg3)';btnLight.style.color=theme==='light'?'#fff':'var(--text2)';btnLight.style.borderColor=theme==='light'?'var(--blue)':'var(--border2)';}
+  if(btnDark&&btnLight){btnDark.classList.toggle('active',theme==='dark');btnLight.classList.toggle('active',theme==='light');}
   // Recolorer les charts Chart.js déjà créés — ils lisent une vraie couleur hex au moment du
   // rendu (via themeHex/themeRgba), donc un changement de thème après coup ne les met pas à
   // jour tout seul comme le fait le CSS. Si les charts n'existent pas encore (1er appel au
@@ -403,7 +403,6 @@ function setTheme(theme){
     }
     renderAllocDashboard();
     renderAllocCharts();
-    try{renderManager();}catch(e){}
     renderHistory();
     if(typeof watchlist!=='undefined'&&watchlist.length)renderWatchlist();
   }
@@ -515,7 +514,7 @@ function showConflict(){
   const el=document.getElementById('saving-indicator');
   if(!el)return;
   el.textContent='⚠ Modifié ailleurs — rechargé';
-  el.style.color='#ffb020';
+  el.style.color='var(--neg)';
   el.classList.add('visible');
   setTimeout(()=>{el.classList.remove('visible');el.textContent='Sauvegardé';el.style.color='';},4000);
 }
@@ -737,7 +736,7 @@ function renderStrategies(){
 function palierPill(done,total){
   if(!total)return'<span style="color:var(--text3);">—</span>';
   const p=Math.round(done/total*100),full=done>=total;
-  return`<span class="strat-palier-pill"><span class="strat-palier-count" style="color:${full?'var(--green)':'var(--text2)'};">${done}/${total}</span><span class="strat-palier-bar"><span class="strat-palier-fill" style="width:${p}%;background:${full?'var(--green)':'var(--border2)'};"></span></span></span>`;
+  return`<span class="strat-palier-pill"><span class="strat-palier-count" style="color:${full?'var(--text)':'var(--text3)'};">${done}/${total}</span><span class="strat-palier-bar"><span class="strat-palier-fill" style="width:${p}%;background:${full?'var(--green)':'var(--border2)'};"></span></span></span>`;
 }
 function stratRow(s){
   const ep=s.entries_plan||[],xp=s.exits_plan||[];
@@ -752,7 +751,7 @@ function stratRow(s){
   const isPartialExit=!xp.length||totalExitShares<totalEntryShares*0.99;
   const profitPot=isPartialExit?null:(totalExitInPrice-totalEntryInPrice);
   const profitCls=profitPot===null?'':(profitPot>=0?'pos':'neg');
-  const statusColors={'Brouillon':'var(--text3)','Active':'var(--green)','Complétée':'var(--blue)','Archivée':'var(--text3)'};
+  const statusColors={'Brouillon':'var(--text3)','Active':'var(--text)','Complétée':'var(--text2)','Archivée':'var(--text3)'};
   // Détecter paliers atteints non confirmés
   const pos=positions.find(p=>p.symbol===s.symbol);
   const cur=pos?pos.current:null;
@@ -761,7 +760,7 @@ function stratRow(s){
     ep.forEach(e=>{if(!e.executed&&parseFloat(e.price)>=cur)triggers++;});
     xp.forEach(e=>{if(!e.executed&&parseFloat(e.price)<=cur)triggers++;});
   }
-  const triggerBadge=triggers>0?`<span style="display:inline-block;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;margin-left:6px;">${triggers} alertes</span>`:'';
+  const triggerBadge=triggers>0?`<span class="tag tag-strong" style="margin-left:6px;">${triggers} alertes</span>`:'';
   return `<tr onclick="openStratDetails('${s.id}')" style="cursor:pointer;">
     <td><strong>${s.symbol}</strong>${triggerBadge}</td>
     <td><span style="font-size:10px;background:var(--bg3);padding:2px 8px;border-radius:10px;">${s.type||'—'}</span></td>
@@ -949,7 +948,7 @@ function renderEntryLevels(){
     updateEntriesTotal();return;
   }
   list.innerHTML=stratDraft.entries_plan.map((e,i)=>{
-    const exDot=e.executed?'<span style="color:var(--green);font-size:10px;">OK Exécuté</span>':'';
+    const exDot=e.executed?'<span style="color:var(--text2);font-size:11px;">✓ Exécuté</span>':'';
     return `<div class="strat-level-row">
       <div class="strat-level-num">${i+1}</div>
       <div class="field"><label>Prix cible</label><input type="number" step="any" value="${e.price||''}" oninput="updateEntryLevel(${i},'price',this.value)" placeholder="0.00" /></div>
@@ -1075,7 +1074,7 @@ function renderExitLevels(){
     updateExitsTotal();return;
   }
   list.innerHTML=stratDraft.exits_plan.map((e,i)=>{
-    const exDot=e.executed?'<span style="color:var(--green);font-size:10px;">OK Exécuté</span>':'';
+    const exDot=e.executed?'<span style="color:var(--text2);font-size:11px;">✓ Exécuté</span>':'';
     return `<div class="strat-level-row">
       <div class="strat-level-num">${i+1}</div>
       <div class="field"><label>Prix sortie</label><input type="number" step="any" value="${e.price||''}" oninput="updateExitLevel(${i},'price',this.value)" placeholder="0.00" /></div>
@@ -1274,7 +1273,7 @@ function renderStratDetails(id){
   const priceCur=getStratCurrency(s);
   const pos=positions.find(p=>p.symbol===s.symbol);
   const livePrice=pos?pos.current:null;
-  const statusColors={'Brouillon':'var(--text3)','Active':'var(--green)','Complétée':'var(--blue)','Archivée':'var(--text3)'};
+  const statusColors={'Brouillon':'var(--text3)','Active':'var(--text)','Complétée':'var(--text2)','Archivée':'var(--text3)'};
 
   // Stats calculées depuis les paliers exécutés
   const execEntries=ep.filter(e=>e.executed);
@@ -1293,13 +1292,13 @@ function renderStratDetails(id){
     let badge='';
     if(livePrice&&price>0){
       const reached=planType==='entry'?livePrice<=price:livePrice>=price;
-      if(reached&&!e.executed)badge=`<span style="background:rgba(255,170,0,0.15);color:#ffaa00;font-size:9px;padding:1px 5px;border-radius:3px;margin-left:5px;">Atteint</span>`;
+      if(reached&&!e.executed)badge=`<span class="tag tag-strong" style="margin-left:6px;">Atteint</span>`;
     }
-    const chkClr=e.executed?'var(--green)':'var(--border2)';
-    const rowBg=e.executed?'rgba(0,255,136,0.04)':'var(--bg3)';
-    const rowBord=e.executed?'rgba(0,255,136,0.2)':'var(--border)';
+    const chkClr=e.executed?'var(--text)':'var(--border2)';
+    const rowBg=e.executed?'var(--bg4)':'var(--bg3)';
+    const rowBord=e.executed?'var(--border2)':'var(--border)';
     return`<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:${rowBg};border:0.5px solid ${rowBord};border-radius:8px;margin-bottom:6px;cursor:pointer;transition:background 0.15s,border-color 0.15s;" onclick="togglePalierExecuted('${s.id}','${planType}',${i})">
-      <div style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${chkClr};background:${e.executed?'var(--green)':'transparent'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;">
+      <div style="width:18px;height:18px;border-radius:4px;border:1.5px solid ${chkClr};background:${e.executed?'var(--text)':'transparent'};color:var(--bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;">
         ${e.executed?'<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><polyline points="1.5,5.5 4,8 8.5,2" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>':''}
       </div>
       <div style="flex:1;min-width:0;">
@@ -1310,7 +1309,7 @@ function renderStratDetails(id){
           ${shares>0?shares.toLocaleString('fr-FR',{maximumFractionDigits:4})+' act.':''}${shares>0&&amount>0?' · ':''}${amount>0?fmtC(amount,amtCur):''}
         </div>
       </div>
-      <span style="font-size:9px;color:${e.executed?'var(--green)':'var(--text3)'};white-space:nowrap;">${e.executed?'Exécuté':'En attente'}</span>
+      <span style="font-size:11px;color:${e.executed?'var(--text)':'var(--text3)'};white-space:nowrap;">${e.executed?'Exécuté':'En attente'}</span>
     </div>`;
   };
 
@@ -1616,7 +1615,7 @@ function renderDividends(){
   </tr></thead><tbody>${rows.map(([sym,d])=>`<tr>
       <td class="sym">${escapeHtml(sym)}</td>
       <td style="color:var(--text2);">${d.count}</td>
-      <td class="pos" data-sensitive>${fmtAmtRound(d.cad)}</td>
+      <td style="color:var(--text);font-weight:500;" data-sensitive>${fmtAmtRound(d.cad)}</td>
     </tr>`).join('')}</tbody></table>`;
 }
 function openDividendModal(){
@@ -1886,9 +1885,9 @@ function syncCashFromLots(){
 // ─── LIVE PRICES ─────────────────────────────────────────────────
 function setLiveStatus(status){
   const dot=document.getElementById('live-dot'),label=document.getElementById('live-label');if(!dot||!label)return;
-  if(status==='live'){dot.style.background='var(--green)';label.style.color='var(--green)';const now=new Date();label.textContent='Live · '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');}
+  if(status==='live'){dot.style.background='var(--pos)';label.style.color='var(--text3)';const now=new Date();label.textContent='Live · '+now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0');}
   else if(status==='error'){dot.style.background='var(--red)';label.style.color='var(--red)';label.textContent='Hors ligne';}
-  else{dot.style.background='#606075';label.style.color='#606075';label.textContent='Chargement...';}
+  else{dot.style.background='var(--text3)';label.style.color='var(--text3)';label.textContent='Chargement…';}
 }
 async function fetchLivePrices(){
   if(!positions.length){setLiveStatus('error');return;}
@@ -2297,7 +2296,7 @@ function renderWatchlist(){
     const priceStr=price!=null?price.toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:4})+' $':'—';
     const chgStr=chg!=null?`<span style="color:${chg>=0?'var(--green)':'var(--red)'};">${chg>=0?'+':''}${chg.toFixed(1)}%</span>`:'<span style="color:var(--text3);">—</span>';
     const alsoPort=positions.find(p=>p.symbol===w.symbol);
-    const portBadge=alsoPort?'<span style="font-size:9px;background:rgba(96,165,250,0.15);color:var(--blue);padding:1px 5px;border-radius:3px;margin-left:4px;">portfolio</span>':'';
+    const portBadge=alsoPort?'<span class="tag" style="margin-left:6px;">En portefeuille</span>':'';
     const target=w.alertTarget||'';const stop=w.alertStop||'';
     // Alert indicator
     let alertDot='';
@@ -2305,7 +2304,7 @@ function renderWatchlist(){
       if(target&&price>=parseFloat(target))alertDot='<span style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--green);background:var(--green-dim);border:0.5px solid var(--green);padding:1px 5px;border-radius:3px;margin-left:4px;">TGT</span>';
       else if(stop&&price<=parseFloat(stop))alertDot='<span style="font-family:var(--mono);font-size:9px;font-weight:700;color:var(--red);background:color-mix(in srgb, var(--red) 10%, transparent);border:0.5px solid color-mix(in srgb, var(--red) 30%, transparent);padding:1px 5px;border-radius:3px;margin-left:4px;">STP</span>';
     }
-    const vol52Range=hi52&&lo52?`<div style="margin-top:6px;"><div style="font-size:9px;color:var(--text3);margin-bottom:2px;">52W : ${lo52.toLocaleString('fr-FR',{maximumFractionDigits:2})} – ${hi52.toLocaleString('fr-FR',{maximumFractionDigits:2})}</div>${price!=null&&hi52&&lo52?`<div style="height:3px;background:var(--bg4);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.max(0,Math.min(100,((price-lo52)/(hi52-lo52))*100)).toFixed(1)}%;background:${chg>=0?'var(--green)':'var(--red)'};border-radius:2px;"></div></div>`:''}
+    const vol52Range=hi52&&lo52?`<div style="margin-top:6px;"><div style="font-size:9px;color:var(--text3);margin-bottom:2px;">52W : ${lo52.toLocaleString('fr-FR',{maximumFractionDigits:2})} – ${hi52.toLocaleString('fr-FR',{maximumFractionDigits:2})}</div>${price!=null&&hi52&&lo52?`<div style="height:3px;background:var(--bg4);border-radius:2px;overflow:hidden;"><div style="height:100%;width:${Math.max(0,Math.min(100,((price-lo52)/(hi52-lo52))*100)).toFixed(1)}%;background:var(--text2);border-radius:2px;"></div></div>`:''}
 </div>`:'';
     const volStr=volume?`<div style="font-size:9px;color:var(--text3);margin-top:4px;">Vol: ${volume>1e9?(volume/1e9).toFixed(2)+'B':volume>1e6?(volume/1e6).toFixed(1)+'M':volume.toLocaleString()}</div>`:'';
     return`<div class="wl-card">
@@ -2325,11 +2324,11 @@ function renderWatchlist(){
       ${vol52Range}${volStr}
       <div class="wl-alert-row">
         <div style="flex:1;">
-          <div class="wl-alert-label" style="color:var(--green);"> Target</div>
+          <div class="wl-alert-label">Cible</div>
           <input class="wl-alert-input" type="number" step="any" placeholder="Prix cible" value="${target}" onchange="updateWlAlert('${escapeJsAttr(w.symbol)}','target',this.value)" />
         </div>
         <div style="flex:1;">
-          <div class="wl-alert-label" style="color:var(--red);">Stop</div>
+          <div class="wl-alert-label">Stop</div>
           <input class="wl-alert-input" type="number" step="any" placeholder="Stop loss" value="${stop}" onchange="updateWlAlert('${escapeJsAttr(w.symbol)}','stop',this.value)" />
         </div>
       </div>
@@ -2359,10 +2358,10 @@ function renderWatchlist(){
       const sparkData=w._spark||[];
       if(sparkData.length<2){canvas.style.opacity='0.3';return;}
       const isUp=sparkData[sparkData.length-1]>=sparkData[0];
-      const color=isUp?themeHex('green'):themeHex('red');
+      const color=themeHex('text2'); // sparkline neutre (2026-10-11) : la variation % garde sa couleur
       const ctx=canvas.getContext('2d');
       const grad=ctx.createLinearGradient(0,0,0,40);
-      grad.addColorStop(0,isUp?themeRgba('green',0.3):themeRgba('red',0.3));
+      grad.addColorStop(0,themeRgba('text',0.10));
       grad.addColorStop(1,'rgba(0,0,0,0)');
       const ch=new Chart(canvas,{type:'line',data:{labels:sparkData.map((_,i)=>i),datasets:[{data:sparkData,borderColor:color,borderWidth:1.5,fill:true,backgroundColor:grad,tension:0.3,pointRadius:0}]},options:{animation:false,responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
       wlSparklineCharts[w.symbol]=ch;
@@ -2488,7 +2487,6 @@ function animateSectionIn(sec){
 }
 async function startApp(){
   document.body.classList.add('nc-loading');
-  playLaunchIntro();
   document.getElementById('nav-email').textContent=currentUser.email;
   const username=currentUser.user_metadata?.username||currentUser.email.split('@')[0];
   const unEl=document.getElementById('nav-username');if(unEl)unEl.textContent=username.charAt(0).toUpperCase()+username.slice(1);
@@ -2540,7 +2538,6 @@ async function startApp(){
   if(backfillEntryFxSnapshots())await saveData();
   renderAll();
   document.body.classList.remove('nc-loading');
-  setTimeout(()=>{['kpi-total','kpi-invested','kpi-pnl-open','kpi-pnl-real','kpi-cash'].forEach(id=>countUpText(document.getElementById(id),900));animateSectionIn(document.getElementById('tab-dashboard'));},NC_REDUCED_MOTION?0:520);
   if(portfolioHistory.length===0&&positions.length>0){
     const firstTradeDate=trades.length>0?[...trades].sort((a,b)=>a.date.localeCompare(b.date))[0].date:localToday();
     const today=localToday();
@@ -2671,7 +2668,7 @@ function updateKPIs(){
   {const _e=document.getElementById('kpi-trades-count');if(_e)_e.textContent=closedTrades.length+' trades fermés';}
   {const _e=document.getElementById('kpi-cash');if(_e)_e.textContent=fmtAmtRound(cash);} // cash déjà en CAD
   {const _e=document.getElementById('kpi-cash-pct');if(_e)_e.textContent=cashPct.toFixed(1)+'% du portefeuille';}
-  const we=document.getElementById('kpi-winrate');we.textContent=winRate.toFixed(1)+' %';we.className='kpi-val '+(winRate>=50?'pos':'neg');
+  const we=document.getElementById('kpi-winrate');we.textContent=winRate.toFixed(1)+' %';we.className='kpi-val';
   {const _e=document.getElementById('kpi-winrate-sub');if(_e)_e.textContent=wins+'W · '+losses+'L';}
   {const _e=document.getElementById('kpi-nb-positions');if(_e)_e.textContent=positions.length;}
 }
@@ -2837,7 +2834,7 @@ function posRow(p,idx,displayIdx){
             onclick="event.stopPropagation()"
             style="flex:1;background:transparent;border:none;border-bottom:0.5px solid var(--border2);color:var(--text2);font-size:12px;font-family:var(--sans);padding:3px 0;outline:none;min-width:0;"
           />
-          ${p.note?`<span style="font-size:9px;color:var(--accent);">Sauvegardé</span>`:''}
+          ${p.note?`<span style="font-size:9px;color:var(--text3);">Sauvegardé</span>`:''}
         </div>
       </td>
     </tr>`;
@@ -3191,8 +3188,8 @@ function renderHistory(){
   const byMonth=new Map();filtered.forEach(t=>{const k=(t.date||'').slice(0,7);if(!byMonth.has(k))byMonth.set(k,[]);byMonth.get(k).push(t);});
   const rowHtml=t=>{
     if(t.type==='Dépôt'||t.type==='Retrait'){
-      const isDeposit=t.type==='Dépôt',color=isDeposit?'var(--green)':'var(--amber)';
-      const bs=isDeposit?'background:rgba(45,212,160,0.1);color:var(--green);border:0.5px solid rgba(45,212,160,0.25);':'background:rgba(246,200,67,0.1);color:var(--amber);border:0.5px solid rgba(246,200,67,0.25);';
+      const isDeposit=t.type==='Dépôt',color='var(--text)';
+      const bs='';
       const acctBadge=t.accountType?`<span class="badge-compte" style="margin-left:4px;">${t.accountType}</span>`:'';
       const noteTip=t.note?`<span style="font-size:10px;color:var(--text3);margin-left:4px;" title="${escapeHtml(t.note)}">note</span>`:'';
       // cash déjà en CAD depuis migration v2
@@ -3200,17 +3197,17 @@ function renderHistory(){
     }else if(t.type==='Vente'){
       const profit=t.profit||0;const profitDisp=toUSD(profit,getTradeCurrency(t));totalPnl+=profitDisp;profitDisp>0?wins++:losses++;
       const cls=profitDisp>=0?'pos':'neg',roi=t.size>0?(profit/t.size)*100:0,isDca=t.dcaCount&&t.dcaCount>1;
-      return`<tr><td>${t.date}</td><td class="sym">${t.symbol}${isDca?'<span class="badge-dca">DCA×'+t.dcaCount+'</span>':''}</td><td><span class="badge badge-vente">Vente</span></td><td style="color:var(--text3);">${fmtPrice(t.avgEntry||t.price)} → ${fmtPrice(t.price)}</td><td>${fmtC(t.size,t.currency)}</td><td class="${cls}">${fmtC(t.montantFinal||t.size+profit,t.currency)}</td><td class="${cls}">${fmtCpnl(profit,t.currency)}</td><td class="${cls}">${fmtPct(roi)}</td></tr>`;
+      return`<tr><td>${t.date}</td><td class="sym">${t.symbol}${isDca?'<span class="badge-dca">DCA×'+t.dcaCount+'</span>':''}</td><td><span class="badge badge-vente">Vente</span></td><td style="color:var(--text3);">${fmtPrice(t.avgEntry||t.price)} → ${fmtPrice(t.price)}</td><td>${fmtC(t.size,t.currency)}</td><td>${fmtC(t.montantFinal||t.size+profit,t.currency)}</td><td class="${cls}">${fmtCpnl(profit,t.currency)}</td><td>${fmtPct(roi)}</td></tr>`;
     }else if(t.type==='Dividende'){
       const acctBadge=t.accountType?`<span class="badge-compte" style="margin-left:4px;">${escapeHtml(t.accountType)}</span>`:'';
       const noteTip=t.note?`<span style="font-size:10px;color:var(--text3);margin-left:4px;" title="${escapeHtml(t.note)}">note</span>`:'';
-      return`<tr style="opacity:0.85;"><td>${t.date}</td><td class="sym">${escapeHtml(t.symbol||'—')}</td><td><span class="badge" style="background:rgba(96,165,250,0.1);color:var(--blue);border:0.5px solid rgba(96,165,250,0.25);">Dividende</span>${acctBadge}${noteTip}</td><td style="color:var(--text3);">—</td><td style="color:var(--text2);">${fmtC(t.size,t.currency)}</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
+      return`<tr style="opacity:0.85;"><td>${t.date}</td><td class="sym">${escapeHtml(t.symbol||'—')}</td><td><span class="badge badge-div">Dividende</span>${acctBadge}${noteTip}</td><td style="color:var(--text3);">—</td><td style="color:var(--text2);">${fmtC(t.size,t.currency)}</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
     }else{return`<tr><td>${t.date}</td><td class="sym">${t.symbol}</td><td><span class="badge badge-achat">Achat</span></td><td>${fmtPrice(t.price)}</td><td>${fmtC(t.size,t.currency)}</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;}
   };
   tbody.innerHTML=[...byMonth.entries()].map(([ym,list])=>ledgerMonthRow(ym,list)+list.map(rowHtml).join('')).join('')||'<tr><td colspan="8" class="empty">Aucune transaction</td></tr>';
   const cls=totalPnl>=0?'pos':'neg';
   const sumEl=document.getElementById('hist-summary-inline');
-  if(sumEl)sumEl.innerHTML=`<span class="${cls}">${wins+losses} trades filtrés</span>`;
+  if(sumEl)sumEl.textContent=`${wins+losses} ventes fermées`;
 
   const countLbl=document.getElementById('hist-count-label');
   if(countLbl)countLbl.textContent=`${filtered.length} transaction${filtered.length!==1?'s':''}`;
@@ -3241,7 +3238,7 @@ function renderAnnualPnl(){
       <td style="font-weight:600;color:var(--text1);">${yr}</td>
       <td style="color:var(--text2);">${d.count}</td>
       <td class="${cls}" data-sensitive>${fmtCpnl(d.pnlCAD,'CAD')}</td>
-      <td style="color:${wr>=50?'var(--green)':'var(--amber)'};">${wr.toFixed(1)}%</td>
+      <td>${wr.toFixed(1)}%</td>
       <td style="color:var(--text2);" data-sensitive>${d.bestSymbol} (${d.best>0?'+':''}${fmtAmtRound(d.best)})</td>
     </tr>`;}).join('')}</tbody></table>`;
 }
@@ -3261,7 +3258,7 @@ function updatePnlBar(){
   const rows=Object.entries(bySymbol).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));
   pnlBarChart.data.labels=rows.map(r=>r[0]);
   const data=rows.map(r=>parseFloat(r[1].toFixed(2)));
-  pnlBarChart.data.datasets[0].data=data;pnlBarChart.data.datasets[0].backgroundColor=data.map(v=>v>=0?themeHex('green'):themeHex('red'));pnlBarChart.update();
+  pnlBarChart.data.datasets[0].data=data;pnlBarChart.data.datasets[0].backgroundColor=data.map(v=>v>=0?themeRgba('pos',0.55):themeRgba('neg',0.55));pnlBarChart.update();
 }
 
 async function addPosition(){
@@ -3508,8 +3505,8 @@ let cashType='depot';
 function setCashType(type){
   cashType=type;
   const d=document.getElementById('cash-type-depot'),r=document.getElementById('cash-type-retrait');
-  if(type==='depot'){d.style.cssText='flex:1;padding:10px;background:rgba(45,212,160,0.15);border:1px solid rgba(45,212,160,0.4);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';r.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';}
-  else{d.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';r.style.cssText='flex:1;padding:10px;background:rgba(246,200,67,0.12);border:1px solid rgba(246,200,67,0.35);color:var(--amber);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';}
+  if(type==='depot'){d.style.cssText='flex:1;padding:10px;background:var(--text);border:1px solid var(--text);color:var(--bg);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';r.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';}
+  else{d.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';r.style.cssText='flex:1;padding:10px;background:var(--text);border:1px solid var(--text);color:var(--bg);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';}
   // Compte visible pour Dépôt ET Retrait depuis le 2026-07-30 (Phase 2 -- requis pour savoir
   // dans quel compte ajouter/retirer le lot de cash). Justificatif toujours retrait seulement.
   const acctWrap=document.getElementById('cash-account-wrap');
@@ -3573,15 +3570,32 @@ async function updateCash(){
   closeCashPopup();await saveData();renderAll();updatePerfChart();
 }
 
+// Navigation (refonte 2026-10-11) : barre latérale groupée. L'ancien onglet « Historique » est
+// fusionné dans Performance (rendement réalisé) et Activité (dividendes, import/export) :
+// switchTab('historique') reste accepté et mène à la section « Réalisé » de Performance.
+const TAB_TITLES={dashboard:'Aperçu',positions:'Positions',allocation:'Allocation',analyse:'Performance',ledger:'Activité',strategie:'Stratégies',watchlist:'Watchlist',controle:'Contrôle des données'};
+function updatePageHeader(name){
+  const t=document.getElementById('page-title');if(t)t.textContent=TAB_TITLES[name]||'';
+  const sub=document.getElementById('page-sub');
+  if(sub){try{sub.textContent=new Date().toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}catch(e){sub.textContent='';}}
+  try{document.title=(TAB_TITLES[name]?TAB_TITLES[name]+' · ':'')+'Nord Capital';}catch(e){}
+}
 function switchTab(name,el){
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');el.classList.add('active');
-  animateSectionIn(document.getElementById('tab-'+name));
+  let scrollTo=null;
+  if(name==='historique'){name='analyse';scrollTo='an-realise';}
+  const sec=document.getElementById('tab-'+name);if(!sec)return;
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  sec.classList.add('active');
+  updatePageHeader(name);
   if(name==='watchlist'){renderWatchlist();refreshWatchlist();}
   if(name==='strategie'){renderStratPerf();}
-  if(name==='allocation'){try{renderManager();}catch(e){}}
   if(name==='allocation')renderAllocCharts();
+  if(name==='analyse'){try{renderAnnualPnl();updatePnlBar();}catch(e){}}
   if(typeof proOnTab==='function'){try{proOnTab(name);}catch(e){console.error('[pro] tab',e);}}
+  const mainEl=document.querySelector('.main');
+  if(scrollTo)setTimeout(()=>document.getElementById(scrollTo)?.scrollIntoView({behavior:'smooth',block:'start'}),120);
+  else{try{window.scrollTo({top:0});if(mainEl)mainEl.scrollTop=0;}catch(e){}}
 }
 function togglePosForm(){
   const body=document.getElementById('pos-form-body');
@@ -3833,7 +3847,15 @@ function renderPerfVariation(points,twrMap,portStart,curDiv){
 // ─── ALLOCATION ───────────────────────────────────────────────────
 // Palette catégorielle « Cybertron » (2026-10-03) : rouge, bleu Optimus, acier, ambre, puis tons
 // secondaires — remplace l'ancienne palette verte/néon.
-const COLORS=['#ff1f2f','#3b7bff','#c3cad6','#ffb020','#ff7a45','#8b6cff','#2ee59d','#ff5c9a','#5ad1ff','#8892a6','#ffd166','#b5172a'];
+// Palette 2026-10-11 (thème noir et blanc) : niveaux de gris seulement. La tranche la plus grosse
+// (les listes arrivent triées) prend le ton le plus contrasté, puis on s'éloigne vers le fond.
+// Le rouge et le vert sont réservés aux gains et aux pertes.
+function monoRamp(n,from,to){
+  if(n<=0)return[];
+  const light=document.documentElement.getAttribute('data-theme')==='light';
+  const hi=from!=null?from:(light?10:94),lo=to!=null?to:(light?80:30);
+  return Array.from({length:n},(_,i)=>{const t=n>1?i/(n-1):0;return`hsl(0 0% ${(hi+(lo-hi)*t).toFixed(0)}%)`;});
+}
 // Tooltip externe en HTML pour les petits donuts (ex. cashLotsChart 90x90px) — demandé par
 // Cédric 2026-08-03 : le tooltip natif de Chart.js est dessiné DANS le canvas, donc
 // physiquement coupé quand le canvas est petit ou logé dans une carte overflow:hidden.
@@ -3988,7 +4010,7 @@ function renderCashLotsChart(){
     _cashLotsMeta.push({name,native,pct,total:acctTotal,principalCAD,profitCAD,principalNative:fmtLotsNative(state.principal),profitNative:fmtLotsNative(state.profit)});
   });
   // Cash = bleu partout dans l'app (même code couleur que l'anneau Cash vs Positions).
-  colors.push(...optimusRamp('blue',labels.length));
+  colors.push(...monoRamp(labels.length));
   updateDonut(cashLotsChart,labels,values,colors);
   // Légende sur 2 lignes (nom / montant · %) : lisible même quand la colonne est étroite.
   const legEl=document.getElementById('cash-lots-chart-legend');
@@ -4020,23 +4042,12 @@ function shadeList(hex,n){
   if(n<=0)return[];
   return Array.from({length:n},(_,i)=>{const a=Math.round(255-(n>1?i/(n-1):0)*150);return hex+a.toString(16).padStart(2,'0');});
 }
-// Palette « Optimus Prime » : rouge camion / bleu cabine. Version claire et version sombre
-// (le sombre a besoin de tons un peu plus lumineux pour rester lisible sur fond noir).
-function optimusBase(){return{red:themeHex('accent'),blue:themeHex('blue')};}
-// n tons d'une même famille, du plus saturé/profond au plus clair : la teinte glisse un peu
-// (rouge -> cramoisi / bleu roi -> bleu ciel) en plus de la luminosité, pour que des tranches
-// voisines restent faciles à distinguer même à 10+ éléments.
+// Positions = gris clairs (côté texte), cash = gris moyens : les deux familles restent
+// distinctes sans couleur (refonte noir et blanc 2026-10-11).
+function optimusBase(){const L=document.documentElement.getAttribute('data-theme')==='light';return{red:L?'hsl(0 0% 12%)':'hsl(0 0% 92%)',blue:L?'hsl(0 0% 70%)':'hsl(0 0% 40%)'};}
 function optimusRamp(family,n){
-  if(n<=0)return[];
-  const light=document.documentElement.getAttribute('data-theme')==='light';
-  const spec=family==='red'
-    ?{h0:356,h1:12,s0:82,s1:88,l0:light?38:46,l1:light?68:74}
-    :{h0:222,h1:200,s0:78,s1:85,l0:light?36:48,l1:light?66:76};
-  return Array.from({length:n},(_,i)=>{
-    const t=n>1?i/(n-1):0;
-    const h=(spec.h0+((spec.h1-spec.h0+540)%360-180)*t+360)%360;
-    return`hsl(${h.toFixed(0)} ${(spec.s0+(spec.s1-spec.s0)*t).toFixed(0)}% ${(spec.l0+(spec.l1-spec.l0)*t).toFixed(0)}%)`;
-  });
+  const L=document.documentElement.getAttribute('data-theme')==='light';
+  return family==='red'?monoRamp(n,L?12:92,L?52:58):monoRamp(n,L?64:44,L?86:24);
 }
 function cashAllocTooltipLabel(ctx){
   const m=ctx.datasetIndex===0?_cashAllocMeta.outer[ctx.dataIndex]:_cashAllocMeta.inner[ctx.dataIndex];
@@ -4077,16 +4088,16 @@ function renderAllocDashboard(){
   if(totalSizeUSD>0){
     const syms=positions.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:getPosCurrency(p)}));
     const{labels,values}=mkDonutData(syms,totalSizeUSD);
-    updateDonut(allocChart,labels,values,COLORS.slice(0,labels.length));
-    buildLegend('alloc-legend',labels,values,COLORS.slice(0,labels.length));
+    updateDonut(allocChart,labels,values,monoRamp(labels.length));
+    buildLegend('alloc-legend',labels,values,monoRamp(labels.length));
   }
 
   // Par catégorie
   if(totalSizeUSD>0){
     const cats={};positions.forEach(p=>{const c=getCat(p.symbol);cats[c]=(cats[c]||0)+toUSD((p.shares||0)*p.current,getPosCurrency(p));});
     const labels=Object.keys(cats),values=labels.map(c=>parseFloat((cats[c]/totalSizeUSD*100).toFixed(1)));
-    updateDonut(allocCatDashChart,labels,values,COLORS.slice(0,labels.length));
-    buildLegend('alloc-cat-dash-legend',labels,values,COLORS.slice(0,labels.length));
+    updateDonut(allocCatDashChart,labels,values,monoRamp(labels.length));
+    buildLegend('alloc-cat-dash-legend',labels,values,monoRamp(labels.length));
   }
 
   // Cash vs Positions -- double anneau (positions + comptes de cash détaillés)
@@ -4098,7 +4109,7 @@ function renderAllocDashboard(){
     assetPerfDashChart.data.labels=Object.keys(catPnl);
     const vals=Object.values(catPnl).map(v=>parseFloat(v.toFixed(2)));
     assetPerfDashChart.data.datasets[0].data=vals;
-    assetPerfDashChart.data.datasets[0].backgroundColor=vals.map(v=>v>=0?themeHex('green'):themeHex('red'));
+    assetPerfDashChart.data.datasets[0].backgroundColor=vals.map(v=>v>=0?themeRgba('pos',0.55):themeRgba('neg',0.55));
     assetPerfDashChart.update();
   }
 }
@@ -4106,14 +4117,7 @@ function renderAllocDashboard(){
 // bar utilise var(--x) directement (pas de hex figé) : ce sont des styles inline HTML, pas du
 // Chart.js, donc le navigateur les résout tout seul selon le thème actif -- aucun besoin de
 // themeHex() ici, contrairement aux couleurs passées à Chart.js plus haut dans le fichier.
-const ACCT_COLORS=[
-  {bg:'rgba(var(--accent-rgb),0.12)',text:'var(--accent)',bar:'var(--accent)'},
-  {bg:'rgba(59,123,255,0.14)',text:'var(--blue)',bar:'var(--blue)'},
-  {bg:'rgba(255,170,0,0.12)',text:'var(--amber)',bar:'var(--amber)'},
-  {bg:'rgba(167,139,250,0.12)',text:'var(--purple)',bar:'var(--purple)'},
-  {bg:'rgba(255,45,85,0.12)',text:'var(--red)',bar:'var(--red)'},
-  {bg:'rgba(154,163,178,0.14)',text:'var(--steel)',bar:'var(--steel)'},
-];
+const ACCT_COLORS=[90,62,42,28,18,11].map(a=>({bg:'var(--bg4)',text:'var(--text)',bar:`color-mix(in srgb, var(--text) ${a}%, transparent)`}));
 
 // Destroy per-account sparkline charts between renders
 const acctCharts={};
@@ -4172,7 +4176,6 @@ function renderAccountsPanels(totalSizeUSD){
     const topPositions=g.positions.slice().sort((a,b)=>toUSD((b.shares||0)*b.current,getPosCurrency(b))-toUSD((a.shares||0)*a.current,getPosCurrency(a))).slice(0,3);
 
     return`<div class="alloc-panel alloc-account-panel" style="position:relative;overflow:hidden;">
-      <div style="position:absolute;top:0;left:0;right:0;height:2px;background:${col.bar};opacity:0.6;"></div>
       <div class="alloc-account-header">
         <div class="alloc-account-icon" style="background:${col.bg};color:${col.text};">${initial}</div>
         <div style="flex:1;">
@@ -4197,7 +4200,7 @@ function renderAccountsPanels(totalSizeUSD){
       <div style="display:flex;flex-wrap:wrap;gap:4px;">
         ${topPositions.map(p=>{
           const pnlP=toUSD((p.shares||0)*p.current,getPosCurrency(p))-toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p));
-          return`<span style="font-size:10px;font-family:var(--mono);background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:2px 7px;">${p.symbol} <span style="color:${pnlP>=0?'var(--green)':'var(--red)'};">${pnlP>=0?'+':''}${(pnlP/Math.max(0.01,toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p)))*100).toFixed(1)}%</span></span>`;
+          return`<span style="font-size:10px;font-family:var(--mono);background:var(--bg3);border:0.5px solid var(--border);border-radius:4px;padding:2px 7px;">${p.symbol} <span class="${pnlP>=0?'pos':'neg'}">${pnlP>=0?'+':''}${(pnlP/Math.max(0.01,toUSD((p.shares||0)*p.avgEntry,getPosCurrency(p)))*100).toFixed(1)}%</span></span>`;
         }).join('')}
         ${g.positions.length>3?`<span style="font-size:10px;color:var(--text3);padding:2px 4px;">+${g.positions.length-3} autres</span>`:''}
       </div>
@@ -4240,16 +4243,16 @@ function renderAllocCharts(){
   // Par symbole
   const syms=positions.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:getPosCurrency(p)}));
   const{labels:sLabels,values:sValues}=mkDonutData(syms,totalSizeUSD);
-  updateDonut(allocSymChart,sLabels,sValues,COLORS.slice(0,sLabels.length));
-  buildLegend('alloc-sym-legend',sLabels,sValues,COLORS.slice(0,sLabels.length));
+  updateDonut(allocSymChart,sLabels,sValues,monoRamp(sLabels.length));
+  buildLegend('alloc-sym-legend',sLabels,sValues,monoRamp(sLabels.length));
   const symCount=document.getElementById('alloc-sym-count');
   if(symCount)symCount.textContent=sLabels.length+' actifs';
 
   // Par catégorie
   const cats={};positions.forEach(p=>{const c=getCat(p.symbol);cats[c]=(cats[c]||0)+toUSD((p.shares||0)*p.current,getPosCurrency(p));});
   const cLabels=Object.keys(cats),cValues=cLabels.map(c=>parseFloat((cats[c]/totalSizeUSD*100).toFixed(1)));
-  updateDonut(allocCatChart,cLabels,cValues,COLORS.slice(0,cLabels.length));
-  buildLegend('alloc-cat-legend',cLabels,cValues,COLORS.slice(0,cLabels.length));
+  updateDonut(allocCatChart,cLabels,cValues,monoRamp(cLabels.length));
+  buildLegend('alloc-cat-legend',cLabels,cValues,monoRamp(cLabels.length));
   const catCount=document.getElementById('alloc-cat-count');
   if(catCount)catCount.textContent=cLabels.length+' classes';
 
@@ -4259,7 +4262,7 @@ function renderAllocCharts(){
 
   // P&L par classe
   const catPnl={};positions.forEach(p=>{const c=getCat(p.symbol);catPnl[c]=(catPnl[c]||0)+calcPnlUSD(p)*fxRate;});
-  if(assetPerfChart){assetPerfChart.data.labels=Object.keys(catPnl);const pnlVals=Object.values(catPnl).map(v=>parseFloat(v.toFixed(2)));assetPerfChart.data.datasets[0].data=pnlVals;assetPerfChart.data.datasets[0].backgroundColor=pnlVals.map(v=>v>=0?themeHex('green'):themeHex('red'));assetPerfChart.update();}
+  if(assetPerfChart){assetPerfChart.data.labels=Object.keys(catPnl);const pnlVals=Object.values(catPnl).map(v=>parseFloat(v.toFixed(2)));assetPerfChart.data.datasets[0].data=pnlVals;assetPerfChart.data.datasets[0].backgroundColor=pnlVals.map(v=>v>=0?themeRgba('pos',0.55):themeRgba('neg',0.55));assetPerfChart.update();}
 
   // F5: Variation relative par secteur (PnL% depuis coût moyen)
   if(sectorVarChart){
@@ -4370,32 +4373,32 @@ function renderContributions(){
   trackersEl.innerHTML=`
     <div class="kpi-tile">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-        <span style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:1px;">CELI</span>
+        <span style="font-size:12.5px;font-weight:600;color:var(--text);">CELI</span>
         <span style="font-size:9px;color:var(--text3);cursor:pointer;" onclick="promptCeliJoinYear()">Depuis ${celiJoinYear}</span>
       </div>
       <div class="kpi-tile-val">${fmtCAD(celi.restant)}</div>
       <div class="kpi-tile-sub" style="margin-top:2px;">restant / ${fmtCAD(celi.total)} total</div>
-      ${bar(celi.cotise,celi.total,'var(--green)')}
+      ${bar(celi.cotise,celi.total,'var(--text)')}
       <div style="font-size:9px;color:var(--text3);margin-top:4px;">Cotisé : ${fmtCAD(celi.cotise)}${celi.retraits>0?` · Retiré : ${fmtCAD(celi.retraits)}`:''}</div>
     </div>
     <div class="kpi-tile">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-        <span style="font-size:10px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:1px;">CELIAPP</span>
+        <span style="font-size:12.5px;font-weight:600;color:var(--text);">CELIAPP</span>
         <span style="font-size:9px;color:var(--text3);">Max ${fmtCAD(CELIAPP_LIFETIME)}</span>
       </div>
       <div class="kpi-tile-val">${fmtCAD(celiapp.restant)}</div>
       <div class="kpi-tile-sub" style="margin-top:2px;">restant à vie · ${fmtCAD(celiapp.anneeRestant)} cette année</div>
-      ${bar(celiapp.cotise,CELIAPP_LIFETIME,'var(--cyan)')}
+      ${bar(celiapp.cotise,CELIAPP_LIFETIME,'var(--text)')}
       <div style="font-size:9px;color:var(--text3);margin-top:4px;">Cotisé : ${fmtCAD(celiapp.cotise)}${celiapp.retraits>0?` · Retiré : ${fmtCAD(celiapp.retraits)} (aucun droit redonné)`:''}</div>
     </div>
     <div class="kpi-tile">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
-        <span style="font-size:10px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:1px;">REER</span>
+        <span style="font-size:12.5px;font-weight:600;color:var(--text);">REER</span>
         <span style="font-size:9px;color:var(--text3);cursor:pointer;text-decoration:underline dotted;" onclick="promptReerLimit()">Modifier plafond</span>
       </div>
       <div class="kpi-tile-val">${reer.limit>0?fmtCAD(reer.restant):'—'}</div>
       <div class="kpi-tile-sub" style="margin-top:2px;">${reer.limit>0?'restant / '+fmtCAD(reer.limit)+' plafond':'Plafond non configuré'}</div>
-      ${reer.limit>0?bar(reer.cotise,reer.limit,'var(--amber)'):''}
+      ${reer.limit>0?bar(reer.cotise,reer.limit,'var(--text)'):''}
       <div style="font-size:9px;color:var(--text3);margin-top:4px;">${reer.limit>0?'Cotisé : '+fmtCAD(reer.cotise):''}${reer.retraits>0?` · Retiré : ${fmtCAD(reer.retraits)} (aucun droit redonné)`:''}</div>
     </div>`;
 
@@ -4403,7 +4406,7 @@ function renderContributions(){
   const allCotis=getCotisations().filter(t=>!histFilterAcct||t.account===histFilterAcct).sort((a,b)=>b.date.localeCompare(a.date));
   if(allCotis.length){
     histEl.style.display='block';
-    const ACCT_COLOR={'CELI':'var(--green)','CELIAPP':'var(--cyan)','REER':'var(--amber)','REEE':'var(--amber)'};
+    const ACCT_COLOR={'CELI':'var(--text)','CELIAPP':'var(--text)','REER':'var(--text)','REEE':'var(--text)'};
     histTableEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--mono);">
       <thead><tr style="border-bottom:0.5px solid var(--border);">
         <th style="text-align:left;padding:6px 8px;font-size:9px;color:var(--text3);font-weight:600;text-transform:uppercase;">Date</th>
@@ -4419,9 +4422,9 @@ function renderContributions(){
         const globalIdx=trades.findIndex(tr=>tr===t);
         return`<tr style="border-bottom:0.5px solid var(--border);opacity:0.92;">
           <td style="padding:7px 8px;color:var(--text2);">${t.date||'—'}</td>
-          <td style="padding:7px 8px;"><span style="color:${col};font-weight:700;">${t.account||'—'}</span>${isRetrait?'<span class="badge-compte" style="margin-left:4px;background:rgba(246,200,67,0.12);color:var(--amber);border-color:rgba(246,200,67,0.3);">Retrait</span>':''}</td>
+          <td style="padding:7px 8px;"><span style="color:${col};font-weight:700;">${t.account||'—'}</span>${isRetrait?'<span class="badge-compte" style="margin-left:4px;">Retrait</span>':''}</td>
           <td style="padding:7px 8px;color:var(--text2);">${t.year||'—'}</td>
-          <td style="padding:7px 8px;text-align:right;color:${isRetrait?'var(--amber)':'var(--green)'};font-weight:600;">${isRetrait?'-':'+'}${fmtCAD(t.amount||0)}</td>
+          <td style="padding:7px 8px;text-align:right;color:var(--text);font-weight:600;">${isRetrait?'-':'+'}${fmtCAD(t.amount||0)}</td>
           <td style="padding:7px 8px;color:var(--text3);">${escapeHtml(t.note||'')}</td>
           <td style="padding:4px;"><button onclick="deleteCotisation(${globalIdx})" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;" title="Supprimer">×</button></td>
         </tr>`;
@@ -4465,8 +4468,8 @@ let cotisType='depot';
 function setCotisType(type){
   cotisType=type;
   const d=document.getElementById('cotis-type-depot'),r=document.getElementById('cotis-type-retrait');
-  if(type==='depot'){d.style.cssText='flex:1;padding:10px;background:rgba(45,212,160,0.15);border:1px solid rgba(45,212,160,0.4);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';r.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';}
-  else{d.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';r.style.cssText='flex:1;padding:10px;background:rgba(246,200,67,0.12);border:1px solid rgba(246,200,67,0.35);color:var(--amber);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';}
+  if(type==='depot'){d.style.cssText='flex:1;padding:10px;background:var(--text);border:1px solid var(--text);color:var(--bg);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';r.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';}
+  else{d.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';r.style.cssText='flex:1;padding:10px;background:var(--text);border:1px solid var(--text);color:var(--bg);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';}
   const titleEl=document.getElementById('cotis-modal-title');
   if(titleEl)titleEl.textContent=type==='depot'?'Enregistrer une cotisation':'Enregistrer un retrait';
   updateCotisPreview();
@@ -4849,20 +4852,19 @@ function initCharts(){
   // Lueur « énergon » sous la courbe du portefeuille (dataset marqué ncGlow) + tooltip sombre.
   try{
     if(!Chart.registry.plugins.get('ncGlow'))Chart.register({id:'ncGlow',
-      beforeDatasetDraw(chart,args){const ds=chart.data.datasets[args.index];if(!ds||!ds.ncGlow)return;const c=chart.ctx;c.save();c.shadowColor=themeRgba('accent',0.65);c.shadowBlur=14;c.shadowOffsetY=4;},
-      afterDatasetDraw(chart,args){const ds=chart.data.datasets[args.index];if(ds&&ds.ncGlow)chart.ctx.restore();}});
-    Object.assign(Chart.defaults.plugins.tooltip,{backgroundColor:'rgba(10,11,14,0.94)',borderColor:'rgba(255,255,255,0.08)',borderWidth:1,padding:10,cornerRadius:10,titleColor:'#fff',bodyColor:'#e6e6ea',displayColors:false});
+      beforeDatasetDraw(){},afterDatasetDraw(){}}); // lueur retirée le 2026-10-11 (thème noir et blanc)
+    Object.assign(Chart.defaults.plugins.tooltip,{backgroundColor:'rgba(12,12,12,0.96)',borderColor:'rgba(255,255,255,0.10)',borderWidth:1,padding:10,cornerRadius:8,titleColor:'#fafafa',bodyColor:'#d4d4d4',displayColors:false,titleFont:{weight:'600'}});
   }catch(e){}
   const cd={color:()=>themeHex('text3'),font:{size:10.5,family:uiFont}},gc=()=>themeRgba('text',0.05),bc=()=>themeRgba('text',0.08);
   const chartDefaults={responsive:true,maintainAspectRatio:false,animation:{duration:400},plugins:{legend:{display:false}}};
 
   const safeNew=(id,cfg)=>{const el=document.getElementById(id);return el?new Chart(el,cfg):null;};
   perfChart=safeNew('perfChart',{type:'line',data:{labels:[],datasets:[
-    {label:'Portfolio',data:[],borderColor:themeHex('accent'),backgroundColor:accentAreaFill,borderWidth:2.2,pointRadius:0,pointHoverRadius:5,pointHoverBorderWidth:2,pointHoverBorderColor:'#fff',pointBackgroundColor:themeHex('accent'),fill:true,tension:0.35,spanGaps:true,ncGlow:true},
-    {label:'S&P 500',data:[],borderColor:themeHex('steel'),backgroundColor:'transparent',borderWidth:1.4,pointRadius:0,pointHoverRadius:3,fill:false,tension:0.35,borderDash:[5,4],spanGaps:true}
-  ]},options:{...chartDefaults,interaction:{mode:'index',intersect:false},scales:{x:{ticks:{...cd},grid:{color:gc},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
+    {label:'Portfolio',data:[],borderColor:themeHex('accent'),backgroundColor:accentAreaFill,borderWidth:1.8,pointRadius:0,pointHoverRadius:4,pointHoverBorderWidth:2,pointHoverBorderColor:()=>themeHex('bg2'),pointBackgroundColor:themeHex('accent'),fill:true,tension:0.35,spanGaps:true,ncGlow:true},
+    {label:'S&P 500',data:[],borderColor:themeHex('steel'),backgroundColor:'transparent',borderWidth:1.2,pointRadius:0,pointHoverRadius:3,fill:false,tension:0.35,borderDash:[4,4],spanGaps:true}
+  ]},options:{...chartDefaults,interaction:{mode:'index',intersect:false},scales:{x:{ticks:{...cd,maxTicksLimit:8,maxRotation:0,autoSkip:true},grid:{display:false},border:{color:bc}},y:{position:'right',ticks:{...cd,maxTicksLimit:6,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{display:false}}}}});
 
-  pnlBarChart=safeNew('pnlBarChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
+  pnlBarChart=safeNew('pnlBarChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:3,borderWidth:0,maxBarThickness:36}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
 
   assetPerfDashChart=safeNew('assetPerfDashChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:4,borderWidth:0}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});
 
@@ -4899,7 +4901,7 @@ document.addEventListener('keydown',e=>{
   const key=e.key.toLowerCase();
   if(key==='d'){switchTab('dashboard',document.querySelector('[onclick*="dashboard"]'));}
   else if(key==='p'){switchTab('positions',document.querySelector('[onclick*="positions"]'));}
-  else if(key==='h'){switchTab('historique',document.querySelector('[onclick*="historique"]'));}
+  else if(key==='h'){switchTab('historique');}
   else if(key==='a'){switchTab('allocation',document.querySelector('[onclick*="allocation"]'));}
   else if(key==='s'){switchTab('strategie',document.querySelector('[onclick*="strategie"]'));}
   else if(key==='w'){switchTab('watchlist',document.querySelector('[onclick*="watchlist"]'));}

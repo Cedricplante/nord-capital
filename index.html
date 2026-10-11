@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Nord Capital — Portfolio Tracker</title>
+<meta name="color-scheme" content="dark light" />
+<title>Nord Capital</title>
+<script>/* Thème appliqué avant le premier rendu (évite le flash sombre -> clair). */try{var t=localStorage.getItem('nc_theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <link rel="stylesheet" href="styles.css">
 </head>
@@ -11,41 +13,41 @@
 
 <div class="auth-screen" id="auth-screen">
   <div class="auth-box">
-    <div class="auth-emblem"><svg class="nc-emblem" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="ncEmbG2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent-hot)"/><stop offset="1" stop-color="var(--accent-deep)"/></linearGradient></defs><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="url(#ncEmbG2)"/><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="none" stroke="rgba(255,255,255,.35)" stroke-width=".8"/><path d="M10.5 21.5v-11l11 11v-11" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="square" stroke-linejoin="miter"/></svg></div>
-    <div class="auth-logo">NORD <span>CAPITAL</span></div>
-    <div class="auth-subtitle">Portfolio Tracker · v15</div>
+    <div class="auth-emblem"><svg class="nc-mark" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="currentColor"/><path d="M8 17V7l8 10V7" fill="none" stroke="var(--bg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="auth-logo">Nord Capital</div>
+    <div class="auth-subtitle">Gestion de portefeuille</div>
     <div class="auth-tabs">
       <button class="auth-tab active" onclick="switchAuthTab('login',this)">Connexion</button>
       <button class="auth-tab" onclick="switchAuthTab('signup',this)">Inscription</button>
     </div>
     <div id="auth-login">
-      <div class="auth-field"><label>Email</label><input type="email" id="login-email" placeholder="toi@exemple.com" /></div>
+      <div class="auth-field"><label>Courriel</label><input type="email" id="login-email" placeholder="toi@exemple.com" /></div>
       <div class="auth-field"><label>Mot de passe</label><input type="password" id="login-password" placeholder="••••••••" /></div>
       <div class="auth-error" id="login-error"></div>
       <button class="btn auth-btn" onclick="handleLogin()">Se connecter</button>
       <a class="auth-link" onclick="showForgot()">Mot de passe oublié ?</a>
     </div>
     <div id="auth-forgot" style="display:none;">
-      <div style="font-size:12px;color:var(--text2);font-family:var(--sans);margin-bottom:1rem;">Entre ton email et on t'envoie un lien de réinitialisation.</div>
-      <div class="auth-field"><label>Email</label><input type="email" id="forgot-email" placeholder="toi@exemple.com" /></div>
+      <div class="auth-note">Entre ton courriel et on t'envoie un lien de réinitialisation.</div>
+      <div class="auth-field"><label>Courriel</label><input type="email" id="forgot-email" placeholder="toi@exemple.com" /></div>
       <div class="auth-error" id="forgot-error"></div>
       <button class="btn auth-btn" onclick="handleForgotPassword()">Envoyer le lien</button>
       <a class="auth-link" onclick="showLogin()">← Retour à la connexion</a>
     </div>
     <div id="auth-reset" style="display:none;">
-      <div style="font-size:12px;color:var(--text2);font-family:var(--sans);margin-bottom:1rem;">Choisis un nouveau mot de passe pour ton compte.</div>
+      <div class="auth-note">Choisis un nouveau mot de passe pour ton compte.</div>
       <div class="auth-field"><label>Nouveau mot de passe</label><input type="password" id="reset-password" placeholder="Min. 6 caractères" /></div>
       <div class="auth-field"><label>Confirmer</label><input type="password" id="reset-password-confirm" placeholder="••••••••" /></div>
       <div class="auth-error" id="reset-error"></div>
       <button class="btn auth-btn" onclick="handleResetPassword()">Enregistrer le mot de passe</button>
     </div>
     <div id="auth-signup" style="display:none;">
-      <div class="auth-field"><label>Email</label><input type="email" id="signup-email" placeholder="toi@exemple.com" /></div>
+      <div class="auth-field"><label>Courriel</label><input type="email" id="signup-email" placeholder="toi@exemple.com" /></div>
       <div class="auth-field"><label>Mot de passe</label><input type="password" id="signup-password" placeholder="Min. 6 caractères" /></div>
       <div class="auth-error" id="signup-error"></div>
-      <div class="auth-field" style="margin-top:0.5rem;">
+      <div class="auth-field">
         <label>Devise principale du compte</label>
-        <select id="signup-currency" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:9px 10px;color:var(--text);font-size:12px;font-family:var(--mono);width:100%;margin-top:4px;appearance:none;outline:none;transition:border-color 0.15s;">
+        <select id="signup-currency">
           <option value="CAD">CAD — Dollar canadien</option>
           <option value="USD">USD — Dollar américain</option>
           <option value="EUR">EUR — Euro</option>
@@ -55,13 +57,13 @@
           <option value="AUD">AUD — Dollar australien</option>
           <option value="NZD">NZD — Dollar néo-zélandais</option>
         </select>
-        <div style="font-size:10px;color:var(--text3);margin-top:5px;font-family:var(--sans);">Les montants seront affichés dans cette devise. Les positions dans d'autres devises seront converties.</div>
+        <div class="auth-hint">Les montants seront affichés dans cette devise. Les positions dans d'autres devises seront converties.</div>
       </div>
-      <div class="auth-field" style="margin-top:0.5rem;">
-        <label>Apparence préférée</label>
-        <div style="display:flex;gap:8px;margin-top:4px;">
-          <button type="button" id="signup-theme-dark" onclick="setSignupTheme('dark')" style="flex:1;padding:8px;font-size:12px;font-weight:600;border-radius:8px;border:1px solid var(--blue);background:var(--blue);color:#fff;cursor:pointer;transition:all 0.15s;">Sombre</button>
-          <button type="button" id="signup-theme-light" onclick="setSignupTheme('light')" style="flex:1;padding:8px;font-size:12px;font-weight:600;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all 0.15s;">Clair</button>
+      <div class="auth-field">
+        <label>Apparence</label>
+        <div class="seg seg-full">
+          <button type="button" id="signup-theme-dark" onclick="setSignupTheme('dark')">Sombre</button>
+          <button type="button" id="signup-theme-light" onclick="setSignupTheme('light')">Clair</button>
         </div>
       </div>
       <button class="btn auth-btn" onclick="handleSignup()">Créer le compte</button>
@@ -69,140 +71,151 @@
   </div>
 </div>
 
-<!-- Séquence de lancement (2026-10-03) : ~1,2 s, une fois par session, sautée si l'OS
-     demande moins d'animations. Cliquer la ferme immédiatement. -->
-<div id="nc-splash" aria-hidden="true" onclick="this.classList.add('done')">
-  <div class="nc-splash-core">
-    <div class="nc-splash-emblem"><svg class="nc-emblem" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="ncEmbG3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent-hot)"/><stop offset="1" stop-color="var(--accent-deep)"/></linearGradient></defs><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="url(#ncEmbG3)"/><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="none" stroke="rgba(255,255,255,.35)" stroke-width=".8"/><path d="M10.5 21.5v-11l11 11v-11" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="square" stroke-linejoin="miter"/></svg></div>
-    <div class="nc-splash-word">NORD<span>CAPITAL</span></div>
-    <div class="nc-splash-bar"><div></div></div>
-    <div class="nc-splash-sub">Initialisation du portefeuille</div>
-  </div>
-  <div class="nc-splash-scan"></div>
-</div>
-
 <div class="app" id="main-app" style="display:none;">
-  <nav>
-    <div class="logo"><svg class="nc-emblem" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="ncEmbG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent-hot)"/><stop offset="1" stop-color="var(--accent-deep)"/></linearGradient></defs><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="url(#ncEmbG)"/><path d="M16 1.5 29 8v10.5c0 5.2-5.4 9.6-13 12-7.6-2.4-13-6.8-13-12V8z" fill="none" stroke="rgba(255,255,255,.35)" stroke-width=".8"/><path d="M10.5 21.5v-11l11 11v-11" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="square" stroke-linejoin="miter"/></svg><span class="logo-word">NORD<span>CAPITAL</span></span></div>
-    <div class="nav-tabs">
-      <button class="nav-tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
-      <button class="nav-tab" onclick="switchTab('positions',this)">Positions</button>
-      <button class="nav-tab" onclick="switchTab('strategie',this)" style="position:relative;">Stratégie<span id="strat-badge" style="display:none;position:absolute;top:2px;right:4px;width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);"></span></button>
-      <button class="nav-tab" onclick="switchTab('historique',this)">Historique</button>
-      <button class="nav-tab" onclick="switchTab('ledger',this)">Ledger</button>
-      <button class="nav-tab" onclick="switchTab('allocation',this)">Allocation</button>
-      <button class="nav-tab" onclick="switchTab('analyse',this)">Analyse</button>
-      <button class="nav-tab" onclick="switchTab('watchlist',this)">Watchlist</button>
+  <!-- Refonte 2026-10-11 : navigation latérale groupée (Portefeuille / Analyse / Opérations),
+       thème noir et blanc, rouge/vert réservés aux gains et pertes. -->
+  <aside class="side" id="side">
+    <div class="side-brand">
+      <svg class="nc-mark" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="currentColor"/><path d="M8 17V7l8 10V7" fill="none" stroke="var(--bg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="side-brand-txt"><span class="side-brand-name">Nord Capital</span><span class="side-brand-sub">Portefeuille personnel</span></div>
     </div>
-    <div class="nav-right" style="display:flex;align-items:center;gap:10px;">
-      <button class="nav-search" type="button" onclick="openCmdK()" title="Palette de commandes (Ctrl+K)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="nav-search-lbl">Rechercher</span><kbd>Ctrl K</kbd></button>
+    <button class="nav-search" type="button" onclick="openCmdK()" title="Palette de commandes (Ctrl+K)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="nav-search-lbl">Rechercher</span><kbd>Ctrl K</kbd></button>
+    <div class="nav-tabs">
+      <div class="side-label">Portefeuille</div>
+      <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard',this)"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span>Aperçu</span><kbd>D</kbd></button>
+      <button class="nav-tab" data-tab="positions" onclick="switchTab('positions',this)"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span>Positions</span><kbd>P</kbd></button>
+      <button class="nav-tab" data-tab="allocation" onclick="switchTab('allocation',this)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5V12l6 6"/></svg><span>Allocation</span><kbd>A</kbd></button>
+      <div class="side-label">Analyse</div>
+      <button class="nav-tab" data-tab="analyse" onclick="switchTab('analyse',this)"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 15l4-5 3 3 5-7"/></svg><span>Performance</span><kbd>R</kbd></button>
+      <div class="side-label">Opérations</div>
+      <button class="nav-tab" data-tab="ledger" onclick="switchTab('ledger',this)"><svg viewBox="0 0 24 24"><path d="M7 4h10M7 9h10M7 14h10M7 19h6"/></svg><span>Activité</span><kbd>L</kbd></button>
+      <button class="nav-tab" data-tab="strategie" onclick="switchTab('strategie',this)"><svg viewBox="0 0 24 24"><path d="M5 19V9M12 19V5M19 19v-7"/></svg><span>Stratégies</span><span id="strat-badge" class="nav-badge" style="display:none;"></span><kbd>S</kbd></button>
+      <button class="nav-tab" data-tab="watchlist" onclick="switchTab('watchlist',this)"><svg viewBox="0 0 24 24"><path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.5"/></svg><span>Watchlist</span><kbd>W</kbd></button>
+    </div>
+    <div class="side-foot">
+      <div class="side-label">État</div>
       <button class="nav-pill" id="pill-ips" type="button" onclick="goToIps()" title="Conformité à ta politique de placement"><span class="nav-pill-dot"></span><span class="nav-pill-txt">IPS</span></button>
       <button class="nav-pill" id="pill-data" type="button" onclick="goToTab('controle')" title="Contrôle des données"><span class="nav-pill-dot"></span><span class="nav-pill-txt">Données</span></button>
-      <button class="btn-eye" id="btn-eye" onclick="toggleHideAmounts()" title="Cacher/afficher les montants"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;display:inline-block;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      <div id="live-indicator" style="font-family:var(--mono);font-size:10px;color:var(--text3);display:flex;align-items:center;">
-        <span class="live-dot" id="live-dot" style="background:var(--text3);"></span>
-        <span id="live-label">Hors ligne</span>
-      </div>
-      <div style="position:relative;">
-        <button id="hamburger-btn" onclick="toggleHamburger(event)" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:8px;padding:7px 12px;cursor:pointer;color:var(--text2);font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border2)'">Menu</button>
-        <div id="hamburger-menu" style="display:none;position:absolute;top:calc(100% + 10px);right:0;background:var(--bg2);border:0.5px solid var(--border2);border-radius:12px;padding:14px;min-width:230px;box-shadow:0 12px 40px rgba(0,0,0,0.5);z-index:200;">
-          <div style="font-family:var(--mono);font-size:11px;color:var(--blue);font-weight:600;margin-bottom:12px;padding-bottom:10px;border-bottom:0.5px solid var(--border);"><span id="nav-username">Cédric</span></div>
-          <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Devise du compte</div>
-          <select id="currency-select" onchange="setCurrency(this.value)" style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:6px;padding:5px 9px;color:var(--text2);font-size:11px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;width:100%;margin-bottom:4px;">
-            <option value="USD">USD</option><option value="CAD">CAD</option><option value="EUR">EUR</option>
-            <option value="CHF">CHF</option><option value="GBP">GBP</option><option value="JPY">JPY</option>
-            <option value="AUD">AUD</option><option value="NZD">NZD</option><option value="HKD">HKD</option>
-            <option value="SGD">SGD</option><option value="SEK">SEK</option><option value="NOK">NOK</option>
-            <option value="DKK">DKK</option><option value="MXN">MXN</option><option value="BRL">BRL</option>
-          </select>
-          <div id="fx-rate-display" style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:12px;"></div>
-          <div style="margin-bottom:12px;">
-            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Apparence</div>
-            <div style="display:flex;gap:6px;">
-              <button id="btn-dark" onclick="setTheme('dark')" style="flex:1;padding:6px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--border2);background:var(--bg4);color:var(--text2);cursor:pointer;transition:all 0.15s;">Sombre</button>
-              <button id="btn-light" onclick="setTheme('light')" style="flex:1;padding:6px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all 0.15s;">Clair</button>
-            </div>
-          </div>
-          <div style="border-top:0.5px solid var(--border);padding-top:10px;">
-            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:6px;" id="nav-email"></div>
-            <button class="btn-logout" onclick="handleLogout()" style="width:100%;text-align:center;">Déconnexion</button>
-          </div>
-        </div>
-      </div>
+      <button id="hamburger-btn" class="side-user" type="button" onclick="toggleHamburger(event)">
+        <span class="side-avatar" id="side-avatar">C</span>
+        <span class="side-user-txt"><span id="nav-username">Cédric</span><span class="side-user-sub" id="nav-email"></span></span>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg>
+      </button>
     </div>
-  </nav>
+  </aside>
+
+  <div id="hamburger-menu" class="menu-pop" style="display:none;">
+    <div class="menu-label">Devise du compte</div>
+    <select id="currency-select" onchange="setCurrency(this.value)">
+      <option value="USD">USD</option><option value="CAD">CAD</option><option value="EUR">EUR</option>
+      <option value="CHF">CHF</option><option value="GBP">GBP</option><option value="JPY">JPY</option>
+      <option value="AUD">AUD</option><option value="NZD">NZD</option><option value="HKD">HKD</option>
+      <option value="SGD">SGD</option><option value="SEK">SEK</option><option value="NOK">NOK</option>
+      <option value="DKK">DKK</option><option value="MXN">MXN</option><option value="BRL">BRL</option>
+    </select>
+    <div id="fx-rate-display" class="menu-hint"></div>
+    <div class="menu-label">Apparence</div>
+    <div class="seg seg-full" style="margin-bottom:14px;">
+      <button id="btn-dark" onclick="setTheme('dark')">Sombre</button>
+      <button id="btn-light" onclick="setTheme('light')">Clair</button>
+    </div>
+    <div class="menu-sep">
+      <button class="btn-logout" onclick="handleLogout()">Déconnexion</button>
+    </div>
+  </div>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-l">
+        <svg class="nc-mark topbar-mark" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="currentColor"/><path d="M8 17V7l8 10V7" fill="none" stroke="var(--bg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h1 class="page-title" id="page-title">Aperçu</h1>
+        <span class="page-sub" id="page-sub"></span>
+      </div>
+      <div class="topbar-r">
+        <div id="live-indicator" class="live-ind">
+          <span class="live-dot" id="live-dot"></span>
+          <span id="live-label">Hors ligne</span>
+        </div>
+        <button class="icon-btn" type="button" onclick="openCmdK()" title="Rechercher (Ctrl+K)"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+        <button class="icon-btn btn-eye" id="btn-eye" onclick="toggleHideAmounts()" title="Cacher / afficher les montants"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        <button class="icon-btn topbar-user" type="button" onclick="toggleHamburger(event)" title="Compte"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
+      </div>
+    </header>
 
   <div class="body">
-    <!-- DASHBOARD -->
+    <!-- APERÇU -->
     <div id="tab-dashboard" class="section active">
-      <div class="kpi-grid">
-        <div class="kpi"><div class="kpi-label">Valeur totale</div><div class="kpi-val-hero" id="kpi-total" data-sensitive>—</div><div class="kpi-sub" id="kpi-day-change" style="margin-top:3px;">— aujourd'hui</div></div>
-        <div class="kpi"><div class="kpi-label">Total investi</div><div class="kpi-val" id="kpi-invested" data-sensitive>—</div><div class="kpi-sub neu">positions ouvertes</div></div>
-        <div class="kpi"><div class="kpi-label">P&amp;L ouvert</div><div class="kpi-val" id="kpi-pnl-open" data-sensitive>—</div><div class="kpi-sub" id="kpi-pnl-open-pct" data-sensitive>—</div></div>
+      <div class="kpi-strip">
+        <div class="kpi kpi-hero"><div class="kpi-label">Valeur totale</div><div class="kpi-val-hero" id="kpi-total" data-sensitive>—</div><div class="kpi-sub" id="kpi-day-change">— aujourd'hui</div></div>
+        <div class="kpi"><div class="kpi-label">Investi</div><div class="kpi-val" id="kpi-invested" data-sensitive>—</div><div class="kpi-sub neu">positions ouvertes</div></div>
+        <div class="kpi"><div class="kpi-label">P&amp;L latent</div><div class="kpi-val" id="kpi-pnl-open" data-sensitive>—</div><div class="kpi-sub" id="kpi-pnl-open-pct" data-sensitive>—</div></div>
         <div class="kpi"><div class="kpi-label">P&amp;L réalisé</div><div class="kpi-val" id="kpi-pnl-real" data-sensitive>—</div><div class="kpi-sub neu" id="kpi-trades-count">—</div></div>
-      </div>
-      <div class="kpi-grid-2">
-        <div class="kpi kpi-cash-tile">
-          <div class="cash-tile-left">
-            <div class="kpi-label" style="display:flex;align-items:center;gap:6px;">
-              <span>Cash disponible</span>
-              <span class="info-badge" id="cash-info-badge" data-tip-js="Calculé à partir d'une ligne de départ vérifiée le 2026-07-30 (solde réel Disnat + exchanges), puis de tous les dépôts, retraits, achats et ventes depuis cette date. Le profit réalisé et réinvesti (ex. SOXL → TSLA) est tracké séparément du capital déposé et consommé en premier au rachat. Survole le pie pour voir la composition cash/profit de chaque compte. Achats et retraits sont bloqués si le cash disponible du compte visé est insuffisant.">i</span>
-            </div>
-            <div class="cash-tile-amount" id="kpi-cash" data-sensitive>—</div>
-            <div class="kpi-sub neu cash-tile-sub" id="kpi-cash-pct">—% du portefeuille</div>
-            <div class="kpi-sub neu cash-tile-sub" id="kpi-cash-currency-split">—</div>
-            <button class="cash-tile-edit" onclick="toggleCashPopup(event)" title="Dépôt / retrait">Modifier</button>
-          </div>
-          <div class="cash-tile-divider"></div>
-          <div class="cash-tile-right">
-            <div class="cash-tile-pie"><canvas id="cashLotsChart"></canvas></div>
-            <div class="donut-leg cash-tile-leg" id="cash-lots-chart-legend"></div>
-          </div>
-        </div>
-        <div class="kpi"><div class="kpi-label">Nb. positions</div><div class="kpi-val" id="kpi-nb-positions">—</div><div class="kpi-sub neu">actives</div></div>
-        <div class="kpi"><div class="kpi-label">Win rate</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
+        <div class="kpi"><div class="kpi-label">Positions</div><div class="kpi-val" id="kpi-nb-positions">—</div><div class="kpi-sub neu">actives</div></div>
+        <div class="kpi"><div class="kpi-label">Taux de réussite</div><div class="kpi-val" id="kpi-winrate">—</div><div class="kpi-sub neu" id="kpi-winrate-sub">—</div></div>
       </div>
 
-      <div class="grid-2-1">
-        <div class="card" style="grid-column:span 2;">
-          <div class="card-title" style="align-items:flex-start;">
-            <div style="display:flex;flex-direction:column;gap:4px;">
+      <div class="dash-grid">
+        <div class="card dash-perf">
+          <div class="card-title perf-head">
+            <div class="perf-head-l">
               <span>Valeur du portefeuille</span>
               <span class="perf-variation" id="perf-variation" data-sensitive></span>
             </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <div class="perf-head-r">
               <div class="period-btns">
                 <button class="period-btn" onclick="setPeriod('1W',this)">1S</button>
                 <button class="period-btn" onclick="setPeriod('1M',this)">1M</button>
                 <button class="period-btn" onclick="setPeriod('3M',this)">3M</button>
                 <button class="period-btn" onclick="setPeriod('YTD',this)">YTD</button>
-                <button class="period-btn active" onclick="setPeriod('ALL',this)">ALL</button>
+                <button class="period-btn active" onclick="setPeriod('ALL',this)">Tout</button>
               </div>
-              <div style="display:flex;gap:8px;align-items:center;">
-                <div style="display:flex;gap:4px;">
-                  <button class="mode-btn active" id="mode-btn-abs" onclick="setBenchmarkMode('absolute',this)">$ Valeur</button>
-                  <button class="mode-btn" id="mode-btn-rel" onclick="setBenchmarkMode('relative',this)">% Variation</button>
-                </div>
-                <div style="display:flex;gap:4px;">
-                  <button class="mode-btn active" id="chart-cur-cad" onclick="setChartCurrency('CAD',this)">CAD</button>
-                  <button class="mode-btn" id="chart-cur-usd" onclick="setChartCurrency('USD',this)">USD</button>
-                </div>
+              <div class="seg">
+                <button class="mode-btn active" id="mode-btn-abs" onclick="setBenchmarkMode('absolute',this)">$</button>
+                <button class="mode-btn" id="mode-btn-rel" onclick="setBenchmarkMode('relative',this)">%</button>
+              </div>
+              <div class="seg">
+                <button class="mode-btn active" id="chart-cur-cad" onclick="setChartCurrency('CAD',this)">CAD</button>
+                <button class="mode-btn" id="chart-cur-usd" onclick="setChartCurrency('USD',this)">USD</button>
               </div>
             </div>
           </div>
           <div class="bench-legend">
-            <span><span class="bench-dot" style="background:var(--accent);box-shadow:0 0 8px var(--accent);"></span>Portfolio</span>
-            <span><span class="bench-dot" style="background:transparent;border-top:2px dashed var(--steel);height:0;width:14px;border-radius:0;"></span>S&amp;P 500 (simulé)<span class="info-badge" style="--tip-left:0; --tip-transform:none;" data-tip="Simule ce que tes dépôts et retraits auraient valu s'ils avaient été investis dans le S&amp;P 500 (SPY) au même moment plutôt que dans ton portefeuille réel — même calendrier de cash-flows, prix SPY du jour de chaque dépôt/retrait. En mode $ Valeur, la ligne pointillée est cette valeur simulée en dollars. En mode % Variation, c'est plutôt le rendement pur du SPY depuis le début (TWR, non affecté par les dépôts) comparé au rendement pur (TWR) de ton portefeuille. Si ta ligne verte est au-dessus de la pointillée : tu bats l'indice. En dessous : tu ferais mieux en indiciel passif.">i</span></span>
+            <span><span class="bench-dot bench-dot-port"></span>Portefeuille</span>
+            <span><span class="bench-dot bench-dot-bench"></span>S&amp;P 500 (simulé)<span class="info-badge" style="--tip-left:0; --tip-transform:none;" data-tip="Simule ce que tes dépôts et retraits auraient valu s'ils avaient été investis dans le S&amp;P 500 (SPY) au même moment plutôt que dans ton portefeuille réel — même calendrier de cash-flows, prix SPY du jour de chaque dépôt/retrait. En mode $, la ligne pointillée est cette valeur simulée en dollars. En mode %, c'est le rendement pur du SPY depuis le début (TWR, non affecté par les dépôts) comparé au rendement pur (TWR) de ton portefeuille. Ta ligne au-dessus de la pointillée : tu bats l'indice.">i</span></span>
           </div>
           <div class="chart-wrap perf-chart-wrap"><canvas id="perfChart"></canvas></div>
         </div>
-        <div class="card">
-          <div class="card-title">Cash vs Positions <span style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;">survole pour le détail</span></div>
-          <div class="chart-wrap cash-alloc-wrap"><canvas id="cashAllocChart"></canvas></div>
-          <div class="donut-leg" id="cash-alloc-legend" style="max-height:none;flex-shrink:0;"></div>
+
+        <div class="dash-side">
+          <div class="card kpi-cash-tile">
+            <div class="cash-tile-top">
+              <div class="cash-tile-left">
+                <div class="kpi-label">
+                  <span>Cash disponible</span>
+                  <span class="info-badge" id="cash-info-badge" data-tip-js="Calculé à partir d'une ligne de départ vérifiée le 2026-07-30 (solde réel Disnat + exchanges), puis de tous les dépôts, retraits, achats et ventes depuis cette date. Le profit réalisé et réinvesti (ex. SOXL → TSLA) est suivi séparément du capital déposé et consommé en premier au rachat. Survole le graphique pour voir la composition cash/profit de chaque compte. Achats et retraits sont bloqués si le cash disponible du compte visé est insuffisant.">i</span>
+                </div>
+                <div class="cash-tile-amount" id="kpi-cash" data-sensitive>—</div>
+                <div class="kpi-sub neu cash-tile-sub" id="kpi-cash-pct">—% du portefeuille</div>
+                <div class="kpi-sub neu cash-tile-sub" id="kpi-cash-currency-split">—</div>
+              </div>
+              <button class="btn-ghost cash-tile-edit" onclick="toggleCashPopup(event)" title="Dépôt / retrait">Dépôt / retrait</button>
+            </div>
+            <div class="cash-tile-right">
+              <div class="cash-tile-pie"><canvas id="cashLotsChart"></canvas></div>
+              <div class="donut-leg cash-tile-leg" id="cash-lots-chart-legend"></div>
+            </div>
+          </div>
+          <div class="card dash-mix">
+            <div class="card-title">Cash et positions <span class="card-sub">survole pour le détail</span></div>
+            <div class="dash-mix-body">
+              <div class="chart-wrap cash-alloc-wrap"><canvas id="cashAllocChart"></canvas></div>
+              <div class="donut-leg" id="cash-alloc-legend"></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
 
     <!-- POSITIONS -->
     <div id="tab-positions" class="section">
@@ -210,8 +223,8 @@
         <div class="pos-form-sticky">
           <div class="card card-glow" style="margin-bottom:0;">
             <div class="card-title" style="cursor:pointer;user-select:none;" onclick="togglePosForm()">
-              <span>Ajouter / DCA une position <button class="btn-ghost undo-btn" type="button" onclick="event.stopPropagation();undoLast()" style="display:none;padding:2px 10px;font-size:10px;margin-left:8px;">↶ Annuler la dernière opération</button></span>
-              <button id="pos-form-toggle" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0 4px;transition:transform 0.2s;line-height:1;" title="Réduire/Agrandir">▲</button>
+              <span>Nouvelle position / DCA <button class="btn-ghost undo-btn" type="button" onclick="event.stopPropagation();undoLast()" style="display:none;padding:2px 10px;font-size:10px;margin-left:8px;">↶ Annuler la dernière opération</button></span>
+              <button id="pos-form-toggle" title="Réduire / agrandir"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg></button>
             </div>
             <div id="pos-form-body">
             <div class="form-grid" style="grid-template-columns:1.4fr 0.7fr 0.7fr 0.9fr 0.9fr 0.9fr 0.9fr 0.65fr 1fr auto;">
@@ -282,24 +295,8 @@
       </div>
     </div>
 
-    <!-- HISTORIQUE -->
-    <div id="tab-historique" class="section">
-      <!-- Rendement par actif + P&L par trade fusionnés dans une seule carte (demandé par
-           Cédric 2026-08-03, pour condenser l'espace — étaient 2 cartes séparées depuis 2026-07-29) -->
-      <div class="card card-glow" style="margin-bottom:14px;" id="asset-returns-card">
-        <div class="card-title">
-          <span>Rendement par actif</span>
-          <span style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;">actifs entièrement fermés uniquement</span>
-        </div>
-        <div id="asset-returns-body" style="overflow-x:auto;"></div>
-        <div style="border-top:0.5px solid var(--border);margin:14px 0 10px;padding-top:10px;display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:12px;color:var(--text);font-weight:700;text-transform:uppercase;letter-spacing:1.2px;">P&amp;L réalisé par actif</span>
-          <span id="hist-summary-inline" style="font-size:11px;color:var(--text3);font-weight:500;"></span>
-        </div>
-        <div class="chart-wrap" style="height:170px;"><canvas id="pnlBarChart"></canvas></div>
-      </div>
-
-      <!-- Toolbar -->
+    <!-- ACTIVITÉ (ex-Ledger + barre d'outils et dividendes de l'ancien onglet Historique, 2026-10-11) -->
+    <div id="tab-ledger" class="section">
       <div class="toolbar" style="margin-bottom:10px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <button class="btn-accent-soft" onclick="openDividendModal()">+ Dividende</button>
@@ -307,33 +304,11 @@
         <div style="display:flex;gap:8px;">
           <button class="btn-export" onclick="openImportModal()">Importer CSV</button>
           <button class="btn-export" onclick="exportCSV()">Exporter CSV</button>
-          <button class="btn-export" onclick="exportPdf()" style="color:var(--cyan);border-color:color-mix(in srgb, var(--cyan) 30%, transparent);">Exporter PDF</button>
-          <button class="btn-export" style="color:var(--red);border-color:color-mix(in srgb, var(--red) 30%, transparent);" onclick="clearHistory()">Effacer</button>
+          <button class="btn-export" onclick="exportPdf()">Exporter PDF</button>
+          <button class="btn-export btn-export-danger" onclick="clearHistory()">Effacer tout</button>
         </div>
       </div>
 
-      <!-- Dividendes reçus (demandé par Cédric 2026-08-03) -->
-      <div class="card card-glow" style="margin-bottom:12px;" id="dividends-card">
-        <div class="card-title">
-          <span>Dividendes reçus</span>
-          <span id="dividends-total-inline" style="font-size:11px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;"></span>
-        </div>
-        <div id="dividends-body" style="overflow-x:auto;"></div>
-      </div>
-
-      <!-- P&L annuel -->
-      <div class="card card-glow" style="margin-bottom:12px;" id="annual-pnl-card">
-        <div class="card-title">P&amp;L réalisé par année</div>
-        <div id="annual-pnl-body" style="overflow-x:auto;"></div>
-      </div>
-
-    </div>
-
-    <!-- LEDGER (2026-10-03) : registre des transactions déplacé tel quel depuis Historique,
-         avec ses filtres mois/actif. -->
-    <div id="tab-ledger" class="section">
-      <!-- Refonte 2026-10-03 : filtres alignés à l'horizontale dans l'en-tête du registre
-           (avant : empilés verticalement au-dessus), transactions séparées par mois/année. -->
       <div class="card ledger-card">
         <div class="card-title ledger-head">
           <span>Registre des transactions <span id="hist-count-label" class="ledger-count"></span></span>
@@ -355,6 +330,14 @@
             <tbody id="hist-body"></tbody>
           </table>
         </div>
+      </div>
+
+      <div class="card card-glow" style="margin-bottom:12px;" id="dividends-card">
+        <div class="card-title">
+          <span>Dividendes reçus</span>
+          <span id="dividends-total-inline" style="font-size:11px;color:var(--text3);font-weight:500;letter-spacing:0;text-transform:none;"></span>
+        </div>
+        <div id="dividends-body" style="overflow-x:auto;"></div>
       </div>
     </div>
 
@@ -409,54 +392,11 @@
       </div>
     </div>
 
-    <!-- ALLOCATION -->
+    <!-- ALLOCATION (2026-10-11 : fiche « gestionnaire » façon jeu vidéo retirée) -->
     <div id="tab-allocation" class="section">
-      <!-- Refonte 2026-10-03 (demande de Cédric) : « Objectifs financiers » retiré ; le haut de
-           l'onglet devient une fiche de gestionnaire façon jeu vidéo — note globale (OVR), rang,
-           niveau/XP, 6 attributs notés sur 99 (radar), duel contre le S&P 500, stats de saison
-           et succès à débloquer. La composition du portefeuille suit plus bas. -->
-      <div class="mgr-hero" id="mgr-hero">
-        <div class="mgr-emblem-col">
-          <div class="mgr-emblem" id="mgr-emblem">
-            <div class="mgr-ovr" id="mgr-ovr" data-sensitive>—</div>
-            <div class="mgr-ovr-lbl">OVR</div>
-          </div>
-          <div class="mgr-tier" id="mgr-tier">—</div>
-          <div class="mgr-archetype" id="mgr-archetype">—</div>
-          <div class="mgr-level">
-            <div class="mgr-level-row"><span id="mgr-level-lbl">Niveau —</span><span id="mgr-xp-lbl" class="mgr-xp-num">— XP</span></div>
-            <div class="mgr-xp-bar"><div class="mgr-xp-fill" id="mgr-xp-fill"></div></div>
-          </div>
-          <div class="mgr-reliab" id="mgr-reliab"></div>
-        </div>
-        <div class="mgr-radar-col">
-          <div class="mgr-radar-wrap"><canvas id="managerRadar"></canvas></div>
-        </div>
-        <div class="mgr-attr-col">
-          <div class="mgr-col-title">Attributs <span class="info-badge" style="--tip-left:auto;--tip-transform:translateX(-85%);" data-tip="Chaque attribut est noté de 0 à 99 à partir de tes vraies données : rendement et risque sur la série quotidienne du portefeuille (corrigée des dépôts/retraits, méthode TWR), alpha contre le S&amp;P 500 sur la même période, précision et gestion des gains sur tes ventes fermées. Avec moins d'un an d'historique, le rendement est annualisé sur au moins 6 mois pour ne pas extrapoler un bon mois. Win rate et profit factor sont tirés vers la moyenne tant que l'échantillon de trades est petit. OVR = moyenne pondérée (Rendement 20 %, Alpha 20 %, Efficience 20 %, Défense 15 %, Gestion 15 %, Précision 10 %).">i</span></div>
-          <div id="mgr-attrs" class="mgr-attrs"></div>
-        </div>
-      </div>
-
-      <div class="mgr-grid">
-        <div class="mgr-panel" id="mgr-duel-panel">
-          <div class="mgr-panel-title">Duel <span>Toi vs S&amp;P 500</span></div>
-          <div id="mgr-duel"></div>
-        </div>
-        <div class="mgr-panel mgr-panel-wide">
-          <div class="mgr-panel-title">Stats de saison <span id="mgr-season-lbl"></span></div>
-          <div id="mgr-season" class="mgr-season"></div>
-        </div>
-      </div>
-
-      <div class="mgr-panel" style="margin-bottom:1.5rem;">
-        <div class="mgr-panel-title">Succès <span id="mgr-ach-count"></span></div>
-        <div id="mgr-achievements" class="mgr-ach-grid"></div>
-      </div>
-
       <!-- POLITIQUE DE PLACEMENT (IPS) — 2026-10-03 : cibles et bandes tirées du « Game plan —
            Portefeuille personnel » (30 sept. 2026), modifiables via « Modifier l'IPS ». -->
-      <div class="alloc-section-title alloc-section-divider ips-title" id="ips-anchor">
+      <div class="alloc-section-title ips-title" id="ips-anchor">
         <span>Politique de placement <span class="ips-title-sub">(IPS)</span></span>
         <span class="ips-title-right"><span id="ips-source" class="ips-source"></span><button class="btn-ghost" type="button" onclick="openIpsEditor()">Modifier l'IPS</button></span>
       </div>
@@ -483,8 +423,6 @@
       </div>
 
       <div class="alloc-section-title alloc-section-divider">Composition du portefeuille</div>
-      <!-- Section principale : 2 grands donuts -->
-      <div class="alloc-section-title">Répartition globale</div>
       <div class="alloc-grid-2">
         <div class="alloc-panel">
           <div class="alloc-panel-header">
@@ -556,12 +494,11 @@
       </div>
 
     </div>
-    <!-- ANALYSE (2026-10-03) : 01 Risque · 02 Attribution · 03 TWR vs MWR. Tout est calculé dans
-         pro.js à partir des snapshots quotidiens, des transactions et des prix historiques. -->
+    <!-- PERFORMANCE (ex-Analyse + rendement réalisé de l'ancien onglet Historique, 2026-10-11) -->
     <div id="tab-analyse" class="section">
       <div class="an-head">
         <div>
-          <div class="an-title">Analyse du portefeuille</div>
+          <div class="an-title">Performance</div>
           <div class="an-sub" id="an-sub">—</div>
         </div>
         <div class="an-controls">
@@ -581,7 +518,18 @@
         </div>
       </div>
 
-      <div class="an-section"><span class="an-num">01</span><span class="an-sec-name">Risque</span><span class="an-sec-desc">Volatilité, rendement ajusté au risque, risque relatif à l'indice et pertes extrêmes</span></div>
+
+      <div class="an-section"><span class="an-num">01</span><span class="an-sec-name">Rendement</span><span class="an-sec-desc">TWR (tes décisions) vs MWR (le rendement réel de ton argent)</span></div>
+      <div class="an-ret-wrap">
+        <div class="card"><div id="an-ret-table" class="an-table-wrap"></div></div>
+        <div class="card an-explain">
+          <div class="an-explain-row"><b>TWR</b> — rendement pondéré dans le temps. Neutralise les dépôts et retraits : mesure uniquement tes décisions de placement. C'est le chiffre qu'un gestionnaire publie.</div>
+          <div class="an-explain-row"><b>MWR</b> — rendement pondéré par l'argent (TRI / XIRR). Tient compte du moment et de la taille de tes dépôts : c'est ce que ton argent a réellement fait.</div>
+          <div class="an-explain-row"><b>Effet de timing</b> = MWR − TWR. Positif : tu as ajouté du capital avant les hausses. Négatif : tes dépôts sont arrivés avant des baisses.</div>
+        </div>
+      </div>
+
+      <div class="an-section"><span class="an-num">02</span><span class="an-sec-name">Risque</span><span class="an-sec-desc">Volatilité, rendement ajusté au risque, risque relatif à l'indice et pertes extrêmes</span></div>
       <div class="an-metric-groups" id="an-metrics"></div>
       <div class="an-grid-3">
         <div class="card"><div class="card-title">Rendement cumulé <span class="an-card-sub" id="an-cum-sub"></span></div><div class="chart-wrap an-chart"><canvas id="anCumChart"></canvas></div></div>
@@ -593,7 +541,7 @@
         <div class="card"><div class="card-title">Scénarios de stress <span class="an-card-sub">chocs instantanés hypothétiques</span></div><div id="an-stress"></div></div>
       </div>
 
-      <div class="an-section"><span class="an-num">02</span><span class="an-sec-name">Attribution</span><span class="an-sec-desc">D'où vient ton P&amp;L : effet prix, effet de change, réalisé et dividendes</span>
+      <div class="an-section"><span class="an-num">03</span><span class="an-sec-name">Attribution</span><span class="an-sec-desc">D'où vient ton P&amp;L : effet prix, effet de change, réalisé et dividendes</span>
         <div class="an-seg" id="an-attr-group">
           <button data-g="asset" class="active" onclick="setAttrGroup('asset')">Actif</button>
           <button data-g="class" onclick="setAttrGroup('class')">Classe</button>
@@ -606,14 +554,22 @@
         <div class="card an-attr-table-card"><div class="card-title">Détail <span class="an-card-sub">depuis l'achat, en $ CA</span></div><div id="an-attr-table" class="an-table-wrap"></div></div>
       </div>
 
-      <div class="an-section"><span class="an-num">03</span><span class="an-sec-name">TWR vs MWR</span><span class="an-sec-desc">Ta compétence de gestionnaire vs le rendement réel de ton argent</span></div>
-      <div class="an-ret-wrap">
-        <div class="card"><div id="an-ret-table" class="an-table-wrap"></div></div>
-        <div class="card an-explain">
-          <div class="an-explain-row"><b>TWR</b> — rendement pondéré dans le temps. Neutralise les dépôts et retraits : mesure uniquement tes décisions de placement. C'est le chiffre qu'un gestionnaire publie.</div>
-          <div class="an-explain-row"><b>MWR</b> — rendement pondéré par l'argent (TRI / XIRR). Tient compte du moment et de la taille de tes dépôts : c'est ce que ton argent a réellement fait.</div>
-          <div class="an-explain-row"><b>Effet de timing</b> = MWR − TWR. Positif : tu as ajouté du capital avant les hausses. Négatif : tes dépôts sont arrivés avant des baisses.</div>
+      <div class="an-section" id="an-realise"><span class="an-num">04</span><span class="an-sec-name">Réalisé</span><span class="an-sec-desc">Ventes fermées, rendement par actif et P&amp;L réalisé par année</span></div>
+      <div class="card card-glow" style="margin-bottom:14px;" id="asset-returns-card">
+        <div class="card-title">
+          <span>Rendement par actif</span>
+          <span class="card-sub">actifs entièrement fermés uniquement</span>
         </div>
+        <div id="asset-returns-body" style="overflow-x:auto;"></div>
+        <div style="border-top:1px solid var(--border);margin:18px 0 12px;padding-top:16px;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:14px;color:var(--text);font-weight:600;">P&amp;L réalisé par actif</span>
+          <span id="hist-summary-inline" class="card-sub"></span>
+        </div>
+        <div class="chart-wrap" style="height:170px;"><canvas id="pnlBarChart"></canvas></div>
+      </div>
+      <div class="card card-glow" style="margin-bottom:12px;" id="annual-pnl-card">
+        <div class="card-title">P&amp;L réalisé par année</div>
+        <div id="annual-pnl-body" style="overflow-x:auto;"></div>
       </div>
     </div>
 
@@ -639,9 +595,9 @@
 
     <!-- WATCHLIST -->
     <div id="tab-watchlist" class="section">
-      <div class="card card-glow" style="max-width:700px;">
+      <div class="card card-glow">
         <div class="card-title">Ajouter un ticker</div>
-        <div class="form-grid" style="grid-template-columns:1fr 1fr auto;gap:10px;align-items:flex-end;">
+        <div class="form-grid" style="grid-template-columns:minmax(0,1fr) minmax(0,2fr) auto;gap:10px;align-items:flex-end;margin-bottom:0;">
           <div class="field"><label>Symbole</label>
             <div class="autocomplete-wrap"><input type="text" id="wl-symbol" placeholder="NVDA, BTC/USD…" autocomplete="off" oninput="onSymbolInput(this.value,'wl-symbol','wl-dropdown')" onkeydown="onWlKey(event)" /><div class="autocomplete-list" id="wl-dropdown"></div></div>
           </div>
@@ -662,6 +618,7 @@
     </div>
 
   </div>
+  </main>
 </div>
 
 <!-- COTISATION MODAL -->
@@ -669,7 +626,7 @@
   <div class="modal">
     <div class="modal-title" id="cotis-modal-title">Enregistrer une cotisation</div>
     <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <button id="cotis-type-depot" onclick="setCotisType('depot')" style="flex:1;padding:10px;background:rgba(45,212,160,0.15);border:1px solid rgba(45,212,160,0.4);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;">Cotisation</button>
+      <button id="cotis-type-depot" onclick="setCotisType('depot')" style="flex:1;padding:10px;background:var(--text);border:1px solid var(--text);color:var(--bg);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;">Cotisation</button>
       <button id="cotis-type-retrait" onclick="setCotisType('retrait')" style="flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;transition:all 0.15s;">Retrait</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
@@ -775,7 +732,7 @@
   <div class="modal">
     <div class="modal-title">Modifier le cash disponible</div>
     <div style="display:flex;gap:8px;margin-bottom:20px;">
-      <button id="cash-type-depot" onclick="setCashType('depot')" style="flex:1;padding:10px;background:rgba(45,212,160,0.15);border:1px solid rgba(45,212,160,0.4);color:var(--green);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;">Dépôt</button>
+      <button id="cash-type-depot" onclick="setCashType('depot')" style="flex:1;padding:10px;background:var(--text);border:1px solid var(--text);color:var(--bg);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;">Dépôt</button>
       <button id="cash-type-retrait" onclick="setCashType('retrait')" style="flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;transition:all 0.15s;">Retrait</button>
     </div>
     <div style="margin-bottom:20px;">
@@ -842,7 +799,7 @@
         <button class="btn-ghost" style="flex:1;padding:6px 0;font-size:11px;font-weight:600;" onclick="setPartial(0.25)">25%</button>
         <button class="btn-ghost" style="flex:1;padding:6px 0;font-size:11px;font-weight:600;" onclick="setPartial(0.50)">50%</button>
         <button class="btn-ghost" style="flex:1;padding:6px 0;font-size:11px;font-weight:600;" onclick="setPartial(0.75)">75%</button>
-        <button class="btn-ghost" style="flex:1;padding:6px 0;font-size:11px;font-weight:600;border-color:var(--blue);color:var(--blue);" onclick="setPartial(1.00)">100%</button>
+        <button class="btn-ghost" style="flex:1;padding:6px 0;font-size:11px;font-weight:600;" onclick="setPartial(1.00)">100%</button>
       </div>
       <input type="number" id="modal-shares" step="any" placeholder="Nombre de shares" oninput="updatePartialSize()" style="font-size:13px;padding:8px 12px;" />
       <div style="font-size:11px;color:var(--text3);margin-top:5px;font-family:var(--mono);" id="modal-shares-hint"></div>
@@ -875,7 +832,7 @@
     <div id="csv-step-upload">
       <div style="font-size:11px;color:var(--text3);margin-bottom:1rem;">Formats supportés : <strong style="color:var(--text);">Questrade</strong>, <strong style="color:var(--text);">Coinbase</strong>, <strong style="color:var(--text);">Binance</strong>. Seules les transactions d'achat sont importées comme positions.</div>
       <div class="csv-drop-zone" id="csv-drop-zone" onclick="document.getElementById('csv-file-input').click()">
-        <div style="font-size:28px;margin-bottom:8px;">CSV</div>
+        <div style="font-size:13px;font-weight:600;letter-spacing:.08em;color:var(--text3);margin-bottom:8px;">CSV</div>
         <div style="font-size:13px;color:var(--text2);font-weight:600;">Glisse ton fichier CSV ici</div>
         <div style="font-size:11px;color:var(--text3);margin-top:4px;">ou clique pour parcourir</div>
         <input type="file" id="csv-file-input" accept=".csv" style="display:none;" onchange="onCsvFile(this.files[0])"/>
@@ -905,7 +862,7 @@
 <!-- EDIT POSITION MODAL -->
 <div class="modal-overlay" id="edit-modal-overlay">
   <div class="modal" style="width:560px;">
-    <div class="modal-title">Modifier la position — <span id="edit-modal-symbol" style="color:var(--blue);"></span></div>
+    <div class="modal-title">Modifier la position — <span id="edit-modal-symbol"></span></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
       <div class="field"><label>Direction</label><select id="edit-dir"><option>Long</option><option>Short</option></select></div>
       <div class="field"><label>Date d'entrée</label><input type="date" id="edit-date" /></div>
@@ -952,15 +909,15 @@
       <div style="font-size:11px;color:var(--text3);margin-bottom:14px;">Choisis le type de stratégie</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
         <div class="strat-type-card" data-type="DCA" onclick="selectStratType('DCA')">
-          <div style="font-size:14px;font-weight:600;color:var(--green);margin-bottom:4px;">DCA</div>
+          <div class="strat-type-name">DCA</div>
           <div style="font-size:10px;color:var(--text3);">Achats échelonnés à la baisse pour moyenner le prix d'entrée</div>
         </div>
         <div class="strat-type-card" data-type="Swing" onclick="selectStratType('Swing')">
-          <div style="font-size:14px;font-weight:600;color:var(--blue);margin-bottom:4px;">Swing</div>
+          <div class="strat-type-name">Swing</div>
           <div style="font-size:10px;color:var(--text3);">Entrée/sortie technique sur supports et résistances</div>
         </div>
         <div class="strat-type-card" data-type="Libre" onclick="selectStratType('Libre')">
-          <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">Libre</div>
+          <div class="strat-type-name">Libre</div>
           <div style="font-size:10px;color:var(--text3);">Stratégie personnalisée sans contrainte particulière</div>
         </div>
       </div>
@@ -1023,7 +980,7 @@
       <div style="font-size:10px;color:var(--text3);margin-bottom:8px;font-family:var(--mono);" id="strat-fx-hint"></div>
       <div id="strat-entries-list"></div>
       <div style="margin-top:10px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:11px;color:var(--text2);font-family:var(--mono);">
-        Total alloué : <span id="strat-entries-total" style="color:var(--green);font-weight:600;">0</span>
+        Total alloué : <span id="strat-entries-total" style="color:var(--text);font-weight:600;">0</span>
       </div>
     </div>
 
@@ -1035,7 +992,7 @@
       </div>
       <div id="strat-exits-list"></div>
       <div style="margin-top:10px;padding:10px 12px;background:var(--bg3);border-radius:8px;font-size:11px;color:var(--text2);font-family:var(--mono);">
-        Profit potentiel total : <span id="strat-profit-total" style="color:var(--green);font-weight:600;">—</span>
+        Profit potentiel total : <span id="strat-profit-total" style="color:var(--text);font-weight:600;">—</span>
       </div>
     </div>
 
@@ -1077,24 +1034,20 @@
 
     <!-- ONBOARDING MODAL (1re connexion) -->
     <div id="onboarding-modal-overlay" class="modal-overlay" style="display:none;z-index:999;">
-      <div class="modal" style="max-width:460px;">
-        <div class="modal-title">Bienvenue sur NORD <span style="color:var(--accent);">CAPITAL</span></div>
-        <div style="font-family:var(--sans);font-size:12.5px;color:var(--text2);line-height:1.7;margin-top:6px;">
-          <p style="margin:0 0 10px;">Petit tour rapide du dashboard :</p>
-          <table style="width:100%;border-collapse:collapse;">
-            <tr><td style="padding:5px 8px 5px 0;color:var(--accent);font-weight:700;white-space:nowrap;">Dashboard</td><td style="padding:5px 0;color:var(--text2);">Vue d'ensemble — valeur totale, courbe de performance vs S&amp;P 500, allocation.</td></tr>
-            <tr><td style="padding:5px 8px 5px 0;color:var(--accent);font-weight:700;white-space:nowrap;">Positions</td><td style="padding:5px 0;color:var(--text2);">Tes positions ouvertes, prix live, P&amp;L par titre.</td></tr>
-            <tr><td style="padding:5px 8px 5px 0;color:var(--accent);font-weight:700;white-space:nowrap;">Historique</td><td style="padding:5px 0;color:var(--text2);">Toutes tes transactions, import/export CSV.</td></tr>
-            <tr><td style="padding:5px 8px 5px 0;color:var(--accent);font-weight:700;white-space:nowrap;">Allocation</td><td style="padding:5px 0;color:var(--text2);">Répartition par titre, catégorie et compte.</td></tr>
-            <tr><td style="padding:5px 8px 5px 0;color:var(--accent);font-weight:700;white-space:nowrap;">Stratégie</td><td style="padding:5px 0;color:var(--text2);">Tes plans d'entrée/sortie et suivi des milestones.</td></tr>
+      <div class="modal" style="max-width:480px;">
+        <div class="modal-title">Bienvenue sur Nord Capital</div>
+        <div class="modal-text">
+          <p>L'application est organisée en trois espaces :</p>
+          <table class="kv-table">
+            <tr><td>Portefeuille</td><td>Aperçu, positions ouvertes et allocation (politique de placement, comptes, cotisations).</td></tr>
+            <tr><td>Analyse</td><td>Performance : rendement TWR / MWR, risque, attribution et résultats réalisés.</td></tr>
+            <tr><td>Opérations</td><td>Activité (registre, dividendes, import/export), stratégies et watchlist.</td></tr>
           </table>
-          <p style="margin:12px 0 0;color:var(--text3);font-size:11.5px;">Astuce : appuie sur <kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);">?</kbd> à tout moment pour voir tous les raccourcis clavier.</p>
+          <p class="modal-hint">Astuce : <kbd>Ctrl K</kbd> ouvre la recherche, <kbd>?</kbd> affiche les raccourcis clavier.</p>
         </div>
-        <label style="display:flex;align-items:center;gap:7px;margin-top:16px;font-family:var(--sans);font-size:11.5px;color:var(--text3);cursor:pointer;">
-          <input type="checkbox" id="onboarding-dont-show" style="cursor:pointer;" /> Ne plus jamais afficher ce message
-        </label>
+        <label class="modal-check"><input type="checkbox" id="onboarding-dont-show" /> Ne plus afficher ce message</label>
         <div style="margin-top:14px;text-align:right;">
-          <button class="btn" onclick="closeOnboarding()" style="padding:8px 18px;">Compris</button>
+          <button class="btn" onclick="closeOnboarding()">Compris</button>
         </div>
       </div>
     </div>
@@ -1103,24 +1056,23 @@
     <div id="shortcuts-modal-overlay" class="modal-overlay" style="display:none;z-index:999;">
       <div class="modal" style="max-width:420px;">
         <div class="modal-title">Raccourcis clavier</div>
-        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;">
-          <thead><tr><th style="text-align:left;padding:6px 8px;color:var(--text3);font-weight:600;">Touche</th><th style="text-align:left;padding:6px 8px;color:var(--text3);font-weight:600;">Action</th></tr></thead>
-          <tbody>
-            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">D</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Dashboard</td></tr>
-            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">P</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Positions</td></tr>
-            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">H</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Historique</td></tr>
-            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">A</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Allocation</td></tr>
-            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">S</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Stratégie</td></tr>
-            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">W</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Watchlist</td></tr>
-            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">L</kbd></td><td style="padding:6px 8px;color:var(--text2);">Onglet Ledger</td></tr>
-            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">N</kbd></td><td style="padding:6px 8px;color:var(--text2);">Nouvelle position (focus symbole)</td></tr>
-            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">T</kbd></td><td style="padding:6px 8px;color:var(--text2);">Basculer thème clair/sombre</td></tr>
-            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">?</kbd></td><td style="padding:6px 8px;color:var(--text2);">Afficher cette aide</td></tr>
-            <tr><td style="padding:6px 8px;"><kbd style="background:var(--bg3);border:0.5px solid var(--border2);border-radius:4px;padding:2px 7px;font-family:var(--mono);font-size:11px;">Esc</kbd></td><td style="padding:6px 8px;color:var(--text2);">Fermer les modals</td></tr>
-          </tbody>
+        <table class="kv-table kbd-table">
+          <tr><td><kbd>D</kbd></td><td>Aperçu</td></tr>
+          <tr><td><kbd>P</kbd></td><td>Positions</td></tr>
+          <tr><td><kbd>A</kbd></td><td>Allocation</td></tr>
+          <tr><td><kbd>R</kbd></td><td>Performance</td></tr>
+          <tr><td><kbd>H</kbd></td><td>Performance — résultats réalisés</td></tr>
+          <tr><td><kbd>L</kbd></td><td>Activité</td></tr>
+          <tr><td><kbd>S</kbd></td><td>Stratégies</td></tr>
+          <tr><td><kbd>W</kbd></td><td>Watchlist</td></tr>
+          <tr><td><kbd>N</kbd></td><td>Nouvelle position</td></tr>
+          <tr><td><kbd>T</kbd></td><td>Basculer clair / sombre</td></tr>
+          <tr><td><kbd>Ctrl K</kbd></td><td>Recherche et commandes</td></tr>
+          <tr><td><kbd>?</kbd></td><td>Afficher cette aide</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Fermer les fenêtres</td></tr>
         </table>
         <div style="margin-top:16px;text-align:right;">
-          <button class="btn" onclick="closeShortcutsModal()" style="padding:8px 18px;">Fermer</button>
+          <button class="btn" onclick="closeShortcutsModal()">Fermer</button>
         </div>
       </div>
     </div>

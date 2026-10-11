@@ -71,7 +71,7 @@ ok(t('Doublons').sev==='warn'&&t('Dates dans le futur').sev==='err','doublon + d
 ok(Q.score<100,'score dégradé : '+Q.score);
 // ---- Palette
 E(`positions=[{symbol:'TQQQ',shares:1,current:1,account:'CELI (USD)'}];watchlist=[];`);
-ok(E(`cmdItems().some(i=>i.label==='TQQQ'&&i.group==='Positions')`)&&E(`cmdItems().some(i=>i.label==='Analyse')`),'palette : positions + onglets');
-E(`openCmdK();document.getElementById('cmdk-q').value='analy';cmdRender();`);
-ok(E(`_cmdList[0].label`)==='Analyse','recherche « analy » -> Analyse en premier');
+ok(E(`cmdItems().some(i=>i.label==='TQQQ'&&i.group==='Positions')`)&&E(`cmdItems().some(i=>i.label==='Performance')`),'palette : positions + onglets');
+E(`openCmdK();document.getElementById('cmdk-q').value='perf';cmdRender();`);
+ok(E(`_cmdList[0].label`)==='Performance','recherche « perf » -> Performance en premier');
 console.log(fails?`\n${fails} ÉCHEC(S)`:'\nTOUT PASSE');process.exit(fails?1:0);
