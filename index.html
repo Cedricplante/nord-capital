@@ -242,7 +242,7 @@
                   <optgroup label="Enregistrés"><option value="CELI (CAD)">CELI (CAD)</option><option value="CELI (USD)">CELI (USD)</option><option value="CELIAPP (CAD)">CELIAPP (CAD)</option><option value="CELIAPP (USD)">CELIAPP (USD)</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
                   <optgroup label="Non-enregistrés"><option value="Comptant (CAD)">Comptant (CAD)</option><option value="Comptant (USD)">Comptant (USD)</option><option value="Marge">Marge</option></optgroup>
                   <optgroup label="Crypto — Exchanges"><option value="Coinbase">Coinbase</option><option value="Binance">Binance</option><option value="Kraken">Kraken</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option><option value="Bybit">Bybit</option><option value="Kucoin">Kucoin</option></optgroup>
-                  <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
+                  <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano S Plus">Ledger Nano S Plus</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
                   <optgroup label="Crypto — Autres"><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></optgroup>
                 </select>
               </div>
@@ -268,7 +268,7 @@
               <span>Positions actives — <span id="pos-count-label" style="color:var(--text3);font-weight:500;font-size:11px;"></span></span>
               <div style="display:flex;gap:8px;align-items:center;margin-left:auto;">
                 <select class="filter-select" id="pos-filter-cat" onchange="renderPosTable()"><option value="">Type : Tous</option><option value="ETF Levier">ETF Levier</option><option value="ETF">ETF</option><option value="Action">Action</option><option value="Crypto">Crypto</option><option value="Forex">Forex</option><option value="Commodité">Commodité</option><option value="Cash">Cash</option></select>
-                <select class="filter-select" id="pos-filter-account" onchange="renderPosTable()"><option value="">Compte : Tous</option><option value="CELI (CAD)">CELI (CAD)</option><option value="CELI (USD)">CELI (USD)</option><option value="CELIAPP (CAD)">CELIAPP (CAD)</option><option value="CELIAPP (USD)">CELIAPP (USD)</option><option value="REER">REER</option><option value="REEE">REEE</option><option value="Comptant (CAD)">Comptant (CAD)</option><option value="Comptant (USD)">Comptant (USD)</option><option value="Marge">Marge</option></select>
+                <select class="filter-select" id="pos-filter-account" onchange="renderPosTable()"><option value="">Compte : Tous</option><option value="CELI (CAD)">CELI (CAD)</option><option value="CELI (USD)">CELI (USD)</option><option value="CELIAPP (CAD)">CELIAPP (CAD)</option><option value="CELIAPP (USD)">CELIAPP (USD)</option><option value="REER">REER</option><option value="REEE">REEE</option><option value="Comptant (CAD)">Comptant (CAD)</option><option value="Comptant (USD)">Comptant (USD)</option><option value="Marge">Marge</option><option value="Coinbase">Coinbase</option><option value="Binance">Binance</option><option value="Kraken">Kraken</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option><option value="Bybit">Bybit</option><option value="Kucoin">Kucoin</option><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano S Plus">Ledger Nano S Plus</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></select>
                 <select class="filter-select" id="pos-filter-period" onchange="renderPosTable()"><option value="">Période : Tous</option><option value="1m">Dernier mois</option><option value="3m">3 derniers mois</option><option value="1y">1 an</option></select>
                 <button class="btn-export" onclick="resetPosFilters()" style="padding:6px 14px;">Réinitialiser</button>
               </div>
@@ -767,6 +767,7 @@
         <option value="Kraken">Kraken</option>
         <option value="Bitget">Bitget</option>
         <option value="Kucoin">Kucoin</option>
+        <option value="Ledger Nano S Plus">Ledger Nano S Plus</option>
         <option value="Autre">Autre</option>
       </select>
     </div>
@@ -788,6 +789,7 @@
         <option value="Kraken">Kraken</option>
         <option value="Bitget">Bitget</option>
         <option value="Kucoin">Kucoin</option>
+        <option value="Ledger Nano S Plus">Ledger Nano S Plus</option>
         <option value="Autre">Autre</option>
       </select>
       <div style="font-size:11px;color:var(--text3);margin-top:6px;">Le profit réinvesti reste du profit, le capital reste du capital. Ni le benchmark ni le rendement (TWR) ne sont affectés.</div>
@@ -901,7 +903,7 @@
           <optgroup label="Enregistrés"><option value="CELI (CAD)">CELI (CAD)</option><option value="CELI (USD)">CELI (USD)</option><option value="CELIAPP (CAD)">CELIAPP (CAD)</option><option value="CELIAPP (USD)">CELIAPP (USD)</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
           <optgroup label="Non-enregistrés"><option value="Comptant (CAD)">Comptant (CAD)</option><option value="Comptant (USD)">Comptant (USD)</option><option value="Marge">Marge</option></optgroup>
           <optgroup label="Crypto — Exchanges"><option value="Coinbase">Coinbase</option><option value="Binance">Binance</option><option value="Kraken">Kraken</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option><option value="Bybit">Bybit</option><option value="Kucoin">Kucoin</option></optgroup>
-          <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
+          <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano S Plus">Ledger Nano S Plus</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
           <optgroup label="Crypto — Autres"><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></optgroup>
         </select>
       </div>
@@ -968,7 +970,7 @@
           <optgroup label="Enregistrés"><option value="CELI (CAD)">CELI (CAD)</option><option value="CELI (USD)">CELI (USD)</option><option value="CELIAPP (CAD)">CELIAPP (CAD)</option><option value="CELIAPP (USD)">CELIAPP (USD)</option><option value="REER">REER</option><option value="REEE">REEE</option></optgroup>
           <optgroup label="Non-enregistrés"><option value="Comptant (CAD)">Comptant (CAD)</option><option value="Comptant (USD)">Comptant (USD)</option><option value="Marge">Marge</option></optgroup>
           <optgroup label="Crypto — Exchanges"><option value="Coinbase">Coinbase</option><option value="Binance">Binance</option><option value="Kraken">Kraken</option><option value="Bitget">Bitget</option><option value="OKX">OKX</option><option value="Bybit">Bybit</option><option value="Kucoin">Kucoin</option></optgroup>
-          <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
+          <optgroup label="Crypto — Hardware"><option value="Ledger Nano S">Ledger Nano S</option><option value="Ledger Nano S Plus">Ledger Nano S Plus</option><option value="Ledger Nano X">Ledger Nano X</option><option value="Ledger Stax">Ledger Stax</option><option value="Tangem">Tangem</option><option value="Trezor Model One">Trezor Model One</option><option value="Trezor Model T">Trezor Model T</option></optgroup>
           <optgroup label="Crypto — Autres"><option value="MetaMask">MetaMask</option><option value="Autre wallet">Autre wallet</option></optgroup>
         </select>
       </div>

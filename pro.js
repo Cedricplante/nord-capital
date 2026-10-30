@@ -436,7 +436,7 @@ async function proWriteColumns(body){
 // 1) symbole listé explicitement, 2) classe d'actif listée, 3) pour le cash : compte listé.
 // Ce qui ne tombe dans aucune poche est montré « Hors IPS ».
 const DISNAT_ACCOUNTS=['CELI (CAD)','CELI (USD)','CELIAPP (CAD)','CELIAPP (USD)','Comptant (CAD)','Comptant (USD)','Marge','REER','REEE','CELI','CELIAPP','Comptant'];
-const CRYPTO_ACCOUNTS=['Coinbase','Binance','Kraken','Bitget','OKX','Bybit','Kucoin','Ledger Nano S','Ledger Nano X','Ledger Stax','Tangem','Trezor Model One','Trezor Model T','MetaMask','Autre wallet'];
+const CRYPTO_ACCOUNTS=['Coinbase','Binance','Kraken','Bitget','OKX','Bybit','Kucoin','Ledger Nano S','Ledger Nano S Plus','Ledger Nano X','Ledger Stax','Tangem','Trezor Model One','Trezor Model T','MetaMask','Autre wallet'];
 const IPS_DEFAULT={
   version:1,source:'Game plan — 30 sept. 2026',rebalance:'trimestriel',
   sleeves:[

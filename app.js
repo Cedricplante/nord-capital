@@ -2649,7 +2649,7 @@ function getCat(symbol){const found=SYMBOLS.find(s=>s.s===symbol);if(found)retur
 // startsWith plutôt qu'égalité stricte depuis le 2026-08-04 : CELI/CELIAPP/Comptant ont
 // maintenant des variantes CAD/USD ('CELI (CAD)', 'CELI (USD)') qui doivent recevoir la
 // même couleur de badge que le compte de base.
-function getAcctClass(acct){if(!acct)return'acc-default';if(acct.startsWith('CELIAPP'))return'acc-celiapp';if(acct.startsWith('CELI'))return'acc-celi';if(acct==='REER'||acct==='REEE')return'acc-reer';if(acct==='Marge')return'acc-marge';if(['Coinbase','Binance','Kraken','Bitget','OKX','Bybit','Kucoin','Ledger Nano S','Ledger Nano X','Ledger Stax','Tangem','Trezor Model One','Trezor Model T','MetaMask','Autre wallet'].includes(acct))return'acc-crypto';return'acc-default';}
+function getAcctClass(acct){if(!acct)return'acc-default';if(acct.startsWith('CELIAPP'))return'acc-celiapp';if(acct.startsWith('CELI'))return'acc-celi';if(acct==='REER'||acct==='REEE')return'acc-reer';if(acct==='Marge')return'acc-marge';if(['Coinbase','Binance','Kraken','Bitget','OKX','Bybit','Kucoin','Ledger Nano S','Ledger Nano S Plus','Ledger Nano X','Ledger Stax','Tangem','Trezor Model One','Trezor Model T','MetaMask','Autre wallet'].includes(acct))return'acc-crypto';return'acc-default';}
 
 function updateKPIs(){
   const totalPnlOpenUSD=positions.reduce((s,p)=>s+calcPnlUSD(p),0);
