@@ -601,7 +601,7 @@ function openIpsEditor(){
 // chemins de modification (formulaires, import CSV, annulation…) sans toucher à chacun.
 let auditLog=[],_auditBase=null,_auditCloud=null,_auditSaveTimer=null;
 function auditDevice(){const u=navigator.userAgent||'';return/iPhone|Android|Mobile/i.test(u)?'mobile':/Mac/i.test(u)?'Mac':/Windows/i.test(u)?'PC':'web';}
-function auditTradeSig(t){return JSON.stringify([t.date,t.type,t.symbol,+(+t.shares||0).toFixed(6),+(+t.price||0).toFixed(6),+(+t.size||0).toFixed(2),t.account||t.accountType||'']);}
+function auditTradeSig(t){return JSON.stringify([t.date,t.type,t.symbol,+(+t.shares||0).toFixed(6),+(+t.price||0).toFixed(6),+(+t.size||0).toFixed(2),t.account||t.accountType||'',t.toAccount||'']);}
 function auditTradeTxt(t){
   const acct=t.account||t.accountType;const a=acct?` (${acct})`:'';
   if(t.type==='Achat'||t.type==='Vente')return`${t.type} ${t.shares??''} ${t.symbol} @ ${fmtPrice(t.price)}${a}`;

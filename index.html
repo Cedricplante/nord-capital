@@ -181,7 +181,7 @@
           </div>
           <div class="bench-legend">
             <span><span class="bench-dot bench-dot-port"></span>Portefeuille</span>
-            <span><span class="bench-dot bench-dot-bench"></span>S&amp;P 500 (simulé)<span class="info-badge" style="--tip-left:0; --tip-transform:none;" data-tip="Simule ce que tes dépôts et retraits auraient valu s'ils avaient été investis dans le S&amp;P 500 (SPY) au même moment plutôt que dans ton portefeuille réel — même calendrier de cash-flows, prix SPY du jour de chaque dépôt/retrait. En mode $, la ligne pointillée est cette valeur simulée en dollars. En mode %, c'est le rendement pur du SPY depuis le début (TWR, non affecté par les dépôts) comparé au rendement pur (TWR) de ton portefeuille. Ta ligne au-dessus de la pointillée : tu bats l'indice.">i</span></span>
+            <span><span class="bench-dot bench-dot-bench"></span>S&amp;P 500 (simulé)<span class="info-badge" data-tip-js="Simule ce que tes dépôts et retraits auraient valu s'ils avaient été investis dans le S&amp;P 500 (SPY) au même moment plutôt que dans ton portefeuille réel — même calendrier de cash-flows, prix SPY du jour de chaque dépôt/retrait. En mode $, la ligne pointillée est cette valeur simulée en dollars. En mode %, c'est le rendement pur du SPY depuis le début (TWR, non affecté par les dépôts) comparé au rendement pur (TWR) de ton portefeuille. Ta ligne au-dessus de la pointillée : tu bats l'indice.">i</span></span>
           </div>
           <div class="chart-wrap perf-chart-wrap"><canvas id="perfChart"></canvas></div>
         </div>
@@ -316,7 +316,7 @@
             <button class="btn-ghost undo-btn" type="button" onclick="undoLast()" style="display:none;padding:5px 12px;font-size:11px;">↶ Annuler la dernière opération</button>
             <select id="filter-month" onchange="renderHistory()" class="filter-select"><option value="">Tous les mois</option></select>
             <select id="filter-asset" onchange="renderHistory()" class="filter-select"><option value="">Tous les actifs</option></select>
-            <select id="filter-type" onchange="renderHistory()" class="filter-select"><option value="">Tous les types</option><option value="Achat">Achats</option><option value="Vente">Ventes</option><option value="Dépôt">Dépôts</option><option value="Retrait">Retraits</option><option value="Dividende">Dividendes</option></select>
+            <select id="filter-type" onchange="renderHistory()" class="filter-select"><option value="">Tous les types</option><option value="Achat">Achats</option><option value="Vente">Ventes</option><option value="Dépôt">Dépôts</option><option value="Retrait">Retraits</option><option value="Dividende">Dividendes</option><option value="Transfert">Transferts</option></select>
             <button class="btn-export" onclick="resetFilters()">Réinitialiser</button>
           </div>
         </div>
@@ -732,8 +732,9 @@
   <div class="modal">
     <div class="modal-title">Modifier le cash disponible</div>
     <div style="display:flex;gap:8px;margin-bottom:20px;">
-      <button id="cash-type-depot" onclick="setCashType('depot')" style="flex:1;padding:10px;background:var(--text);border:1px solid var(--text);color:var(--bg);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;">Dépôt</button>
-      <button id="cash-type-retrait" onclick="setCashType('retrait')" style="flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;transition:all 0.15s;">Retrait</button>
+      <button id="cash-type-depot" onclick="setCashType('depot')">Dépôt</button>
+      <button id="cash-type-retrait" onclick="setCashType('retrait')">Retrait</button>
+      <button id="cash-type-transfert" onclick="setCashType('transfert')">Transfert</button>
     </div>
     <div style="margin-bottom:20px;">
       <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Montant</div>
@@ -749,7 +750,7 @@
     </div>
     <!-- F3: Type de compte (dépôt seulement) -->
     <div id="cash-account-wrap" style="margin-bottom:16px;">
-      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Type de compte</div>
+      <div id="cash-account-label" style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Type de compte</div>
       <select id="cash-account-type" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
         <option value="">— Sélectionner (requis)</option>
         <option value="CELI (CAD)">CELI (CAD)</option>
@@ -768,6 +769,28 @@
         <option value="Kucoin">Kucoin</option>
         <option value="Autre">Autre</option>
       </select>
+    </div>
+    <div id="cash-dest-wrap" style="margin-bottom:16px;display:none;">
+      <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Vers le compte</div>
+      <select id="cash-account-dest" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text2);font-size:12px;font-family:var(--mono);cursor:pointer;appearance:none;outline:none;">
+        <option value="">— Compte destination (requis)</option>
+        <option value="CELI (CAD)">CELI (CAD)</option>
+        <option value="CELI (USD)">CELI (USD)</option>
+        <option value="CELIAPP (CAD)">CELIAPP (CAD)</option>
+        <option value="CELIAPP (USD)">CELIAPP (USD)</option>
+        <option value="REER">REER</option>
+        <option value="REEE">REEE</option>
+        <option value="Comptant (CAD)">Comptant (CAD)</option>
+        <option value="Comptant (USD)">Comptant (USD)</option>
+        <option value="Marge">Marge</option>
+        <option value="Coinbase">Coinbase</option>
+        <option value="Binance">Binance</option>
+        <option value="Kraken">Kraken</option>
+        <option value="Bitget">Bitget</option>
+        <option value="Kucoin">Kucoin</option>
+        <option value="Autre">Autre</option>
+      </select>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;">Le profit réinvesti reste du profit, le capital reste du capital. Ni le benchmark ni le rendement (TWR) ne sont affectés.</div>
     </div>
     <div style="margin-bottom:16px;">
       <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Date</div>

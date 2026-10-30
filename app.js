@@ -398,7 +398,7 @@ function setTheme(theme){
       perfChart.data.datasets[0].borderColor=themeHex('accent');
       perfChart.data.datasets[0].backgroundColor=accentAreaFill;
       perfChart.data.datasets[0].pointBackgroundColor=themeHex('accent');
-      perfChart.data.datasets[1].borderColor=themeHex('steel');
+      perfChart.data.datasets[1].borderColor=benchColor();
       perfChart.update();
     }
     renderAllocDashboard();
@@ -1784,6 +1784,21 @@ function reconstructCashLots(deductOnBuy){
       const amt=hasOriginal?t.originalAmt:t.size;
       const cur=hasOriginal?t.originalCurrency:'CAD';
       _clConsume(acct(account),amt,cur);
+    }else if(t.type==='Transfert'){
+      // Transfert entre comptes (2026-10-29) : consomme le cash du compte source (profit d'abord,
+      // comme un retrait) et le recrée à l'identique (même type principal/profit, même chaîne de
+      // provenance) dans le compte destination. Converti seulement si le compte destination a une
+      // devise explicite ((CAD)/(USD)) différente de celle du lot.
+      const hasOriginal=t.originalAmt!=null&&t.originalCurrency;
+      const amt=hasOriginal?t.originalAmt:t.size,cur=hasOriginal?t.originalCurrency:'CAD';
+      const toName=normAcct(t.toAccount,cur);
+      const dm=/\((CAD|USD)\)$/.exec(toName),destCur=dm?dm[1]:null;
+      const{consumed}=_clConsume(acct(account),amt,cur);
+      consumed.forEach(l=>{
+        let la=l.amount,lc=l.currency;
+        if(destCur&&lc!==destCur){la=fxConvert(la,lc,destCur);lc=destCur;}
+        _clAddLot(acct(toName),l.type,la,lc,t.date,l.chain);
+      });
     }else if(t.type==='Dividende'){
       // Revenu de placement, pas une cotisation -- tracké comme "profit" (consommé en
       // premier, comme un gain de vente), jamais comme "principal". Ne touche jamais aux
@@ -2986,7 +3001,22 @@ function renderPosTable(){
   if(!filtered.length&&!cashIdx.length)html=`<tr><td colspan="15" class="empty">Aucune position${positions.length?' (filtrée)':' ouverte'}</td></tr>`;
   t.innerHTML=html;
   renderPosFooter(filtered,cashIdx,!!(catFilter||accountFilter||periodFilter));
+  fitPosTable();
 }
+// Tableau Positions « tout sur une page » (2026-10-29) : on essaie d'abord le rendu normal, puis
+// on densifie par paliers (lignes plus serrées -> polices plus petites -> sous-totaux masqués)
+// jusqu'à ce que tout rentre sans défilement. Sur mobile, le défilement de page reste normal.
+function fitPosTable(){
+  const tbl=document.querySelector('.pos-table'),wrap=document.querySelector('.pos-table-inner');
+  if(!tbl||!wrap)return;
+  tbl.classList.remove('dense1','dense2','dense3');
+  if(posIsMobile())return;
+  for(const lvl of['dense1','dense2','dense3']){
+    if(wrap.scrollHeight<=wrap.clientHeight+1)break;
+    tbl.classList.add(lvl); // les paliers se cumulent (chacun resserre un peu plus)
+  }
+}
+try{window.addEventListener('resize',()=>{clearTimeout(window._fitPosT);window._fitPosT=setTimeout(()=>{try{fitPosTable();}catch(e){}},120);});}catch(e){}
 // Couleur d'identité par classe d'actif (en-têtes de section Positions, 2026-10-03).
 // Séparateurs de classe : une seule couleur, le rouge d'accent (demande de Cédric 2026-10-03,
 // « toutes séparées par une ligne rouge, pas une couleur par classe »).
@@ -3194,6 +3224,11 @@ function renderHistory(){
       const noteTip=t.note?`<span style="font-size:10px;color:var(--text3);margin-left:4px;" title="${escapeHtml(t.note)}">note</span>`:'';
       // cash déjà en CAD depuis migration v2
       return`<tr style="opacity:0.85;"><td>${t.date}</td><td class="sym" style="color:var(--text3);">—</td><td><span class="badge" style="${bs}">${t.type}</span>${acctBadge}${noteTip}</td><td style="color:var(--text3);">—</td><td style="color:${color};">${isDeposit?'+':'-'}${fmtAmt(t.size)}</td><td style="color:var(--text2);">${fmtAmtRound(t.montantFinal)} cash</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
+    }else if(t.type==='Transfert'){
+      const noteTip=t.note?`<span style="font-size:10px;color:var(--text3);margin-left:4px;" title="${escapeHtml(t.note)}">note</span>`:'';
+      const route=`<span class="badge-compte" style="margin-left:4px;">${escapeHtml(t.fromAccount||t.accountType||'?')} → ${escapeHtml(t.toAccount||'?')}</span>`;
+      const amtTxt=t.originalAmt!=null&&t.originalCurrency?fmtC(t.originalAmt,t.originalCurrency):fmtAmt(t.size);
+      return`<tr style="opacity:0.9;"><td>${t.date}</td><td class="sym" style="color:var(--text3);">—</td><td><span class="badge badge-transfert">Transfert</span>${route}${noteTip}</td><td style="color:var(--text3);">—</td><td>${amtTxt}</td><td style="color:var(--text2);">${fmtAmtRound(t.montantFinal)} cash</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
     }else if(t.type==='Vente'){
       const profit=t.profit||0;const profitDisp=toUSD(profit,getTradeCurrency(t));totalPnl+=profitDisp;profitDisp>0?wins++:losses++;
       const cls=profitDisp>=0?'pos':'neg',roi=t.size>0?(profit/t.size)*100:0,isDca=t.dcaCount&&t.dcaCount>1;
@@ -3504,15 +3539,22 @@ async function undoLast(){
 let cashType='depot';
 function setCashType(type){
   cashType=type;
-  const d=document.getElementById('cash-type-depot'),r=document.getElementById('cash-type-retrait');
-  if(type==='depot'){d.style.cssText='flex:1;padding:10px;background:var(--text);border:1px solid var(--text);color:var(--bg);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';r.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';}
-  else{d.style.cssText='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;';r.style.cssText='flex:1;padding:10px;background:var(--text);border:1px solid var(--text);color:var(--bg);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;';}
+  const on='flex:1;padding:10px;background:var(--text);border:1px solid var(--text);color:var(--bg);border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s;';
+  const off='flex:1;padding:10px;background:var(--bg3);border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;transition:all 0.15s;';
+  ['depot','retrait','transfert'].forEach(k=>{const b=document.getElementById('cash-type-'+k);if(b)b.style.cssText=(k===type)?on:off;});
   // Compte visible pour Dépôt ET Retrait depuis le 2026-07-30 (Phase 2 -- requis pour savoir
   // dans quel compte ajouter/retirer le lot de cash). Justificatif toujours retrait seulement.
+  // Transfert (2026-10-29) : compte source + compte destination.
   const acctWrap=document.getElementById('cash-account-wrap');
   const noteWrap=document.getElementById('cash-note-wrap');
+  const destWrap=document.getElementById('cash-dest-wrap');
+  const lbl=document.getElementById('cash-account-label');
   if(acctWrap)acctWrap.style.display='block';
   if(noteWrap)noteWrap.style.display=type==='retrait'?'block':'none';
+  if(destWrap)destWrap.style.display=type==='transfert'?'block':'none';
+  if(lbl)lbl.textContent=type==='transfert'?'Du compte':'Type de compte';
+  const title=document.querySelector('#cash-modal-overlay .modal-title');
+  if(title)title.textContent=type==='transfert'?'Transférer du cash entre comptes':'Modifier le cash disponible';
   updateCashPreview();
 }
 async function updateCashPreview(){
@@ -3527,6 +3569,8 @@ async function updateCashPreview(){
 }
 function toggleCashPopup(e){e.stopPropagation();document.getElementById('cash-modal-overlay').classList.add('open');{const cd=document.getElementById('cash-date');if(cd&&!cd.value)cd.value=localToday();}const p=document.getElementById('cash-preview-current');if(p)p.textContent=fmtAmtRound(cash);setTimeout(()=>document.getElementById('cash-input').focus(),100);}
 function closeCashPopup(){
+  const destEl=document.getElementById('cash-account-dest');if(destEl)destEl.value='';
+  if(typeof setCashType==='function'&&cashType!=='depot')setCashType('depot');
   document.getElementById('cash-modal-overlay').classList.remove('open');
   document.getElementById('cash-input').value='';
   const noteEl=document.getElementById('cash-note');if(noteEl)noteEl.value='';
@@ -3535,7 +3579,7 @@ function closeCashPopup(){
 }
 async function updateCash(){
   const inputAmt=parseFloat(document.getElementById('cash-input').value);if(isNaN(inputAmt)||inputAmt<=0){alert('Entre un montant valide.');return;}
-  const inputCur=document.getElementById('cash-currency-input')?.value||'USD',date=document.getElementById('cash-date')?.value||localToday(),type=cashType==='depot'?'Dépôt':'Retrait';
+  const inputCur=document.getElementById('cash-currency-input')?.value||'USD',date=document.getElementById('cash-date')?.value||localToday(),type=cashType==='depot'?'Dépôt':cashType==='transfert'?'Transfert':'Retrait';
   if(date>localToday()){alert('La date ne peut pas être dans le futur.');return;}
   // Compte requis pour les deux types depuis le 2026-07-30 (Phase 2) -- nécessaire pour savoir
   // dans quel compte ajouter/retirer le lot de cash.
@@ -3546,6 +3590,29 @@ async function updateCash(){
   if(!accountType){alert('Sélectionne un compte — requis pour le suivi du cash par compte (plus de "Non spécifié" automatique).');return;}
   // Blocage si retrait insuffisant dans le compte visé (durci le 2026-07-30, sur demande de
   // Cédric -- même règle que pour un achat). reconstructCashLots() recalculé à la volée.
+  // Transfert entre comptes (2026-10-29) : le cash change de compte sans changer le total du
+  // portefeuille -> ni dépôt ni retrait pour le benchmark / TWR. Capital et profit restent tels quels.
+  if(type==='Transfert'){
+    const toAcct=document.getElementById('cash-account-dest')?.value||'';
+    if(!toAcct){alert('Sélectionne le compte destination.');return;}
+    if(toAcct===accountType){alert('Le compte source et le compte destination doivent être différents.');return;}
+    const{accounts}=reconstructCashLots(true);
+    const state=accounts[accountType]||_clMakeAccount();
+    const clone={principal:state.principal.map(l=>({...l})),profit:state.profit.map(l=>({...l}))};
+    const{shortfall}=_clConsume(clone,inputAmt,inputCur);
+    if(shortfall>0.01){
+      alert(`Transfert bloqué : cash insuffisant dans "${accountType}".\nDisponible : ${fmtAmtRound(_clAccountTotalCAD(state))} CAD\nMontant demandé : ${fmtAmtRound(fxConvert(inputAmt,inputCur,'CAD'))} CAD`);
+      return;
+    }
+    const amtC=parseFloat((toUSD(inputAmt,inputCur)*fxRate).toFixed(2));
+    const te={date,symbol:'CASH',dir:'—',type:'Transfert',price:0,size:amtC,profit:0,currency:accountCurrency,originalAmt:inputAmt,originalCurrency:inputCur,accountType,fromAccount:accountType,toAccount:toAcct};
+    if(note)te.note=note;
+    pushUndo(`Transfert ${inputAmt} ${inputCur} ${accountType} → ${toAcct} du ${date}`);
+    trades.unshift(te);
+    const nc=syncCashFromLots();te.montantFinal=nc;te.cashBalance=nc;
+    closeCashPopup();await saveData();renderAll();updatePerfChart();
+    return;
+  }
   if(type==='Retrait'){
     const{accounts}=reconstructCashLots(true);
     const state=accounts[accountType]||_clMakeAccount();
@@ -3588,6 +3655,7 @@ function switchTab(name,el){
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
   sec.classList.add('active');
   updatePageHeader(name);
+  if(name==='positions')requestAnimationFrame(()=>{try{fitPosTable();}catch(e){}});
   if(name==='watchlist'){renderWatchlist();refreshWatchlist();}
   if(name==='strategie'){renderStratPerf();}
   if(name==='allocation')renderAllocCharts();
@@ -3604,6 +3672,7 @@ function togglePosForm(){
   const collapsed=body.classList.toggle('collapsed');
   btn.classList.toggle('collapsed',collapsed);
   localStorage.setItem('nc_pos_form_collapsed',collapsed?'1':'0');
+  setTimeout(()=>{try{fitPosTable();}catch(e){}},300);
 }
 function toggleCotisHistory(){
   const body=document.getElementById('contributions-history-body');
@@ -3620,7 +3689,7 @@ function initCotisHistoryState(){
   }
 }
 function initPosFormState(){
-  if(localStorage.getItem('nc_pos_form_collapsed')==='1'){
+  if(localStorage.getItem('nc_pos_form_collapsed')!=='0'){ // replié par défaut (2026-10-29) : plus de place pour le tableau
     const body=document.getElementById('pos-form-body');
     const btn=document.getElementById('pos-form-toggle');
     if(body){body.style.transition='none';body.classList.add('collapsed');requestAnimationFrame(()=>{body.style.transition='';});}
@@ -3856,6 +3925,30 @@ function monoRamp(n,from,to){
   const hi=from!=null?from:(light?10:94),lo=to!=null?to:(light?80:30);
   return Array.from({length:n},(_,i)=>{const t=n>1?i/(n-1):0;return`hsl(0 0% ${(hi+(lo-hi)*t).toFixed(0)}%)`;});
 }
+// Palette catégorielle (2026-10-29, demande de Cédric : « plus de couleur, surtout sur les pie
+// charts pour bien différencier les sections »). Utilisée par tous les donuts ; le rouge/vert
+// restent réservés aux P&L dans les tableaux.
+const CAT_COLORS_DARK=['#6e9bff','#f2b04a','#4cc38a','#c58bf0','#f27d78','#45c8d8','#e8d658','#9a88f5','#f59a5b','#86c46c','#e56aa6','#58a8c4'];
+const CAT_COLORS_LIGHT=['#3b6fd8','#d98a12','#11845b','#9b4fcf','#d4423f','#0f9bb0','#b8a017','#6a56d6','#d9692a','#4f9a37','#c43d85','#2b7f9e'];
+function catPalette(n){
+  const light=document.documentElement.getAttribute('data-theme')==='light';
+  const base=light?CAT_COLORS_LIGHT:CAT_COLORS_DARK;
+  return Array.from({length:Math.max(0,n)},(_,i)=>{
+    const c=base[i%base.length],round=Math.floor(i/base.length);
+    if(!round)return c;
+    // Au-delà de 12 tranches : même teintes, plus claires/foncées pour rester distinctes.
+    const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
+    const k=light?-0.18*round:0.22*round;const f=v=>Math.max(0,Math.min(255,Math.round(k>=0?v+(255-v)*k:v*(1+k))));
+    return'#'+[f(r),f(g),f(b)].map(v=>v.toString(16).padStart(2,'0')).join('');
+  });
+}
+// Rampe turquoise pour les comptes de cash (distincte des positions).
+function cashRamp(n){
+  const light=document.documentElement.getAttribute('data-theme')==='light';
+  const hi=light?58:68,lo=light?30:38;
+  return Array.from({length:Math.max(0,n)},(_,i)=>{const t=n>1?i/(n-1):0;return`hsl(${(188+t*28).toFixed(0)} 62% ${(hi+(lo-hi)*t).toFixed(0)}%)`;});
+}
+function benchColor(){return document.documentElement.getAttribute('data-theme')==='light'?'#3b6fd8':'#6e9bff';}
 // Tooltip externe en HTML pour les petits donuts (ex. cashLotsChart 90x90px) — demandé par
 // Cédric 2026-08-03 : le tooltip natif de Chart.js est dessiné DANS le canvas, donc
 // physiquement coupé quand le canvas est petit ou logé dans une carte overflow:hidden.
@@ -4010,7 +4103,7 @@ function renderCashLotsChart(){
     _cashLotsMeta.push({name,native,pct,total:acctTotal,principalCAD,profitCAD,principalNative:fmtLotsNative(state.principal),profitNative:fmtLotsNative(state.profit)});
   });
   // Cash = bleu partout dans l'app (même code couleur que l'anneau Cash vs Positions).
-  colors.push(...monoRamp(labels.length));
+  colors.push(...cashRamp(labels.length));
   updateDonut(cashLotsChart,labels,values,colors);
   // Légende sur 2 lignes (nom / montant · %) : lisible même quand la colonne est étroite.
   const legEl=document.getElementById('cash-lots-chart-legend');
@@ -4044,10 +4137,10 @@ function shadeList(hex,n){
 }
 // Positions = gris clairs (côté texte), cash = gris moyens : les deux familles restent
 // distinctes sans couleur (refonte noir et blanc 2026-10-11).
-function optimusBase(){const L=document.documentElement.getAttribute('data-theme')==='light';return{red:L?'hsl(0 0% 12%)':'hsl(0 0% 92%)',blue:L?'hsl(0 0% 70%)':'hsl(0 0% 40%)'};}
+function optimusBase(){const L=document.documentElement.getAttribute('data-theme')==='light';return{red:L?'hsl(0 0% 12%)':'hsl(0 0% 92%)',blue:L?'#0f9bb0':'#45c8d8'};}
 function optimusRamp(family,n){
   const L=document.documentElement.getAttribute('data-theme')==='light';
-  return family==='red'?monoRamp(n,L?12:92,L?52:58):monoRamp(n,L?64:44,L?86:24);
+  return family==='red'?catPalette(n):cashRamp(n);
 }
 function cashAllocTooltipLabel(ctx){
   const m=ctx.datasetIndex===0?_cashAllocMeta.outer[ctx.dataIndex]:_cashAllocMeta.inner[ctx.dataIndex];
@@ -4088,16 +4181,16 @@ function renderAllocDashboard(){
   if(totalSizeUSD>0){
     const syms=positions.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:getPosCurrency(p)}));
     const{labels,values}=mkDonutData(syms,totalSizeUSD);
-    updateDonut(allocChart,labels,values,monoRamp(labels.length));
-    buildLegend('alloc-legend',labels,values,monoRamp(labels.length));
+    updateDonut(allocChart,labels,values,catPalette(labels.length));
+    buildLegend('alloc-legend',labels,values,catPalette(labels.length));
   }
 
   // Par catégorie
   if(totalSizeUSD>0){
     const cats={};positions.forEach(p=>{const c=getCat(p.symbol);cats[c]=(cats[c]||0)+toUSD((p.shares||0)*p.current,getPosCurrency(p));});
     const labels=Object.keys(cats),values=labels.map(c=>parseFloat((cats[c]/totalSizeUSD*100).toFixed(1)));
-    updateDonut(allocCatDashChart,labels,values,monoRamp(labels.length));
-    buildLegend('alloc-cat-dash-legend',labels,values,monoRamp(labels.length));
+    updateDonut(allocCatDashChart,labels,values,catPalette(labels.length));
+    buildLegend('alloc-cat-dash-legend',labels,values,catPalette(labels.length));
   }
 
   // Cash vs Positions -- double anneau (positions + comptes de cash détaillés)
@@ -4243,16 +4336,16 @@ function renderAllocCharts(){
   // Par symbole
   const syms=positions.map(p=>({label:p.symbol,val:(p.shares||0)*p.current,cur:getPosCurrency(p)}));
   const{labels:sLabels,values:sValues}=mkDonutData(syms,totalSizeUSD);
-  updateDonut(allocSymChart,sLabels,sValues,monoRamp(sLabels.length));
-  buildLegend('alloc-sym-legend',sLabels,sValues,monoRamp(sLabels.length));
+  updateDonut(allocSymChart,sLabels,sValues,catPalette(sLabels.length));
+  buildLegend('alloc-sym-legend',sLabels,sValues,catPalette(sLabels.length));
   const symCount=document.getElementById('alloc-sym-count');
   if(symCount)symCount.textContent=sLabels.length+' actifs';
 
   // Par catégorie
   const cats={};positions.forEach(p=>{const c=getCat(p.symbol);cats[c]=(cats[c]||0)+toUSD((p.shares||0)*p.current,getPosCurrency(p));});
   const cLabels=Object.keys(cats),cValues=cLabels.map(c=>parseFloat((cats[c]/totalSizeUSD*100).toFixed(1)));
-  updateDonut(allocCatChart,cLabels,cValues,monoRamp(cLabels.length));
-  buildLegend('alloc-cat-legend',cLabels,cValues,monoRamp(cLabels.length));
+  updateDonut(allocCatChart,cLabels,cValues,catPalette(cLabels.length));
+  buildLegend('alloc-cat-legend',cLabels,cValues,catPalette(cLabels.length));
   const catCount=document.getElementById('alloc-cat-count');
   if(catCount)catCount.textContent=cLabels.length+' classes';
 
@@ -4301,7 +4394,9 @@ function exportCSV(){
     if(t.type==='Vente'){const roi=t.size>0?((t.profit||0)/t.size*100).toFixed(2):'0';rows.push([t.date,t.symbol,t.dir,'Vente',t.account||'',t.price,t.avgEntry||'',t.size,(t.montantFinal||(t.size+(t.profit||0))).toFixed(2),(t.profit||0).toFixed(2),roi]);}
     else if(t.type==='Dividende'){rows.push([t.date,t.symbol||'',t.dir||'',t.type,t.accountType||t.account||'','','',t.size,'','','']);}
     else if(t.type==='Achat'){rows.push([t.date,t.symbol,t.dir,'Achat',t.account||'',t.price,'',t.size,'','','']);}
-    // Autres types (Dépôt, Retrait, Cotisation) -- déjà non gérés avant ce changement,
+    else if(t.type==='Dépôt'||t.type==='Retrait'){rows.push([t.date,'CASH','',t.type,t.accountType||'','','',t.size,'','','']);}
+    else if(t.type==='Transfert'){rows.push([t.date,'CASH','','Transfert',`${t.fromAccount||t.accountType||''} -> ${t.toAccount||''}`,'','',t.size,'','','']);}
+    // Autres types (Cotisation) -- déjà non gérés avant ce changement,
     // hors scope de cet ajout (limitation préexistante de exportCSV, à corriger séparément).
   });
   const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv;charset=utf-8;'});
@@ -4861,7 +4956,7 @@ function initCharts(){
   const safeNew=(id,cfg)=>{const el=document.getElementById(id);return el?new Chart(el,cfg):null;};
   perfChart=safeNew('perfChart',{type:'line',data:{labels:[],datasets:[
     {label:'Portfolio',data:[],borderColor:themeHex('accent'),backgroundColor:accentAreaFill,borderWidth:1.8,pointRadius:0,pointHoverRadius:4,pointHoverBorderWidth:2,pointHoverBorderColor:()=>themeHex('bg2'),pointBackgroundColor:themeHex('accent'),fill:true,tension:0.35,spanGaps:true,ncGlow:true},
-    {label:'S&P 500',data:[],borderColor:themeHex('steel'),backgroundColor:'transparent',borderWidth:1.2,pointRadius:0,pointHoverRadius:3,fill:false,tension:0.35,borderDash:[4,4],spanGaps:true}
+    {label:'S&P 500',data:[],borderColor:benchColor(),backgroundColor:'transparent',borderWidth:1.2,pointRadius:0,pointHoverRadius:3,fill:false,tension:0.35,borderDash:[4,4],spanGaps:true}
   ]},options:{...chartDefaults,interaction:{mode:'index',intersect:false},scales:{x:{ticks:{...cd,maxTicksLimit:8,maxRotation:0,autoSkip:true},grid:{display:false},border:{color:bc}},y:{position:'right',ticks:{...cd,maxTicksLimit:6,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{display:false}}}}});
 
   pnlBarChart=safeNew('pnlBarChart',{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:3,borderWidth:0,maxBarThickness:36}]},options:{...chartDefaults,scales:{x:{ticks:{...cd},grid:{display:false},border:{color:bc}},y:{ticks:{...cd,callback:v=>fmtAmtRound(v)},grid:{color:gc},border:{color:bc}}}}});

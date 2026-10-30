@@ -743,3 +743,32 @@ body.hide-amounts [data-sensitive] { filter: blur(7px); user-select: none; trans
 .body [style*="text-transform:uppercase"], .modal [style*="text-transform:uppercase"], #funding-wrap [style*="text-transform:uppercase"] { text-transform: none !important; letter-spacing: 0 !important; font-size: 12px !important; font-weight: 500 !important; }
 input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number] { -moz-appearance: textfield; }
+
+
+/* ── COULEUR (2026-10-29) : touches de couleur sobres, sans toucher au rouge/vert des P&L ──── */
+:root { --bench: #6e9bff; --c-blue: #6e9bff; --c-amber: #f2b04a; --c-violet: #c58bf0; --c-teal: #45c8d8; }
+[data-theme="light"] { --bench: #3b6fd8; --c-blue: #3b6fd8; --c-amber: #d98a12; --c-violet: #9b4fcf; --c-teal: #0f9bb0; }
+.bench-dot-bench { border-top-color: var(--bench); }
+.badge-achat { background: color-mix(in srgb, var(--c-blue) 16%, transparent); color: var(--c-blue); }
+.badge-vente { background: color-mix(in srgb, var(--neg) 12%, transparent); color: var(--neg); box-shadow: none; }
+.badge-div { background: color-mix(in srgb, var(--c-amber) 16%, transparent); color: var(--c-amber); }
+.badge-transfert { background: color-mix(in srgb, var(--c-violet) 16%, transparent); color: var(--c-violet); }
+.donut-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: none; }
+.nav-tab.active svg { color: var(--c-blue); }
+
+/* ── POSITIONS compactes : paliers appliqués par fitPosTable() ───────────────────────────── */
+.pos-table.dense1 tbody td, .pos-table.dense1 tfoot td { padding: 6px 9px; }
+.pos-table.dense1 th { padding-left: 9px; padding-right: 9px; }
+.pos-table.dense1 tr.pos-class-head td { padding-top: 12px; padding-bottom: 5px; }
+.pos-table.dense2 tbody td, .pos-table.dense2 tfoot td { padding-top: 3px; padding-bottom: 3px; font-size: 12px; }
+.pos-table.dense2 tr.pos-class-head td { padding-top: 8px; padding-bottom: 3px; font-size: 13px; }
+.pos-table.dense2 tr.pos-class-sub td { padding-top: 3px; padding-bottom: 3px; }
+.pos-table.dense2 .row-act { padding: 1px 6px; font-size: 11px; }
+.pos-table.dense2 th { padding-top: 6px; padding-bottom: 6px; }
+.pos-table.dense3 tbody td, .pos-table.dense3 tfoot td { padding-top: 1px; padding-bottom: 1px; font-size: 11.5px; }
+.pos-table.dense3 th { padding-top: 4px; padding-bottom: 4px; }
+.pos-table.dense3 tr.pos-total-row td { padding-top: 5px; padding-bottom: 5px; }
+.pos-table.dense3 .row-act { padding: 0 5px; }
+.pos-table.dense3 tr.pos-class-sub { display: none; }
+.pos-table.dense3 tr.pos-class-head td { padding-top: 3px; padding-bottom: 1px; font-size: 12.5px; }
+.pos-table.dense3 .badge-dca, .pos-table.dense3 .dir-tag { line-height: 15px; }
