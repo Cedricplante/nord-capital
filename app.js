@@ -3004,7 +3004,9 @@ function renderPosTable(){
   const accountFilter=document.getElementById('pos-filter-account')?.value||'';
   const periodFilter=document.getElementById('pos-filter-period')?.value||'';
   const showCash=!periodFilter&&(!catFilter||catFilter==='Cash');
-  const cashIdx=showCash?wt.cashRows.map((r,i)=>i).filter(i=>!accountFilter||wt.cashRows[i].account===accountFilter):[];
+  // 2026-11-02b : les comptes de cash ne sont plus listés dans « Positions actives » (le cash reste visible
+  // dans Dashboard / Allocation et en note dans le total) ; une position CASH.TO reste une vraie ligne.
+  const cashIdx=[];
   // Sections par classe d'actif (demande 2026-10-03) : titre au-dessus, positions triées par
   // valeur de marché live CROISSANTE dans chaque classe (sauf si l'utilisateur a cliqué un
   // en-tête de tri -- ce tri s'applique alors à l'intérieur de chaque section), puis une ligne
@@ -3038,9 +3040,10 @@ function renderPosTable(){
 function fitPosTable(){
   const tbl=document.querySelector('.pos-table'),wrap=document.querySelector('.pos-table-inner');
   if(!tbl||!wrap)return;
-  tbl.classList.remove('dense1','dense2','dense3');
+  tbl.classList.remove('dense0','dense1','dense15','dense2','dense3');
   if(posIsMobile())return;
-  for(const lvl of['dense1','dense2','dense3']){
+  tbl.classList.add('dense0'); // palier le plus grand ; on resserre jusqu'à ce que tout tienne
+  for(const lvl of['dense1','dense15','dense2','dense3']){
     if(wrap.scrollHeight<=wrap.clientHeight+1)break;
     tbl.classList.add(lvl); // les paliers se cumulent (chacun resserre un peu plus)
   }
@@ -3099,20 +3102,21 @@ function cashWeightRow(wt,i){
 function renderPosFooter(filtered,cashIdx,isFiltered){
   const f=document.getElementById('pos-foot');if(!f)return;
   const wt=_weightTotals;if(!wt){f.innerHTML='';return;}
+  const cashOutVal=wt.cashTotal||0,cashOutW=wt.cashWeight.reduce((s,v)=>s+(v||0),0);
   let val=0,wSum=0,pnl=0;
   filtered.forEach(p=>{val+=posValueAcct(p);wSum+=(wt.posWeight[p._origIdx]||0);pnl+=calcPnlUSD(p)*(fxRate||1);});
   cashIdx.forEach(i=>{val+=wt.cashRows[i].value;wSum+=wt.cashWeight[i]||0;});
   wSum=Math.round(wSum*10)/10;
-  const ok=Math.abs(wSum-100)<0.05;
+  const ok=Math.abs(wSum+(isFiltered?0:cashOutW)-100)<0.15;
   const pnlCls=pnl>=0?'pos':'neg';
   f.innerHTML=`<tr class="pos-total-row">
-    <td></td><td class="sym">${isFiltered?'Total (filtré)':'Total portefeuille'}</td>
-    <td colspan="7" class="muted" style="font-size:11px;">Positions + cash disponible</td>
+    <td></td><td class="sym">${isFiltered?'Total (filtré)':'Total positions'}</td>
+    <td colspan="7" class="muted">${isFiltered?'Positions filtrées':'Cash disponible hors tableau : <span data-sensitive>'+fmtAmt(cashOutVal)+'</span> ('+fmtW(cashOutW)+')'}</td>
     <td data-sensitive>${fmtAmt(val)}</td>
     <td class="${pnlCls}">${(pnl>=0?'+':'-')+fmtAmt(Math.abs(pnl))}</td>
     <td></td>
     <td class="w-cell" style="color:${ok||isFiltered?'var(--text)':'var(--red)'};">${fmtW(wSum)}</td>
-    <td class="w-cell w-muted">100 % / classe</td>
+    <td class="w-cell w-muted">${isFiltered?'':'+ cash = 100 %'}</td>
     <td></td>
   </tr>`;
 }

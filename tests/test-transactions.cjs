@@ -92,14 +92,15 @@ wt.cashClassWeight.forEach(v=>per.Cash=(per.Cash||0)+v);
 ok(Object.values(per).every(v=>r2(v)===100),'A chaque classe somme à 100,00 % : '+JSON.stringify(Object.fromEntries(Object.entries(per).map(([k,v])=>[k,r2(v)]))));
 ok(r2(wt.classSummary.reduce((s,c)=>s+c.weight,0))===100,'A récap des classes = 100,00 %');
 const foot=E("document.getElementById('pos-foot').textContent.replace(/\\s+/g,' ')");
-ok(/100,0\s?%/.test(foot),'A pied de tableau affiche le total 100,0 % : '+foot.slice(0,160));
+ok(/Total positions/.test(foot)&&/Cash disponible hors tableau/.test(foot)&&/\+ cash = 100/.test(foot),'A pied de tableau : total positions + note cash hors tableau : '+foot.slice(0,160));
 // CASH.TO dans classe Cash
 E(`positions.push({symbol:'CASH.TO',dir:'Long',avgEntry:50,current:50,shares:10,totalSize:500,currency:'CAD',account:'CELIAPP (CAD)',entries:[]})`);
 ok(E("getWeightClass('CASH.TO')")==='Cash','A CASH.TO classé Cash');
 const wt2=E('computeWeightTotals()');ok(r2(wt2.posWeight.reduce((a,b)=>a+b,0)+wt2.cashWeight.reduce((a,b)=>a+b,0))===100,'A Σ=100 % avec CASH.TO');
 // Rendering doesn't throw
 try{E('renderAll()');ok(true,'renderAll() sans erreur');}catch(e){ok(false,'renderAll() erreur: '+e.message);}
-const rows=E("document.querySelectorAll('#pos-body tr.pos-cash-row').length");ok(rows>0,'lignes CASH affichées: '+rows);
+const rows=E("document.querySelectorAll('#pos-body tr.pos-cash-row').length");ok(rows===0,'comptes de cash retirés du tableau Positions: '+rows);
+ok(E("document.getElementById('pos-body').textContent").includes('CASH.TO'),'position CASH.TO toujours visible');
 // Filtre compte
 E("document.getElementById('pos-filter-account').value='CELIAPP (USD)';renderPosTable()");
 ok(/Total \(filtré\)/i.test(E("document.getElementById('pos-foot').textContent")),'filtre -> TOTAL (filtré)');

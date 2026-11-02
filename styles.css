@@ -16,10 +16,10 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0b0b0b; --side: #0b0b0b; --bg2: #121212; --bg3: #191919; --bg4: #232323;
-  --border: #212121; --border2: #2f2f2f;
-  --hair: rgba(255,255,255,0.065); --row-hover: rgba(255,255,255,0.028); --seg-on: #2a2a2a;
-  --text: #f4f4f4; --text2: #c9c9c9; --text3: #8a8a8a;
+  --bg: #1b1b1c; --side: #1b1b1c; --bg2: #242425; --bg3: #2c2c2d; --bg4: #373738;
+  --border: #363637; --border2: #484849;
+  --hair: rgba(255,255,255,0.09); --row-hover: rgba(255,255,255,0.035); --seg-on: #3b3b3c;
+  --text: #f6f6f6; --text2: #d0d0d0; --text3: #9c9c9c;
   --accent: #f4f4f4; --accent-rgb: 244,244,244; --accent-hot: #ffffff; --accent-deep: #d4d4d4;
   --accent-dim: rgba(255,255,255,0.06); --accent-glow: rgba(255,255,255,0.10);
   --pos: #4cc38a; --neg: #ee6b67; --green: #4cc38a; --red: #ee6b67;
@@ -810,3 +810,44 @@ tr.pos-cash-row td { font-size: 12.5px; }
 .pos-table .row-act:hover { opacity: 1; }
 @media (hover: none) { .pos-table .row-acts-in { display: flex; position: static; transform: none; box-shadow: none; background: none; padding: 0; } .pos-table td.row-acts { width: auto; padding: 0 6px !important; } }
 @media (min-width: 769px) and (max-width: 1700px) { .pos-table col.col-dir, .pos-table col.col-date, .pos-table col.col-idx { visibility: collapse; } }
+
+
+/* ── 2026-11-02b : sous-totaux / totaux bien visibles, lignes plus grandes (cash retiré du tableau) ── */
+.pos-table tbody td, .pos-table tfoot td { font-size: 15px; padding-top: 11px; padding-bottom: 11px; }
+.pos-table td.w-cell { font-size: 14px; }
+.pos-table tr.pos-class-sub td.w-cell.w-muted, .pos-table tr.pos-total-row td.w-cell.w-muted { opacity: 1; color: var(--text2); }
+.pos-table tr.pos-class-head td { font-size: 16px; }
+tr.pos-class-head td { padding: 26px 12px 9px; font-size: 16px; font-weight: 650; border-bottom: 1.5px solid var(--text3); }
+tr.pos-class-head .pos-class-count { font-size: 12.5px; }
+#pos-body tr.pos-class-head:first-child td { padding-top: 12px; }
+tr.pos-class-sub td, tr.pos-class-sub:hover td { background: var(--bg4) !important; border-top: 1px solid var(--border2); border-bottom: 1px solid var(--border2); padding-top: 12px; padding-bottom: 12px; font-size: 15px; }
+.pos-sub-name { font-size: 15px; font-weight: 700; color: var(--text); margin-right: 18px; }
+.pos-sub-w { font-size: 12.5px; color: var(--text2); }
+.pos-sub-w b { color: var(--text); font-weight: 700; }
+.nc-table td.pos-sub-num { font-weight: 700; color: var(--text); font-size: 15px; }
+.nc-table td.pos-sub-num.pos { color: var(--pos); } .nc-table td.pos-sub-num.neg { color: var(--neg); }
+.pos-table tr.pos-total-row td { background: var(--bg4) !important; border-top: 2px solid var(--text2); border-bottom: none; font-weight: 700; color: var(--text); font-size: 16px; padding-top: 14px; padding-bottom: 14px; }
+.pos-table tr.pos-total-row td.muted { font-weight: 500; font-size: 12.5px !important; color: var(--text2); }
+tr.pos-total-row td.pos { color: var(--pos); } tr.pos-total-row td.neg { color: var(--neg); }
+/* Paliers de densité (du plus grand au plus serré) : fitPosTable garde le plus grand qui tient. */
+.pos-table.dense0 tbody td, .pos-table.dense0 tfoot td { padding-top: 11px; padding-bottom: 11px; font-size: 14.5px; }
+.pos-table.dense0 tr.pos-class-head td { padding-top: 20px; padding-bottom: 7px; font-size: 15.5px; }
+.pos-table.dense0 tr.pos-class-sub td { padding-top: 9px; padding-bottom: 9px; font-size: 14.5px; }
+.pos-table.dense1 tbody td, .pos-table.dense1 tfoot td { padding-top: 8px; padding-bottom: 8px; font-size: 14px; }
+.pos-table.dense1 tr.pos-class-head td { padding-top: 15px; padding-bottom: 5px; font-size: 15px; }
+.pos-table.dense1 tr.pos-class-sub td { padding-top: 7px; padding-bottom: 7px; font-size: 14px; }
+.pos-table.dense1 .pos-sub-name, .pos-table.dense1 .nc-table td.pos-sub-num, .pos-table.dense1 td.pos-sub-num { font-size: 14px; }
+.pos-table.dense15 tbody td, .pos-table.dense15 tfoot td { padding-top: 5px; padding-bottom: 5px; font-size: 13.5px; }
+.pos-table.dense15 tr.pos-class-head td { padding-top: 11px; padding-bottom: 4px; font-size: 14.5px; }
+.pos-table.dense15 tr.pos-class-sub td { padding-top: 5px; padding-bottom: 5px; font-size: 13.5px; }
+.pos-table.dense2 tbody td, .pos-table.dense2 tfoot td { padding-top: 3px; padding-bottom: 3px; font-size: 12.5px; }
+.pos-table.dense2 tr.pos-class-sub td { padding-top: 3px; padding-bottom: 3px; font-size: 12.5px; }
+.pos-table.dense2 tr.pos-class-head td { padding-top: 8px; padding-bottom: 3px; font-size: 13.5px; }
+.pos-table.dense2 .pos-sub-name, .pos-table.dense2 td.pos-sub-num { font-size: 12.5px; }
+.pos-table.dense3 tbody td, .pos-table.dense3 tfoot td { padding-top: 1px; padding-bottom: 1px; font-size: 11.5px; }
+.pos-table.dense3 tr.pos-class-head td { padding-top: 3px; padding-bottom: 1px; font-size: 12.5px; }
+.pos-table.dense3 tr.pos-total-row td { padding-top: 5px; padding-bottom: 5px; }
+/* Allocation : donuts agrandis */
+.alloc-donut-wrap { height: 330px; }
+@media (max-width: 768px) { .alloc-donut-wrap { height: 280px; } }
+@media (min-width:769px) and (max-width:1700px){ .pos-table tr > :is(td,th):is(:nth-child(1),:nth-child(4),:nth-child(5)):not([colspan]) { overflow: hidden; max-width: 0; padding-left: 0 !important; padding-right: 0 !important; } }
