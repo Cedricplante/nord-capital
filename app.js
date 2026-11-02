@@ -4057,7 +4057,7 @@ function monoRamp(n,from,to){
 // Palette catégorielle (2026-10-29, demande de Cédric : « plus de couleur, surtout sur les pie
 // charts pour bien différencier les sections »). Utilisée par tous les donuts ; le rouge/vert
 // restent réservés aux P&L dans les tableaux.
-const CAT_COLORS_DARK=['#6e9bff','#f2b04a','#4cc38a','#c58bf0','#f27d78','#45c8d8','#e8d658','#9a88f5','#f59a5b','#86c46c','#e56aa6','#58a8c4'];
+const CAT_COLORS_DARK=['#5b8dff','#f9a825','#2fe49a','#c276ff','#ff6b64','#2fd6ea','#f5e03a','#8b78ff','#ff8a3d','#7ddc55','#ff4fa8','#3fb8e0'];
 const CAT_COLORS_LIGHT=['#3b6fd8','#d98a12','#11845b','#9b4fcf','#d4423f','#0f9bb0','#b8a017','#6a56d6','#d9692a','#4f9a37','#c43d85','#2b7f9e'];
 function catPalette(n){
   const light=document.documentElement.getAttribute('data-theme')==='light';

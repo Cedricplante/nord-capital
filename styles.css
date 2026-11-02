@@ -16,14 +16,15 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #1b1b1c; --side: #1b1b1c; --bg2: #242425; --bg3: #2c2c2d; --bg4: #373738;
-  --border: #363637; --border2: #484849;
-  --hair: rgba(255,255,255,0.09); --row-hover: rgba(255,255,255,0.035); --seg-on: #3b3b3c;
-  --text: #f6f6f6; --text2: #d0d0d0; --text3: #9c9c9c;
+  --bg: #050505; --side: #050505; --bg2: #0c0c0c; --bg3: #131313; --bg4: #1b1b1b;
+  --band: #373738; --band-line: #484849;
+  --border: #1c1c1c; --border2: #2a2a2a;
+  --hair: rgba(255,255,255,0.08); --row-hover: rgba(255,255,255,0.03); --seg-on: #242424;
+  --text: #ffffff; --text2: #e6e6e6; --text3: #b4b4b4;
   --accent: #f4f4f4; --accent-rgb: 244,244,244; --accent-hot: #ffffff; --accent-deep: #d4d4d4;
   --accent-dim: rgba(255,255,255,0.06); --accent-glow: rgba(255,255,255,0.10);
-  --pos: #4cc38a; --neg: #ee6b67; --green: #4cc38a; --red: #ee6b67;
-  --green-dim: rgba(76,195,138,0.12); --green-glow: rgba(76,195,138,0.18);
+  --pos: #2fe49a; --neg: #ff5a55; --green: #2fe49a; --red: #ff5a55;
+  --green-dim: rgba(47,228,154,0.14); --green-glow: rgba(47,228,154,0.22);
   --blue: #8a8a8a; --blue-dim: rgba(255,255,255,0.05); --blue-glow: rgba(255,255,255,0.08);
   --cyan: #a3a3a3; --purple: #a3a3a3; --steel: #6f6f6f; --amber: #b5b5b5;
   --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
@@ -34,6 +35,7 @@
   color-scheme: dark;
 }
 [data-theme="light"] {
+  --band: var(--bg4); --band-line: var(--border2);
   --bg: #fafafa; --side: #f5f5f4; --bg2: #ffffff; --bg3: #f4f4f4; --bg4: #ebebeb;
   --border: #e6e6e6; --border2: #d4d4d4;
   --hair: rgba(0,0,0,0.075); --row-hover: rgba(0,0,0,0.025); --seg-on: #ffffff;
@@ -820,13 +822,13 @@ tr.pos-cash-row td { font-size: 12.5px; }
 tr.pos-class-head td { padding: 26px 12px 9px; font-size: 16px; font-weight: 650; border-bottom: 1.5px solid var(--text3); }
 tr.pos-class-head .pos-class-count { font-size: 12.5px; }
 #pos-body tr.pos-class-head:first-child td { padding-top: 12px; }
-tr.pos-class-sub td, tr.pos-class-sub:hover td { background: var(--bg4) !important; border-top: 1px solid var(--border2); border-bottom: 1px solid var(--border2); padding-top: 12px; padding-bottom: 12px; font-size: 15px; }
+tr.pos-class-sub td, tr.pos-class-sub:hover td { background: var(--band) !important; border-top: 1px solid var(--band-line); border-bottom: 1px solid var(--band-line); padding-top: 12px; padding-bottom: 12px; font-size: 15px; }
 .pos-sub-name { font-size: 15px; font-weight: 700; color: var(--text); margin-right: 18px; }
 .pos-sub-w { font-size: 12.5px; color: var(--text2); }
 .pos-sub-w b { color: var(--text); font-weight: 700; }
 .nc-table td.pos-sub-num { font-weight: 700; color: var(--text); font-size: 15px; }
 .nc-table td.pos-sub-num.pos { color: var(--pos); } .nc-table td.pos-sub-num.neg { color: var(--neg); }
-.pos-table tr.pos-total-row td { background: var(--bg4) !important; border-top: 2px solid var(--text2); border-bottom: none; font-weight: 700; color: var(--text); font-size: 16px; padding-top: 14px; padding-bottom: 14px; }
+.pos-table tr.pos-total-row td { background: var(--band) !important; border-top: 2px solid var(--text2); border-bottom: none; font-weight: 700; color: var(--text); font-size: 16px; padding-top: 14px; padding-bottom: 14px; }
 .pos-table tr.pos-total-row td.muted { font-weight: 500; font-size: 12.5px !important; color: var(--text2); }
 tr.pos-total-row td.pos { color: var(--pos); } tr.pos-total-row td.neg { color: var(--neg); }
 /* Paliers de densité (du plus grand au plus serré) : fitPosTable garde le plus grand qui tient. */

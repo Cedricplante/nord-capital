@@ -113,7 +113,7 @@ ok(/dir-short/.test((E("positions[0].dir='Short';renderPosTable();document.getEl
 // ── 8. 2026-11-02b : cash retiré, sous-totaux visibles, donuts agrandis, fond plus clair
 ok(!/pos-cash-row/.test(E("document.getElementById('pos-body').innerHTML")),'Positions : aucune ligne de compte de cash');
 ok(/Total positions/.test(E("document.getElementById('pos-foot').textContent")),'pied : « Total positions »');
-ok(/tr\.pos-class-sub td[^{]*\{ background: var\(--bg4\) !important/.test(css)&&/tr\.pos-total-row td \{ background: var\(--bg4\)/.test(css),'CSS : sous-totaux et total sur bande visible');
+ok(/tr\.pos-class-sub td[^{]*\{ background: var\(--band\) !important/.test(css)&&/tr\.pos-total-row td \{ background: var\(--band\)/.test(css),'CSS : sous-totaux et total sur bande visible');
 const hm=css.match(/\.alloc-donut-wrap \{ height: (\d+)px/g)[0];ok(parseInt(hm.match(/\d+/)[0])>=300,'CSS : donuts Allocation agrandis ('+hm+')');
-const bgm=css.match(/:root \{\s*--bg: (#[0-9a-f]{6})/)[1];ok(parseInt(bgm.slice(1,3),16)>0x14,'fond sombre plus clair que #0b0b0b ('+bgm+')');
+const bgm=css.match(/:root \{\s*--bg: (#[0-9a-f]{6})/)[1];ok(parseInt(bgm.slice(1,3),16)<0x0b,'fond sombre plus foncé que #0b0b0b ('+bgm+')');
 console.log(fails?`\n${fails} ÉCHEC(S)`:'\nTOUT PASSE');process.exit(fails?1:0);
