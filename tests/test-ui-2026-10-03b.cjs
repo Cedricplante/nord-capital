@@ -33,7 +33,7 @@ let fails=0;const ok=(c,m)=>{console.log((c?'PASS ':'FAIL ')+m);if(!c)fails++;};
   ok(E(`document.querySelector('#pos-body tr.pos-class-head .pos-class-dot')!==null`),'en-tête de classe avec pastille couleur');
   ok(E(`[...document.querySelectorAll('#pos-body tr.pos-class-sub')].every(r=>/^Total /.test(r.querySelector('.pos-sub-name').textContent))`),'sous-totaux libellés « Total <classe> »');
   ok(E(`document.querySelector('#pos-body tr.pos-class-head').getAttribute('style').includes('--cls')`),'couleur de classe passée en variable CSS');
-  ok(E(`document.querySelectorAll('#pos-body .row-act').length`)===4,'actions Modifier/Fermer en boutons discrets');
+  ok(E(`document.querySelectorAll('#pos-body .row-act').length`)%3===0&&E(`document.querySelectorAll('#pos-body .row-act').length`)>=3,'actions Modifier/Transférer/Fermer en boutons discrets (2026-11-02)');
 }
 // ---- 3. Rampe Optimus (rouge positions / bleu cash)
 {
@@ -41,9 +41,9 @@ let fails=0;const ok=(c,m)=>{console.log((c?'PASS ':'FAIL ')+m);if(!c)fails++;};
   const r=E(`optimusRamp('red',5)`),b=E(`optimusRamp('blue',4)`);
   // Refonte 2026-10-11 : niveaux de gris — positions (clairs) et cash (moyens) restent distincts.
   ok(r.length===5&&new Set(r).size===5,'5 tons distincts pour les positions');
-  ok(r.concat(b).every(c=>/^hsl\(0 0% \d+%\)$/.test(c)),'rampes en niveaux de gris : '+r.concat(b).join(' '));
-  const L=c=>+c.match(/(\d+)%\)$/)[1];
-  ok(Math.min(...r.map(L))>Math.max(...b.map(L)),'positions plus claires que le cash (thème sombre)');
+  // 2026-10-29 / 2026-11-02 : les rampes ne sont plus grises (palette catégorielle + palette cash contrastée).
+  ok(new Set(b).size===4&&b.every(c=>/^#[0-9a-f]{6}$/i.test(c)),'4 couleurs distinctes pour les comptes de cash : '+b.join(' '));
+  ok(!r.some(c=>b.includes(c)),'positions et cash ne partagent aucune couleur');
 }
 // ---- 4. Fiche du gestionnaire : TWR exclut les dépôts, notes bornées
 {

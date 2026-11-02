@@ -605,6 +605,7 @@ function auditTradeSig(t){return JSON.stringify([t.date,t.type,t.symbol,+(+t.sha
 function auditTradeTxt(t){
   const acct=t.account||t.accountType;const a=acct?` (${acct})`:'';
   if(t.type==='Achat'||t.type==='Vente')return`${t.type} ${t.shares??''} ${t.symbol} @ ${fmtPrice(t.price)}${a}`;
+  if(t.type==='TransfertActif')return`Transfert d'actif ${t.shares??''} ${t.symbol} ${t.fromAccount||''} → ${t.toAccount||''}`;
   return`${t.type} ${fmtAmt(t.size||0)}${t.symbol&&t.symbol!=='CASH'?' '+t.symbol:''}${a}`;
 }
 function auditSnapshot(){

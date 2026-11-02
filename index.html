@@ -234,7 +234,7 @@
               <div class="field"><label>Prix achat ($)</label><input type="number" id="f-entry" step="any" oninput="calcMontant()" /></div>
               <div class="field"><label>Shares</label><input type="number" id="f-shares" step="any" oninput="calcMontant()" /></div>
               <div class="field"><label>Prix actuel ($)</label><input type="number" id="f-current" step="any" /></div>
-              <div class="field"><label>Montant</label><input type="number" id="f-size" step="any" readonly style="background:var(--bg3);color:var(--text3);cursor:not-allowed;" /></div>
+              <div class="field"><label>Montant investi</label><input type="number" id="f-size" step="any" placeholder="auto" oninput="onMontantInput()" title="Laisse vide : shares × prix. Ou saisis le montant investi : les shares sont recalculées (ou le prix, si tu as saisi les shares sans prix)." /></div>
               <div class="field"><label>Devise</label><select id="f-currency" onchange="renderFundingUI()"><option value="USD">USD</option><option value="CAD">CAD</option><option value="EUR">EUR</option><option value="CHF">CHF</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="NZD">NZD</option></select></div>
               <div class="field"><label>Compte</label>
                 <select id="f-account" onchange="renderFundingUI()">
@@ -256,7 +256,7 @@
               </div>
               <div style="display:flex;align-items:center;gap:12px;">
                 <div id="funding-list" style="display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0;"></div>
-                <div class="dca-hint" style="margin:0;text-align:right;flex-shrink:0;max-width:48%;">Si le symbole existe déjà, le prix moyen sera recalculé (DCA). Montant = shares × prix achat.</div>
+                <div class="dca-hint" style="margin:0;text-align:right;flex-shrink:0;max-width:48%;">Si le symbole existe déjà, le prix moyen sera recalculé (DCA). Montant = shares × prix achat, ou saisis le montant investi pour recalculer les shares.</div>
               </div>
               <div id="funding-status" style="font-size:11px;font-family:var(--mono);margin-top:6px;"></div>
             </div>
@@ -273,8 +273,8 @@
                 <button class="btn-export" onclick="resetPosFilters()" style="padding:6px 14px;">Réinitialiser</button>
               </div>
             </div>
-            <div class="pos-table-inner"><table class="nc-table pos-table"><thead><tr>
-              <th>#</th>
+            <div class="pos-table-inner"><table class="nc-table pos-table"><colgroup><col class="col-idx"><col><col><col class="col-dir"><col class="col-date"><col><col><col><col><col><col><col><col><col><col class="col-acts"></colgroup><thead><tr>
+              <th class="th-idx"></th>
               <th class="sortable" onclick="sortBy('symbol')">Symbole<span class="sort-arrow" id="sort-symbol">⇅</span></th>
               <th class="sortable" onclick="sortBy('account')">Compte<span class="sort-arrow" id="sort-account">⇅</span></th>
               <th>Dir.</th>
@@ -288,7 +288,7 @@
               <th class="sortable" onclick="sortBy('pnlPct')">P&amp;L %<span class="sort-arrow" id="sort-pnlPct">⇅</span></th>
               <th class="sortable" onclick="sortBy('weight')" title="Poids de la position dans le portefeuille total (positions + cash). La colonne somme à 100 %.">Poids pos.<span class="sort-arrow" id="sort-weight">⇅</span></th>
               <th class="sortable" onclick="sortBy('weightClass')" title="Poids de la position dans SA classe d'actifs (Cash = cash dispo + CASH.TO). Chaque classe somme à 100 %.">Poids classe<span class="sort-arrow" id="sort-weightClass">⇅</span></th>
-              <th>Actions</th>
+              <th class="th-acts"></th>
             </tr></thead><tbody id="pos-body"></tbody><tfoot id="pos-foot"></tfoot></table></div>
           </div>
         </div>
@@ -316,7 +316,7 @@
             <button class="btn-ghost undo-btn" type="button" onclick="undoLast()" style="display:none;padding:5px 12px;font-size:11px;">↶ Annuler la dernière opération</button>
             <select id="filter-month" onchange="renderHistory()" class="filter-select"><option value="">Tous les mois</option></select>
             <select id="filter-asset" onchange="renderHistory()" class="filter-select"><option value="">Tous les actifs</option></select>
-            <select id="filter-type" onchange="renderHistory()" class="filter-select"><option value="">Tous les types</option><option value="Achat">Achats</option><option value="Vente">Ventes</option><option value="Dépôt">Dépôts</option><option value="Retrait">Retraits</option><option value="Dividende">Dividendes</option><option value="Transfert">Transferts</option></select>
+            <select id="filter-type" onchange="renderHistory()" class="filter-select"><option value="">Tous les types</option><option value="Achat">Achats</option><option value="Vente">Ventes</option><option value="Dépôt">Dépôts</option><option value="Retrait">Retraits</option><option value="Dividende">Dividendes</option><option value="Transfert">Transferts de cash</option><option value="TransfertActif">Transferts d'actifs</option></select>
             <button class="btn-export" onclick="resetFilters()">Réinitialiser</button>
           </div>
         </div>
@@ -891,8 +891,9 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
       <div class="field"><label>Direction</label><select id="edit-dir"><option>Long</option><option>Short</option></select></div>
       <div class="field"><label>Date d'entrée</label><input type="date" id="edit-date" /></div>
-      <div class="field"><label>Prix moyen ($)</label><input type="number" id="edit-avgentry" step="any" /></div>
-      <div class="field"><label>Shares</label><input type="number" id="edit-shares" step="any" /></div>
+      <div class="field"><label>Prix moyen ($)</label><input type="number" id="edit-avgentry" step="any" oninput="onEditAmtInput('price')" /></div>
+      <div class="field"><label>Shares</label><input type="number" id="edit-shares" step="any" oninput="onEditAmtInput('shares')" /></div>
+      <div class="field"><label>Montant investi</label><input type="number" id="edit-size" step="any" oninput="onEditAmtInput('size')" title="Modifier le montant recalcule le prix moyen (shares inchangées)" /></div>
       <div class="field"><label>Prix actuel ($)</label><input type="number" id="edit-current" step="any" /></div>
       <div class="field"><label>Devise</label>
         <select id="edit-currency"><option value="USD">USD</option><option value="CAD">CAD</option><option value="EUR">EUR</option><option value="CHF">CHF</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="NZD">NZD</option></select>
@@ -911,6 +912,30 @@
     <div style="display:flex;gap:10px;">
       <button class="btn" style="flex:1;padding:10px;" onclick="confirmEdit()">Sauvegarder</button>
       <button class="btn-ghost" style="padding:10px 16px;" onclick="cancelEdit()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRANSFERT D'ACTIF ENTRE COMPTES -->
+<div class="modal-overlay" id="ta-modal-overlay">
+  <div class="modal" style="width:480px;max-width:95vw;">
+    <div class="modal-title">Transférer — <span id="ta-symbol"></span></div>
+    <div id="ta-info" style="font-size:12px;color:var(--text3);margin-bottom:14px;line-height:1.6;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;">
+      <div class="field"><label>Compte source</label><input type="text" id="ta-src" readonly /></div>
+      <div class="field"><label>Compte destination</label><select id="ta-dest" onchange="updateTransferPreview()"></select></div>
+      <div class="field"><label>Shares à transférer</label><input type="number" id="ta-shares" step="any" oninput="updateTransferPreview()" /></div>
+      <div class="field"><label>Date</label><input type="date" id="ta-date" /></div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;">
+      <button class="btn-ghost" type="button" style="padding:4px 10px;font-size:11px;" onclick="setTransferPct(0.25)">25 %</button>
+      <button class="btn-ghost" type="button" style="padding:4px 10px;font-size:11px;" onclick="setTransferPct(0.5)">50 %</button>
+      <button class="btn-ghost" type="button" style="padding:4px 10px;font-size:11px;" onclick="setTransferPct(1)">Tout</button>
+    </div>
+    <div id="ta-preview" style="font-size:12px;color:var(--text2);min-height:34px;margin-bottom:14px;line-height:1.6;"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn" style="flex:1;padding:10px;" onclick="confirmTransferAsset()">Transférer</button>
+      <button class="btn-ghost" style="padding:10px 16px;" onclick="cancelTransferAsset()">Annuler</button>
     </div>
   </div>
 </div>

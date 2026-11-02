@@ -1807,6 +1807,23 @@ function reconstructCashLots(deductOnBuy){
       const amt=hasOriginal?t.originalAmt:t.size;
       const cur=hasOriginal?t.originalCurrency:'USD';
       _clAddLot(acct(account),'profit',amt,cur,t.date,[]);
+    }else if(t.type==='TransfertActif'){
+      // Transfert d'actif (2026-11-02) : aucun mouvement de cash ; la provenance du
+      // financement (clé symbole+compte) suit les shares déplacées, plus anciennes d'abord.
+      const toName=normAcct(t.toAccount,tCur);
+      const fromList=entryFunding[t.symbol+'|'+account]||[];
+      const toList=entryFunding[t.symbol+'|'+toName]=entryFunding[t.symbol+'|'+toName]||[];
+      let rem=t.shares||0;
+      while(rem>0.000001&&fromList.length){
+        const e0=fromList[0];
+        if(e0.shares<=rem+0.000001){toList.push({...e0,account:toName});rem-=e0.shares;fromList.shift();}
+        else{
+          const frac=rem/e0.shares;
+          toList.push({...e0,shares:rem,funding:_clScaleFunding(e0.funding,frac),account:toName});
+          e0.funding=_clScaleFunding(e0.funding,(e0.shares-rem)/e0.shares);
+          e0.shares-=rem;rem=0;
+        }
+      }
     }else if(t.type==='Achat'){
       const amt=t.size,cur=t.currency||'USD';
       // Financement multi-comptes (2026-10-01) : t.funding = [{account,amount,currency,srcAmount,srcCurrency}].
@@ -1943,6 +1960,17 @@ async function fetchLivePrices(){
 
 // ─── AUTOCOMPLETE ─────────────────────────────────────────────────
 let acIndex=-1;
+// Montant investi saisi à la main (2026-11-02, demande de Cédric) : le montant pilote les shares
+// (prix achat connu) ou le prix (shares connues, prix vide), pour que totalSize = avgEntry × shares
+// reste vrai partout (valuation.js, intégrité). Vide = comportement historique (shares × prix).
+function onMontantInput(){
+  const sz=parseFloat(document.getElementById('f-size').value),e=parseFloat(document.getElementById('f-entry').value),sh=parseFloat(document.getElementById('f-shares').value);
+  if(sz>0){
+    if(e>0)document.getElementById('f-shares').value=parseFloat((sz/e).toFixed(8));
+    else if(sh>0)document.getElementById('f-entry').value=parseFloat((sz/sh).toFixed(6));
+  }
+  if(typeof renderFundingUI==='function')renderFundingUI();
+}
 function calcMontant(){const e=parseFloat(document.getElementById('f-entry').value),s=parseFloat(document.getElementById('f-shares').value);if(!isNaN(e)&&!isNaN(s)&&e>0&&s>0)document.getElementById('f-size').value=(e*s).toFixed(2);else document.getElementById('f-size').value='';if(typeof renderFundingUI==='function')renderFundingUI();}
 function onSymbolInput(val, inputId='f-symbol', dropdownId='symbol-dropdown'){
   const list=document.getElementById(dropdownId);if(!val||val.length<1){list.classList.remove('open');return;}
@@ -2810,14 +2838,14 @@ function posRow(p,idx,displayIdx){
   // Le badge DCA×N se met à jour automatiquement via entries.length après FIFO
   const sharesStr=shares?shares.toLocaleString('fr-FR',{maximumFractionDigits:6}):'—';
   const curBadge=p.currency&&p.currency!=='USD'?`<span style="font-size:9px;color:var(--amber);margin-left:4px;">${p.currency}</span>`:'';
-  const acctBadge=p.account?`<span class="badge-dca ${getAcctClass(p.account)}">${p.account}</span>`:'<span style="color:var(--text3);font-size:10px;">—</span>';
+  const acctBadge=p.account?`<span class="acct-txt">${escapeHtml(p.account)}</span>`:'<span class="acct-txt">—</span>';
   const isExpanded=expandedDcaIdx.has(idx);
   const isSelected=selectedPosIdx===idx;
   const rowClass=isSelected?'row-selected':'';
   const dcaToggle=isDca?`<span onclick="toggleDcaExpand(${idx},event)" style="cursor:pointer;color:var(--purple);font-size:10px;margin-left:4px;user-select:none;">${isExpanded?'▲':'▼'}</span>`:'';
   let html=`<tr class="${rowClass}" onclick="selectPosRow(${idx})" style="cursor:pointer;">
-    <td style="color:var(--text3);font-size:10px;">#${displayIdx+1}</td>
-    <td class="sym">${p.symbol}${isDca?`<span class="badge-dca">DCA×${p.entries.length}</span>`:''}${dcaToggle}${curBadge}${p.note?'<span style="display:inline-block;width:5px;height:5px;background:var(--cyan);border-radius:50%;margin-left:5px;vertical-align:middle;" title="'+escapeHtml(p.note)+'"></span>':''}${getProvenanceBadge(p)}</td>
+    <td class="td-idx"></td>
+    <td class="sym">${p.symbol}${p.dir==='Short'?'<span class="dir-tag dir-short" style="margin-left:6px;font-size:11px;">Short</span>':''}${isDca?`<span class="badge-dca">DCA×${p.entries.length}</span>`:''}${dcaToggle}${curBadge}${p.note?'<span style="display:inline-block;width:5px;height:5px;background:var(--cyan);border-radius:50%;margin-left:5px;vertical-align:middle;" title="'+escapeHtml(p.note)+'"></span>':''}${getProvenanceBadge(p)}</td>
     <td>${acctBadge}</td>
     <td><span class="dir-tag ${p.dir==='Long'?'dir-long':'dir-short'}">${p.dir}</span></td>
     <td style="color:var(--text3);">${firstDate}</td>
@@ -2830,10 +2858,11 @@ function posRow(p,idx,displayIdx){
     <td class="${cls}">${fmtPct(pct)}</td>
     <td class="w-cell">${fmtW(w.weight)}</td>
     <td class="w-cell w-muted" title="Part de la position dans sa classe (${escapeHtml(w.cat)})">${fmtW(w.weightClass)}</td>
-    <td class="row-acts">
+    <td class="row-acts"><div class="row-acts-in">
       <button class="row-act" onclick="openEditModal(${idx});event.stopPropagation();" title="Modifier la position">Modifier</button>
+      <button class="row-act" onclick="openTransferAssetModal(${idx});event.stopPropagation();" title="Transférer vers un autre compte">Transférer</button>
       <button class="row-act row-act-danger" onclick="openCloseModal(${idx});event.stopPropagation();" title="Vendre / fermer">Fermer</button>
-    </td>
+    </div></td>
   </tr>`;
   // Note row — appears when row is selected
   if(isSelected){
@@ -2865,7 +2894,7 @@ function posRow(p,idx,displayIdx){
       const entryPnlAbs=e.price>0?(p.dir==='Long'?(p.current-e.price):(e.price-p.current))*entryShares:0;
       const entryPnlPct=e.price>0?(p.dir==='Long'?(p.current-e.price)/e.price*100:(e.price-p.current)/e.price*100):0;
       const entryPnlCls=entryPnlAbs>=0?'pos':'neg';
-      const entryAcctBadge=p.account?`<span class="badge-dca ${getAcctClass(p.account)}" style="font-size:9px;">${p.account}</span>`:'<span style="color:var(--text3);font-size:10px;">—</span>';
+      const entryAcctBadge=p.account?`<span class="acct-txt">${escapeHtml(p.account)}</span>`:'<span class="acct-txt">—</span>';
       return`<tr class="dca-detail-row">
         <td></td>
         <td style="padding-left:20px;color:var(--purple);">└ Achat ${ei+1}</td>
@@ -3053,9 +3082,9 @@ function posClassSubtotalRow(c,g,wt){
 function cashWeightRow(wt,i){
   const r=wt.cashRows[i];
   return `<tr class="pos-cash-row">
-    <td class="muted">—</td>
+    <td class="td-idx"></td>
     <td class="sym" style="color:var(--text2);">Cash</td>
-    <td><span class="badge-dca ${getAcctClass(r.account)}">${escapeHtml(r.account)}</span></td>
+    <td><span class="acct-txt">${escapeHtml(r.account)}</span></td>
     <td class="muted">—</td><td class="muted">—</td>
     <td class="muted">${escapeHtml(r.native||'')}</td><td class="muted"></td>
     <td class="muted">—</td><td class="muted">—</td>
@@ -3095,10 +3124,19 @@ function openEditModal(idx){
   document.getElementById('edit-date').value=p.entries?.[0]?.date||localToday();
   document.getElementById('edit-avgentry').value=p.avgEntry||'';
   document.getElementById('edit-shares').value=p.shares||'';
+  {const es=document.getElementById('edit-size');if(es)es.value=(p.shares&&p.avgEntry)?parseFloat((p.shares*p.avgEntry).toFixed(2)):'';}
   document.getElementById('edit-current').value=p.current||'';
   document.getElementById('edit-currency').value=p.currency||'USD';
   document.getElementById('edit-account').value=p.account||'';
   document.getElementById('edit-modal-overlay').classList.add('open');
+}
+// Montant investi / prix moyen / shares liés (2026-11-02) : modifier le montant recalcule le prix
+// moyen (shares inchangées) ; modifier prix ou shares recalcule le montant.
+function onEditAmtInput(src){
+  const g=id=>parseFloat(document.getElementById(id).value);
+  const avg=g('edit-avgentry'),sh=g('edit-shares'),sz=g('edit-size');
+  if(src==='size'){if(sz>0&&sh>0)document.getElementById('edit-avgentry').value=parseFloat((sz/sh).toFixed(6));}
+  else if(avg>0&&sh>0)document.getElementById('edit-size').value=parseFloat((avg*sh).toFixed(2));
 }
 function cancelEdit(){editTarget=null;document.getElementById('edit-modal-overlay').classList.remove('open');}
 async function confirmEdit(){
@@ -3108,12 +3146,95 @@ async function confirmEdit(){
   p.avgEntry=parseFloat(document.getElementById('edit-avgentry').value)||p.avgEntry;
   p.shares=parseFloat(document.getElementById('edit-shares').value)||p.shares;
   p.totalSize=p.avgEntry*p.shares;
+  // Un seul lot (position sans DCA) : le lot suit le prix/les shares modifiés, sinon l'intégrité
+  // « lots = parts détenues » signalerait un écart. Plusieurs lots : inchangé (comportement historique).
+  if(p.entries&&p.entries.length===1){const e0=p.entries[0];e0.price=p.avgEntry;e0.shares=p.shares;e0.size=p.totalSize;}
   p.current=parseFloat(document.getElementById('edit-current').value)||p.current;
   p.currency=tickerCurrency(p.symbol)||document.getElementById('edit-currency').value||p.currency;
   p.account=document.getElementById('edit-account').value;
   const newDate=document.getElementById('edit-date').value;
   if(p.entries&&p.entries[0]&&newDate)p.entries[0].date=newDate;
   cancelEdit();await saveData();renderAll();
+}
+
+// ─── TRANSFERT D'ACTIF ENTRE COMPTES (2026-11-02, demande de Cédric) ────────────────────────
+// Déplace tout ou une partie d'une position vers un autre compte, sans toucher au cash, au P&L
+// réalisé, au benchmark ni au TWR. Les lots (date, prix, taux de change figé) suivent les shares
+// déplacées, plus anciennes d'abord (comme la vente FIFO). Trace dans l'Activité : type
+// 'TransfertActif'. reconstructCashLots() fait suivre la provenance du financement (profit vs
+// principal) avec les shares, de sorte que la vente future dans le compte destination rende le
+// cash au bon endroit.
+let transferTarget=null;
+function openTransferAssetModal(idx){
+  const p=positions[idx];if(!p)return;
+  transferTarget=idx;
+  document.getElementById('ta-symbol').textContent=p.symbol;
+  document.getElementById('ta-src').value=p.account||'—';
+  const dest=document.getElementById('ta-dest');
+  dest.innerHTML=document.getElementById('edit-account').innerHTML;
+  [...dest.querySelectorAll('option')].forEach(o=>{if(o.value===(p.account||''))o.remove();});
+  const first=dest.querySelector('option[value=""]');if(first)first.textContent='— Sélectionner (requis)';
+  dest.value='';
+  document.getElementById('ta-shares').value=p.shares||'';
+  document.getElementById('ta-date').value=localToday();
+  document.getElementById('ta-info').textContent=`${p.shares||0} shares · prix moyen ${fmtPrice(p.avgEntry)} · valeur ${fmtC((p.shares||0)*p.current,getPosCurrency(p))}`;
+  updateTransferPreview();
+  document.getElementById('ta-modal-overlay').classList.add('open');
+}
+function cancelTransferAsset(){transferTarget=null;document.getElementById('ta-modal-overlay').classList.remove('open');}
+function setTransferPct(pct){const p=positions[transferTarget];if(!p)return;document.getElementById('ta-shares').value=pct>=1?(p.shares||0):parseFloat(((p.shares||0)*pct).toFixed(8));updateTransferPreview();}
+function updateTransferPreview(){
+  const el=document.getElementById('ta-preview');if(!el)return;
+  const p=positions[transferTarget];if(!p){el.textContent='';return;}
+  const sh=parseFloat(document.getElementById('ta-shares').value),dest=document.getElementById('ta-dest').value;
+  if(!(sh>0)||!dest){el.textContent='Choisis le compte destination et le nombre de shares.';return;}
+  const pct=(p.shares>0?sh/p.shares*100:0);
+  const existing=positions.find(q=>q!==p&&q.symbol===p.symbol&&q.dir===p.dir&&(q.account||'')===dest);
+  el.textContent=`${sh} / ${p.shares} shares (${pct.toFixed(1)} %) de ${p.account||'—'} vers ${dest}`+(existing?` — fusionné avec la position existante de ${dest}.`:` — nouvelle position dans ${dest}.`)+' Aucun impact sur le cash ni sur le P&L.';
+}
+function _wavg(entries){const sh=entries.reduce((s,e)=>s+(e.shares||0),0);return sh>0?entries.reduce((s,e)=>s+(e.price||0)*(e.shares||0),0)/sh:0;}
+async function confirmTransferAsset(){
+  if(transferTarget===null)return;
+  const p=positions[transferTarget];if(!p)return;
+  const dest=document.getElementById('ta-dest').value,src=p.account||'';
+  const sh=parseFloat(document.getElementById('ta-shares').value),date=document.getElementById('ta-date').value||localToday();
+  const total=p.shares||0;
+  if(!dest){alert('Sélectionne le compte destination.');return;}
+  if(dest===src){alert('Le compte destination doit être différent du compte source.');return;}
+  if(!(sh>0)){alert('Entre le nombre de shares à transférer.');return;}
+  if(sh>total+1e-9){alert(`Tu ne détiens que ${total} shares de ${p.symbol} dans ${src||'ce compte'}.`);return;}
+  if(date>localToday()){alert('La date ne peut pas être dans le futur.');return;}
+  const entries=(p.entries&&p.entries.length)?p.entries.map(e=>({...e})):[{price:p.avgEntry,shares:total,size:p.totalSize,date:localToday(),fxSnapshot:fxSnapshotFor(getPosCurrency(p))}];
+  let remaining=sh;const moved=[],kept=[];
+  entries.forEach(e=>{
+    const es=e.shares||0;
+    if(remaining>1e-9&&es>0){
+      if(es<=remaining+1e-9){moved.push(e);remaining-=es;}
+      else{const f=remaining/es;moved.push({...e,shares:remaining,size:(e.size||0)*f});kept.push({...e,shares:es-remaining,size:(e.size||0)*(1-f)});remaining=0;}
+    }else kept.push(e);
+  });
+  const movedShares=moved.reduce((s,e)=>s+(e.shares||0),0),movedAvg=_wavg(moved);
+  pushUndo(`Transfert d'actif ${sh} ${p.symbol} ${src||'—'} → ${dest} du ${date}`);
+  // Destination : fusion avec la position du même symbole/direction dans ce compte, sinon nouvelle.
+  const existing=positions.find(q=>q!==p&&q.symbol===p.symbol&&q.dir===p.dir&&(q.account||'')===dest);
+  if(existing){
+    const all=[...(existing.entries||[]),...moved].map((e,i)=>({e,i})).sort((x,y)=>(x.e.date||'').localeCompare(y.e.date||'')||x.i-y.i).map(x=>x.e);
+    existing.entries=all;existing.shares=all.reduce((s,e)=>s+(e.shares||0),0);
+    existing.avgEntry=_wavg(all);existing.totalSize=existing.avgEntry*existing.shares;
+    if(p.current>0)existing.current=p.current;
+  }else{
+    positions.push({...p,account:dest,entries:moved,shares:movedShares,avgEntry:movedAvg,totalSize:movedAvg*movedShares});
+  }
+  // Source : reste (lots restants) ou disparaît si tout est transféré.
+  const keptShares=kept.reduce((s,e)=>s+(e.shares||0),0);
+  const idxSrc=positions.indexOf(p);
+  if(keptShares<=1e-9){positions.splice(idxSrc,1);}
+  else{p.entries=kept;p.shares=keptShares;p.avgEntry=_wavg(kept);p.totalSize=p.avgEntry*keptShares;}
+  trades.unshift({date,symbol:p.symbol,dir:p.dir,type:'TransfertActif',price:p.current,shares:movedShares,size:movedAvg*movedShares,profit:0,currency:getPosCurrency(p),account:src,fromAccount:src,toAccount:dest});
+  selectedPosIdx=null;expandedDcaIdx.clear();
+  cancelTransferAsset();
+  syncCashFromLots();
+  await saveData();renderAll();
 }
 
 function openCloseModal(i){
@@ -3229,6 +3350,9 @@ function renderHistory(){
       const route=`<span class="badge-compte" style="margin-left:4px;">${escapeHtml(t.fromAccount||t.accountType||'?')} → ${escapeHtml(t.toAccount||'?')}</span>`;
       const amtTxt=t.originalAmt!=null&&t.originalCurrency?fmtC(t.originalAmt,t.originalCurrency):fmtAmt(t.size);
       return`<tr style="opacity:0.9;"><td>${t.date}</td><td class="sym" style="color:var(--text3);">—</td><td><span class="badge badge-transfert">Transfert</span>${route}${noteTip}</td><td style="color:var(--text3);">—</td><td>${amtTxt}</td><td style="color:var(--text2);">${fmtAmtRound(t.montantFinal)} cash</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
+    }else if(t.type==='TransfertActif'){
+      const route=`<span class="badge-compte" style="margin-left:4px;">${escapeHtml(t.fromAccount||t.account||'?')} → ${escapeHtml(t.toAccount||'?')}</span>`;
+      return`<tr style="opacity:0.9;"><td>${t.date}</td><td class="sym">${escapeHtml(t.symbol||'—')}</td><td><span class="badge badge-transfert">Transfert d'actif</span>${route}</td><td style="color:var(--text3);">${fmtPrice(t.price)}</td><td>${fmtC(t.size,t.currency)}</td><td style="color:var(--text2);">${(t.shares||0).toLocaleString('fr-FR',{maximumFractionDigits:6})} shares</td><td style="color:var(--text3);">—</td><td style="color:var(--text3);">—</td></tr>`;
     }else if(t.type==='Vente'){
       const profit=t.profit||0;const profitDisp=toUSD(profit,getTradeCurrency(t));totalPnl+=profitDisp;profitDisp>0?wins++:losses++;
       const cls=profitDisp>=0?'pos':'neg',roi=t.size>0?(profit/t.size)*100:0,isDca=t.dcaCount&&t.dcaCount>1;
@@ -3321,6 +3445,7 @@ async function addPosition(){
   // silencieux : sans compte, impossible de savoir dans quel cash piger, donc on bloque.
   if(!account){alert('Sélectionne un compte pour cet achat — requis pour vérifier le cash disponible (plus de "Non spécifié" automatique).');return;}
   if(!(sz>0)){alert('Montant invalide (shares × prix achat doit être > 0).');return;}
+  if(Math.abs(sz-e*shares)>Math.max(0.02,sz*1e-4)){alert('Montant investi incohérent avec shares × prix achat : modifie le montant (il recalcule les shares ou le prix) ou ajuste un des deux champs.');return;}
   // Financement (2026-10-01) : cash prélevé du/des compte(s) choisi(s) dans « Financement »,
   // dans l'ordre de sélection (défaut = le compte de détention). Bloqué si insuffisant, comme avant
   // (demande de Cédric du 2026-07-30), mais on peut maintenant combiner plusieurs comptes.
@@ -3942,11 +4067,22 @@ function catPalette(n){
     return'#'+[f(r),f(g),f(b)].map(v=>v.toString(16).padStart(2,'0')).join('');
   });
 }
-// Rampe turquoise pour les comptes de cash (distincte des positions).
+// Palette des comptes de cash (refaite 2026-11-02, demande de Cédric : « plus de contraste entre
+// les couleurs »). Avant : dégradé turquoise (teinte 188-216°) quasi indiscernable à 5+ comptes.
+// Maintenant : teintes bien séparées, rangées pour que deux tranches voisines aient au moins ~75°
+// d'écart de teinte (on commence par un cyan).
+const CASH_COLORS_DARK=['#38d0e0','#ffb52e','#3b6bff','#6fe06a','#ff4fa8','#c8e84a','#b06cff','#ff6a3d','#8fa6ff','#ffa8c5'];
+const CASH_COLORS_LIGHT=['#0891b2','#d97706','#1d4ed8','#15803d','#be185d','#65a30d','#7e22ce','#ea580c','#4f46e5','#e11d48'];
 function cashRamp(n){
   const light=document.documentElement.getAttribute('data-theme')==='light';
-  const hi=light?58:68,lo=light?30:38;
-  return Array.from({length:Math.max(0,n)},(_,i)=>{const t=n>1?i/(n-1):0;return`hsl(${(188+t*28).toFixed(0)} 62% ${(hi+(lo-hi)*t).toFixed(0)}%)`;});
+  const base=light?CASH_COLORS_LIGHT:CASH_COLORS_DARK;
+  return Array.from({length:Math.max(0,n)},(_,i)=>{
+    const c=base[i%base.length],round=Math.floor(i/base.length);
+    if(!round)return c;
+    const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);
+    const k=light?-0.3*round:0.35*round;const f=v=>Math.max(0,Math.min(255,Math.round(k>=0?v+(255-v)*k:v*(1+k))));
+    return'#'+[f(r),f(g),f(b)].map(v=>v.toString(16).padStart(2,'0')).join('');
+  });
 }
 function benchColor(){return document.documentElement.getAttribute('data-theme')==='light'?'#3b6fd8':'#6e9bff';}
 // Tooltip externe en HTML pour les petits donuts (ex. cashLotsChart 90x90px) — demandé par
@@ -4395,6 +4531,7 @@ function exportCSV(){
     else if(t.type==='Dividende'){rows.push([t.date,t.symbol||'',t.dir||'',t.type,t.accountType||t.account||'','','',t.size,'','','']);}
     else if(t.type==='Achat'){rows.push([t.date,t.symbol,t.dir,'Achat',t.account||'',t.price,'',t.size,'','','']);}
     else if(t.type==='Dépôt'||t.type==='Retrait'){rows.push([t.date,'CASH','',t.type,t.accountType||'','','',t.size,'','','']);}
+    else if(t.type==='TransfertActif'){rows.push([t.date,t.symbol,t.dir,'Transfert d\'actif',`${t.fromAccount||t.account||''} -> ${t.toAccount||''}`,t.price,'',t.size,'','','']);}
     else if(t.type==='Transfert'){rows.push([t.date,'CASH','','Transfert',`${t.fromAccount||t.accountType||''} -> ${t.toAccount||''}`,'','',t.size,'','','']);}
     // Autres types (Cotisation) -- déjà non gérés avant ce changement,
     // hors scope de cet ajout (limitation préexistante de exportCSV, à corriger séparément).
